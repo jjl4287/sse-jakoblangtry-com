@@ -11,6 +11,8 @@ export const Board: React.FC = () => {
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
   const [dragSourceColumnId, setDragSourceColumnId] = useState<string | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  // Track mouse position for the header lighting effect
+  const [mousePos, setMousePos] = useState({ x: '50%', y: '50%' });
 
   // Track card drag start
   const handleDragStart = (item: CardDragItem) => {
@@ -34,11 +36,18 @@ export const Board: React.FC = () => {
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;
       
+      // Update both the state and the element's CSS variables
+      setMousePos({ x: `${x}%`, y: `${y}%` });
       headerElement.style.setProperty('--x', `${x}%`);
       headerElement.style.setProperty('--y', `${y}%`);
     };
     
+    // Add mousemove event listener
     headerElement.addEventListener('mousemove', handleMouseMove);
+    
+    // Initialize position to center
+    headerElement.style.setProperty('--x', '50%');
+    headerElement.style.setProperty('--y', '50%');
     
     return () => {
       headerElement.removeEventListener('mousemove', handleMouseMove);
@@ -87,6 +96,11 @@ export const Board: React.FC = () => {
       <motion.div 
         ref={headerRef}
         className="glass-column glass-border-animated p-4 mb-4 mx-6 mt-6 flex justify-between items-center"
+        style={{ 
+          '--x': mousePos.x, 
+          '--y': mousePos.y,
+          transformOrigin: "center center" 
+        }}
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}

@@ -156,8 +156,8 @@
 /* Glassmorphic card styles */
 @layer components {
   .glass-card {
-    @apply backdrop-blur-md rounded-lg shadow-lg border transition-all;
-    background-color: var(--card-bg-dark);
+    @apply backdrop-blur-md rounded-lg shadow-lg border transition-all z-0 relative;
+    background-color: rgba(255, 255, 255, 0.06);
     border-color: var(--border-dark);
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -165,13 +165,26 @@
   }
   
   .light .glass-card {
-    background-color: rgba(240, 245, 255, 0.85);
-    border-color: rgba(200, 220, 235, 0.4);
+    background-color: rgba(240, 245, 255, 0.7);
+    border-color: rgba(200, 220, 235, 0.25);
     box-shadow: 
-      0 4px 12px rgba(50, 50, 80, 0.08),
-      0 1px 3px rgba(190, 200, 210, 0.3);
+      0 4px 10px rgba(50, 50, 80, 0.06),
+      0 1px 3px rgba(190, 200, 210, 0.2);
     @apply shadow-md;
     color: #2d3748;
+  }
+  
+  .glass-card:hover {
+    @apply shadow-xl z-10;
+    transform: translateY(-2px);
+  }
+  
+  .dark .glass-card:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+  
+  .light .glass-card:hover {
+    background-color: rgba(245, 250, 255, 0.75);
   }
   
   .glass-card-hover {
@@ -230,41 +243,56 @@
 
   /* Animated glassy borders */
   .glass-border-animated {
-    @apply relative overflow-hidden;
+    @apply relative overflow-visible;
     &::before {
       content: '';
-      @apply absolute inset-0 rounded-lg border pointer-events-none opacity-0 transition-opacity duration-700;
+      @apply absolute inset-0 rounded-lg border-2 pointer-events-none opacity-0 transition-all duration-300;
       border-color: var(--border-light);
-      background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.2) 0%, transparent 60%);
+      background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.1) 0%, transparent 40%);
+      box-shadow: 0 0 8px rgba(255,255,255,0.05);
+      transform: scale(1);
+      z-index: 1;
     }
     &:hover::before {
       @apply opacity-100;
+      transform: scale(1.03);
     }
   }
   
   .light .glass-border-animated::before {
-    border-color: rgba(160, 190, 220, 0.3);
-    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(120,160,200,0.1) 0%, transparent 70%);
+    border-color: rgba(160, 190, 220, 0.25);
+    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(120,160,200,0.08) 0%, transparent 50%);
+    box-shadow: 0 0 10px rgba(100,150,200,0.05);
   }
   
-  /* Glass Column - update for more depth in light mode */
+  /* Glass Column - update for frosted glass look */
   .glass-column {
-    @apply backdrop-blur-lg rounded-lg border shadow-md transition-all;
-    background-color: rgba(10, 54, 34, 0.15);
+    @apply backdrop-blur-lg rounded-lg border shadow-md transition-all z-0 relative;
+    background-color: rgba(10, 54, 34, 0.1);
     border-color: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(calc(var(--glass-blur) * 1.5));
-    -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.5));
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(calc(var(--glass-blur) * 1.2));
+    -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.2));
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     color: #ffffff;
   }
   
   .light .glass-column {
-    background-color: rgba(225, 235, 245, 0.65);
-    border-color: rgba(180, 210, 230, 0.5);
+    background-color: rgba(225, 235, 245, 0.6);
+    border-color: rgba(180, 210, 230, 0.3);
     box-shadow: 
-      0 6px 18px rgba(100, 120, 160, 0.1),
-      0 2px 6px rgba(190, 210, 230, 0.2);
+      0 6px 15px rgba(100, 120, 160, 0.08),
+      0 2px 5px rgba(190, 210, 230, 0.15);
     color: #2c3e50;
+  }
+  
+  .glass-column.glass-border-animated:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  }
+  
+  .light .glass-column.glass-border-animated:hover {
+    box-shadow: 
+      0 8px 20px rgba(80, 100, 140, 0.1),
+      0 3px 8px rgba(160, 180, 210, 0.15);
   }
   
   /* Glass button updates */

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, memo } from 'react';
+import React, { useRef, memo, useEffect } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
 import type { Card as CardType } from '~/types';
 import { ItemTypes } from '~/constants/dnd-types';
@@ -26,6 +26,27 @@ export const Card = memo(({
   onDragEnd
 }: CardProps) => {
   const ref = useRef<HTMLDivElement>(null);
+  
+  // Add mouse position tracking for lighting effect
+  useEffect(() => {
+    const cardElement = ref.current;
+    if (!cardElement) return;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = cardElement.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      
+      cardElement.style.setProperty('--x', `${x}%`);
+      cardElement.style.setProperty('--y', `${y}%`);
+    };
+    
+    cardElement.addEventListener('mousemove', handleMouseMove);
+    
+    return () => {
+      cardElement.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
   
   // Set up drag functionality
   const [{ isDragging }, drag] = useDrag({
@@ -139,16 +160,22 @@ export const Card = memo(({
       zIndex: 1,
     },
     hover: {
-      scale: 1.02,
-      y: -2,
       boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
+      zIndex: 5,
+      // We're removing scale and y transform as those are handled in CSS now
     }
   };
 
   return (
     <motion.div
       ref={ref}
-      className={`glass-card glass-depth-2 glass-card-hover p-3 cursor-pointer transition-all group overflow-hidden ${!isDragging && 'glass-border-animated'}`}
+      className={`glass-card glass-depth-2 p-3 cursor-pointer transition-all group ${!isDragging && 'glass-border-animated'}`}
+      style={{ 
+        transformOrigin: "center center",
+        // Initial position for lighting variables
+        '--x': '50%',
+        '--y': '50%'
+      }}
       onClick={handleClick}
       data-handler-id={handlerId}
       initial="normal"
