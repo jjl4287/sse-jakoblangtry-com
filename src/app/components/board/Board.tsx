@@ -97,8 +97,8 @@ export const Board: React.FC = () => {
         ref={headerRef}
         className="glass-column glass-border-animated p-4 mb-4 mx-6 mt-6 flex justify-between items-center"
         style={{ 
-          '--x': mousePos.x, 
-          '--y': mousePos.y,
+          ['--x' as string]: mousePos.x, 
+          ['--y' as string]: mousePos.y,
           transformOrigin: "center center" 
         }}
         initial={{ opacity: 0, y: -20 }}
