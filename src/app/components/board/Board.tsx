@@ -5,6 +5,7 @@ import { Column } from './Column';
 import { useBoard } from '~/services/board-context';
 import type { CardDragItem } from '~/constants/dnd-types';
 import { motion } from 'framer-motion';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 export const Board: React.FC = () => {
   const { board, loading, error } = useBoard();
@@ -105,14 +106,18 @@ export const Board: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <h2 className="text-xl font-semibold">Project Kanban Board</h2>
-        <div className="flex space-x-2">
+        <div className="flex items-center">
+          <h1 className="text-xl font-bold mr-2">Glassmorphic Kanban</h1>
+          <h2 className="text-lg font-semibold opacity-80">Project Board</h2>
+        </div>
+        <div className="flex items-center space-x-3">
           <div className="glass-button px-3 py-1 rounded-full text-sm">
             {board.columns.length} Columns
           </div>
           <div className="glass-button px-3 py-1 rounded-full text-sm">
             {cardCount} Cards
           </div>
+          <ThemeToggle />
         </div>
       </motion.div>
       
