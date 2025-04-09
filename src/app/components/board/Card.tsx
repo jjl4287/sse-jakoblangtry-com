@@ -173,8 +173,8 @@ export const Card = memo(({
       style={{ 
         transformOrigin: "center center",
         // Initial position for lighting variables
-        '--x': '50%',
-        '--y': '50%'
+        ['--x' as string]: '50%',
+        ['--y' as string]: '50%'
       }}
       onClick={handleClick}
       data-handler-id={handlerId}
