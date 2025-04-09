@@ -21,6 +21,7 @@ const config = {
     // Skip ESLint during builds
     ignoreDuringBuilds: true,
   },
+  output: 'export',
 };
 
 export default config;
