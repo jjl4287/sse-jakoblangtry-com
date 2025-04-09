@@ -1,0 +1,214 @@
+# Overview
+A modern, visually striking Kanban board web application built with Next.js 15 and React 19. The application features a glassmorphic design with sophisticated 3D interactions, providing users with an elegant and intuitive project management tool. The focus is on creating a beautiful, performant single-board experience rather than a complex multi-board system.
+
+# Core Features
+
+1. Modern Glassmorphic Interface
+   - Frosted glass effect with translucent cards and columns
+   - Dark mode by default with simple light/dark toggle
+   - Deep green color scheme as the primary palette
+   - Responsive design that works across all screen sizes
+
+2. Interactive Card System
+   - 3D card rotation based on mouse position
+   - Smooth lift and drop animations during drag-and-drop
+   - Expandable cards with detailed view
+   - Context menu for quick actions
+   - Comprehensive card attributes:
+     * Title and description
+     * Labels/tags
+     * Due dates
+     * Assignees
+     * Priority levels
+     * Attachments
+     * Comments
+
+3. Column Management
+   - Four predefined columns:
+     * Product Backlog
+     * In Progress
+     * Code Review
+     * Done
+   - Adjustable column widths
+   - Smooth animations during card transitions
+
+4. Search & Organization
+   - Global search functionality across all cards
+   - Auto-save feature for all changes
+   - Drag-and-drop reordering within and between columns
+
+# User Experience
+
+User Personas:
+1. Primary User
+   - Software developers and project managers
+   - Values visual organization and smooth interactions
+   - Appreciates modern design aesthetics
+   - Needs quick access to task information
+
+Key User Flows:
+1. Card Management
+   - Create new card with basic info
+   - Drag card between columns
+   - Expand card for detailed view/edit
+   - Access quick actions via context menu
+
+2. Board Organization
+   - Search for specific cards
+   - Adjust column widths
+   - Toggle light/dark mode
+   - View and update card details
+
+UI/UX Considerations:
+- Emphasis on smooth animations and transitions
+- Intuitive drag-and-drop interface
+- Clear visual hierarchy through glassmorphic design
+- Consistent 3D interactions for engagement
+
+# Technical Architecture
+
+System Components:
+1. Frontend
+   - Next.js 15 App Router
+   - React 19 with Server Components
+   - Framer Motion for animations
+   - TailwindCSS for styling
+   - HeadlessUI for accessible components
+
+2. Data Layer
+   - JSON file-based storage
+   - Auto-save functionality
+   - Simple file system operations
+
+Data Models:
+```typescript
+interface Board {
+  columns: Column[];
+  theme: 'light' | 'dark';
+}
+
+interface Column {
+  id: string;
+  title: string;
+  width: number;
+  cards: Card[];
+}
+
+interface Card {
+  id: string;
+  title: string;
+  description: string;
+  labels: Label[];
+  dueDate?: Date;
+  assignees: string[];
+  priority: 'low' | 'medium' | 'high';
+  attachments: Attachment[];
+  comments: Comment[];
+  columnId: string;
+  order: number;
+}
+```
+
+# Development Roadmap
+
+Phase 1: Foundation & Basic UI (MVP)
+- Project setup with Next.js 15 and core dependencies
+- Basic board layout with four columns
+- Simple card component with title and description
+- Basic drag-and-drop functionality
+- JSON file storage implementation
+- Dark mode implementation
+
+Phase 2: Enhanced Visuals & Interactions
+- Glassmorphic design implementation
+- 3D card rotation effects
+- Drag and drop animations
+- Column width adjustment
+- Expanded card view modal
+- Context menu implementation
+
+Phase 3: Card Features & Search
+- Complete card attributes implementation
+- Card labels and priority
+- Assignees and due dates
+- Attachments and comments
+- Global search functionality
+- Auto-save implementation
+
+Phase 4: Polish & Performance
+- Animation refinements
+- Performance optimizations
+- Error handling
+- Loading states
+- Final styling adjustments
+
+# Logical Dependency Chain
+
+1. Foundation (Must be built first)
+   - Project setup and configuration
+   - Basic board layout
+   - Simple card data structure
+   - JSON storage implementation
+
+2. Core Functionality
+   - Basic drag-and-drop
+   - Column structure
+   - Card creation/editing
+
+3. Visual Enhancement
+   - Glassmorphic design
+   - Dark mode
+   - 3D card effects
+   - Animations
+
+4. Advanced Features
+   - Extended card attributes
+   - Search functionality
+   - Context menu
+   - Auto-save
+
+# Risks and Mitigations
+
+Technical Challenges:
+1. 3D Card Effects
+   - Risk: Performance issues with many cards
+   - Mitigation: Optimize animations, use hardware acceleration
+
+2. Glassmorphic Design
+   - Risk: Inconsistent appearance across browsers
+   - Mitigation: Fallback styles, progressive enhancement
+
+3. JSON Storage
+   - Risk: Data corruption during saves
+   - Mitigation: Atomic writes, validation before save
+
+MVP Considerations:
+- Focus on core drag-drop functionality first
+- Ensure basic card management works before adding advanced features
+- Implement visual effects incrementally
+
+Resource Optimization:
+- Use built-in Next.js features for optimization
+- Implement lazy loading for card details
+- Optimize animation performance
+
+# Appendix
+
+Technical Specifications:
+- Next.js 15
+- React 19
+- TypeScript
+- TailwindCSS
+- Framer Motion
+- HeadlessUI
+
+Design Resources:
+- Color Palette:
+  * Primary: #0A3622 (Deep Green)
+  * Secondary: #15593B
+  * Accent: #1A7F56
+  * Glass: rgba(10, 54, 34, 0.2)
+
+Browser Support:
+- Modern browsers with CSS Grid support
+- Hardware acceleration for 3D effects 
