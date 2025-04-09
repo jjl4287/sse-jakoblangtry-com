@@ -10,10 +10,16 @@
       "id": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
       "title": "In Progress",
       "width": 25,
+      "cards": []
+    },
+    {
+      "id": "d2b8f9e6-f2b1-4df4-a5da-b2bef1172511",
+      "title": "Code Review",
+      "width": 25,
       "cards": [
         {
           "id": "2fbab781-2c45-4498-b616-ba5aeb6b75a5",
-          "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
+          "columnId": "d2b8f9e6-f2b1-4df4-a5da-b2bef1172511",
           "order": 0,
           "title": "blah blah",
           "description": "blah okdj",
@@ -24,12 +30,6 @@
           "comments": []
         }
       ]
-    },
-    {
-      "id": "d2b8f9e6-f2b1-4df4-a5da-b2bef1172511",
-      "title": "Code Review",
-      "width": 25,
-      "cards": []
     },
     {
       "id": "8fa74b1e-a584-482a-aa8f-1e03664d453e",

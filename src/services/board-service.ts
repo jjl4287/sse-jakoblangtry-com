@@ -1,5 +1,57 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Board, Card, Column, Label, Attachment, Comment } from '~/types';
+import { createDefaultBoard } from '~/types/defaults';
+
+// Local storage key for board data
+const BOARD_STORAGE_KEY = 'kanban_board_data';
+
+/**
+ * Helper functions for localStorage operations in static/production environments
+ */
+const LocalStorage = {
+  // Get the board from localStorage
+  getBoard: async (): Promise<Board> => {
+    const storedData = localStorage.getItem(BOARD_STORAGE_KEY);
+    
+    if (storedData) {
+      try {
+        return JSON.parse(storedData);
+      } catch (e) {
+        console.error('Error parsing stored board data:', e);
+      }
+    }
+    
+    // If no stored data or parsing error, fetch the static JSON
+    try {
+      const response = await fetch('/data/board.json');
+      if (response.ok) {
+        const initialData = await response.json();
+        localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(initialData));
+        return initialData;
+      }
+    } catch (e) {
+      console.error('Error fetching initial board data:', e);
+    }
+    
+    // Fallback to default board
+    const defaultBoard = createDefaultBoard();
+    localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(defaultBoard));
+    return defaultBoard;
+  },
+  
+  // Save the board to localStorage
+  saveBoard: (board: Board): void => {
+    localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(board));
+  },
+  
+  // Update the board in localStorage and return the updated board
+  updateBoard: async (updateFn: (board: Board) => Board): Promise<Board> => {
+    const board = await LocalStorage.getBoard();
+    const updatedBoard = updateFn(board);
+    LocalStorage.saveBoard(updatedBoard);
+    return updatedBoard;
+  }
+};
 
 /**
  * Service for managing the kanban board data
@@ -10,6 +62,12 @@ export class BoardService {
    * @returns The board data
    */
   static async getBoard(): Promise<Board> {
+    // Use localStorage for production/static environment
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+      return await LocalStorage.getBoard();
+    }
+    
+    // Use API for development environment
     const response = await fetch('/api/board', {
       method: 'GET',
       headers: {
@@ -30,6 +88,15 @@ export class BoardService {
    * @returns The updated board
    */
   static async updateTheme(theme: 'light' | 'dark'): Promise<Board> {
+    // Use localStorage for production/static environment
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+      return await LocalStorage.updateBoard((board) => {
+        board.theme = theme;
+        return board;
+      });
+    }
+    
+    // Use API for development environment
     const response = await fetch('/api/board', {
       method: 'PATCH',
       headers: {

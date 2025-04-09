@@ -6,11 +6,6 @@ import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
 const config = {
-  experimental: {
-    serverActions: {
-      allowedOrigins: ["localhost:3000"],
-    },
-  },
   webpack: (config, { isServer }) => {
     // Exclude the scripts directory from webpack processing
     config.externals = [...(config.externals || []), 'scripts/'];
@@ -22,6 +17,11 @@ const config = {
     ignoreDuringBuilds: true,
   },
   output: 'export',
+  distDir: 'out',   // Specify output directory
+  // Images must be handled differently in static exports
+  images: {
+    unoptimized: true
+  },
 };
 
 export default config;

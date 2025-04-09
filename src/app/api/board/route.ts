@@ -4,9 +4,15 @@ import path from 'path';
 import type { Board } from '~/types';
 import { createDefaultBoard } from '~/types/defaults';
 
-// Data file paths
+// For static export, this forces the route to be included in the export
+export const dynamic = 'force-static';
+export const revalidate = false;
+
+// Data file paths - for development mode
 const DATA_DIR = path.join(process.cwd(), 'data');
 const BOARD_FILE = path.join(DATA_DIR, 'board.json');
+// Static file path - for production/export mode
+const STATIC_BOARD_FILE = '/data/board.json';
 
 // Ensure the data directory exists
 async function ensureDataDir(): Promise<void> {
@@ -19,6 +25,13 @@ async function ensureDataDir(): Promise<void> {
 
 // GET /api/board
 export async function GET() {
+  // For static export, return a mock response
+  if (process.env.NODE_ENV === 'production') {
+    // In static exports, create a static response
+    const defaultBoard = createDefaultBoard();
+    return NextResponse.json(defaultBoard);
+  }
+
   try {
     await ensureDataDir();
     
@@ -45,6 +58,11 @@ export async function GET() {
 
 // POST /api/board
 export async function POST(request: Request) {
+  // For static export, return a mock success response
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ success: true });
+  }
+
   try {
     await ensureDataDir();
     const board = await request.json() as Board;
@@ -61,6 +79,12 @@ export async function POST(request: Request) {
 
 // PATCH /api/board - Update specific parts of the board
 export async function PATCH(request: Request) {
+  // For static export, return a mock success response
+  if (process.env.NODE_ENV === 'production') {
+    const defaultBoard = createDefaultBoard();
+    return NextResponse.json(defaultBoard);
+  }
+
   try {
     await ensureDataDir();
     const data = await request.json();
