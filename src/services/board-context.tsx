@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Board, Card } from '~/types';
+import { createContext, useContext, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
+import type { Board, Card } from '~/types';
 import { BoardService } from './board-service';
 
 type BoardContextType = {

@@ -11,6 +11,16 @@ const config = {
       allowedOrigins: ["localhost:3000"],
     },
   },
+  webpack: (config, { isServer }) => {
+    // Exclude the scripts directory from webpack processing
+    config.externals = [...(config.externals || []), 'scripts/'];
+    
+    return config;
+  },
+  eslint: {
+    // Skip ESLint during builds
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default config;

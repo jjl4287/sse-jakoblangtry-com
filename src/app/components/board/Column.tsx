@@ -2,11 +2,12 @@
 
 import React, { useState, useRef, useCallback, memo } from 'react';
 import { useDrop } from 'react-dnd';
-import { Column as ColumnType, Card as CardType } from '~/types';
+import type { Column as ColumnType, Card as CardType } from '~/types';
 import { Card } from './Card';
 import { CardAddForm } from './CardAddForm';
 import { useBoard } from '~/services/board-context';
-import { ItemTypes, CardDragItem } from '~/constants/dnd-types';
+import { ItemTypes } from '~/constants/dnd-types';
+import type { CardDragItem } from '~/constants/dnd-types';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ColumnProps {
@@ -85,13 +86,23 @@ const Column: React.FC<ColumnProps> = memo(({
     // Determine if we should place before or after the closest card
     if (cardElements.length === 0) return 0;
     
-    const closestCardRect = cardElements[closestCardIndex].getBoundingClientRect();
+    // Add null check for closestCardIndex and make sure it's in the valid range
+    if (closestCardIndex === undefined || closestCardIndex < 0 || closestCardIndex >= cardElements.length) return 0;
+
+    const closestCard = cardElements[closestCardIndex];
+    if (!closestCard) return 0;
+    
+    const closestCardRect = closestCard.getBoundingClientRect();
     const closestCardMiddle = closestCardRect.top + closestCardRect.height / 2;
     
+    // Make sure columnCards and closestCardIndex are valid
+    if (!columnCards || columnCards.length === 0) return 0;
+    if (closestCardIndex < 0 || closestCardIndex >= columnCards.length) return 0;
+    
     if (mousePosition.y < closestCardMiddle) {
-      return columnCards.length > 0 ? columnCards[closestCardIndex].order : 0;
+      return columnCards[closestCardIndex]?.order ?? 0;
     } else {
-      return columnCards.length > 0 ? columnCards[closestCardIndex].order + 1 : 0;
+      return (columnCards[closestCardIndex]?.order ?? 0) + 1;
     }
   }, [column.cards]);
   

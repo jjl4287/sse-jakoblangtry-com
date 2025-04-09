@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { Board } from '~/types';
+import type { Board } from '~/types';
 import { createDefaultBoard } from '~/types/defaults';
 
 // Data file paths

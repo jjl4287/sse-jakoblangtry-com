@@ -2,8 +2,9 @@
 
 import React, { useRef, memo } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
-import { Card as CardType } from '~/types';
-import { ItemTypes, CardDragItem } from '~/constants/dnd-types';
+import type { Card as CardType } from '~/types';
+import { ItemTypes } from '~/constants/dnd-types';
+import type { CardDragItem } from '~/constants/dnd-types';
 import { motion } from 'framer-motion';
 
 interface CardProps {

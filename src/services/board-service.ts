@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Board, Card, Column, Label, Attachment, Comment } from '~/types';
+import type { Board, Card, Column, Label, Attachment, Comment } from '~/types';
 
 /**
  * Service for managing the kanban board data
@@ -201,6 +201,11 @@ export class BoardService {
     
     const column = board.columns[columnIndex];
     
+    // Check if column exists
+    if (!column) {
+      throw new Error(`Column with index ${columnIndex} not found`);
+    }
+    
     // Get the highest order value and add 1
     const order =
       column.cards.length > 0
@@ -260,10 +265,16 @@ export class BoardService {
       }
       
       const updatedCards = [...column.cards];
+      const existingCard = updatedCards[cardIndex];
+      
+      if (!existingCard) {
+        return column;
+      }
+      
       updatedCards[cardIndex] = {
-        ...updatedCards[cardIndex],
+        ...existingCard,
         ...updates,
-      };
+      } as Card;
       
       return {
         ...column,
@@ -312,6 +323,8 @@ export class BoardService {
     
     for (let i = 0; i < board.columns.length; i++) {
       const column = board.columns[i];
+      if (!column) continue;
+      
       const index = column.cards.findIndex((card) => card.id === cardId);
       
       if (index !== -1) {
@@ -337,12 +350,21 @@ export class BoardService {
     
     // Remove the card from the source column
     const updatedColumns = [...board.columns];
-    const sourceColumn = { ...updatedColumns[sourceColumnIndex] };
+    const sourceColumn = { ...updatedColumns[sourceColumnIndex] } as Column;
+    
+    if (!sourceColumn || !sourceColumn.cards) {
+      throw new Error(`Source column at index ${sourceColumnIndex} not found or has no cards`);
+    }
+    
     sourceColumn.cards = sourceColumn.cards.filter((card) => card.id !== cardId);
     updatedColumns[sourceColumnIndex] = sourceColumn;
     
     // Add the card to the target column with the new order
-    const targetColumn = { ...updatedColumns[targetColumnIndex] };
+    const targetColumn = { ...updatedColumns[targetColumnIndex] } as Column;
+    
+    if (!targetColumn || !targetColumn.cards) {
+      throw new Error(`Target column at index ${targetColumnIndex} not found or has no cards`);
+    }
     
     // Update card properties for the new location
     const updatedCard: Card = {
@@ -463,6 +485,11 @@ export class BoardService {
       }
       
       const card = column.cards[cardIndex];
+      
+      if (!card) {
+        return column;
+      }
+      
       const newLabel: Label = {
         id: uuidv4(),
         name,
@@ -471,7 +498,7 @@ export class BoardService {
       
       const updatedCard = {
         ...card,
-        labels: [...card.labels, newLabel],
+        labels: [...(card.labels || []), newLabel],
       };
       
       const updatedCards = [...column.cards];
@@ -521,9 +548,13 @@ export class BoardService {
       
       const card = column.cards[cardIndex];
       
+      if (!card) {
+        return column;
+      }
+      
       const updatedCard = {
         ...card,
-        labels: card.labels.filter((label) => label.id !== labelId),
+        labels: card.labels?.filter((label) => label.id !== labelId) || [],
       };
       
       const updatedCards = [...column.cards];
@@ -577,6 +608,11 @@ export class BoardService {
       }
       
       const card = column.cards[cardIndex];
+      
+      if (!card) {
+        return column;
+      }
+      
       const newComment: Comment = {
         id: uuidv4(),
         author,
@@ -586,7 +622,7 @@ export class BoardService {
       
       const updatedCard = {
         ...card,
-        comments: [...card.comments, newComment],
+        comments: [...(card.comments || []), newComment],
       };
       
       const updatedCards = [...column.cards];
@@ -642,6 +678,11 @@ export class BoardService {
       }
       
       const card = column.cards[cardIndex];
+      
+      if (!card) {
+        return column;
+      }
+      
       const newAttachment: Attachment = {
         id: uuidv4(),
         name,
@@ -652,7 +693,7 @@ export class BoardService {
       
       const updatedCard = {
         ...card,
-        attachments: [...card.attachments, newAttachment],
+        attachments: [...(card.attachments || []), newAttachment],
       };
       
       const updatedCards = [...column.cards];

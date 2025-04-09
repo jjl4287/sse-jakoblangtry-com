@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { Board } from '~/types';
+import type { Board } from '~/types';
 import { BoardSchema } from '~/types/validation';
 import { createDefaultBoard } from '~/types/defaults';
 import { parseJsonWithDates, stringifyWithDates } from './json-utils';

@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Column } from './Column';
 import { useBoard } from '~/services/board-context';
-import { CardDragItem } from '~/constants/dnd-types';
+import type { CardDragItem } from '~/constants/dnd-types';
 import { motion } from 'framer-motion';
 
 export const Board: React.FC = () => {

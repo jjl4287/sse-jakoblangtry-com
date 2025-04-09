@@ -1,4 +1,4 @@
-import { Board } from './index';
+import type { Board } from './index';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

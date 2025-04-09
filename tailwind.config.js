@@ -14,6 +14,7 @@ export default {
     },
   },
   plugins: [
+    /** @param {{ addVariant: (name: string, pattern: string) => void }} param0 */
     function({ addVariant }) {
       // Add 'light' variant for light mode styling
       addVariant('light', '.light &')
