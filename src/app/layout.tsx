@@ -4,8 +4,8 @@ import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 
 export const metadata: Metadata = {
-  title: "Glassmorphic Kanban",
-  description: "A modern Kanban board with glassmorphic design",
+  title: "SSE Goals for 25/26",
+  description: "RITs SSE needs a means to track its goals, so that we can actually measure the success of our efforts.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 

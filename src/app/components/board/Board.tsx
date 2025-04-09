@@ -107,8 +107,8 @@ export const Board: React.FC = () => {
         transition={{ duration: 0.3 }}
       >
         <div className="flex items-center">
-          <h1 className="text-xl font-bold mr-2">Glassmorphic Kanban</h1>
-          <h2 className="text-lg font-semibold opacity-80">Project Board</h2>
+          <h1 className="text-xl font-bold mr-2">Society of Software Engineers</h1>
+          <h2 className="text-lg font-semibold opacity-80">Goals for 25/26</h2>
         </div>
         <div className="flex items-center space-x-3">
           <div className="glass-button px-3 py-1 rounded-full text-sm">
