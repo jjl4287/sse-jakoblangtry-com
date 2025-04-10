@@ -38,19 +38,6 @@
       "width": 25,
       "cards": [
         {
-          "id": "9aa94dd4-70c2-4d8a-be21-454460628729",
-          "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
-          "order": 8.5,
-          "title": "hello",
-          "description": "my name is",
-          "labels": [],
-          "assignees": [],
-          "priority": "medium",
-          "attachments": [],
-          "comments": [],
-          "dueDate": "2025-04-23T04:00:00.000Z"
-        },
-        {
           "id": "7783db7d-9d95-4c8b-aba4-c33eee530745",
           "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
           "order": 9.5,
@@ -61,6 +48,19 @@
           "priority": "medium",
           "attachments": [],
           "comments": []
+        },
+        {
+          "id": "9aa94dd4-70c2-4d8a-be21-454460628729",
+          "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
+          "order": 10.5,
+          "title": "hello",
+          "description": "my name is",
+          "labels": [],
+          "assignees": [],
+          "priority": "medium",
+          "attachments": [],
+          "comments": [],
+          "dueDate": "2025-04-23T04:00:00.000Z"
         }
       ]
     },
