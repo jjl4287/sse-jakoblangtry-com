@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback, memo } from 'react';
+import React, { useState, useRef, useCallback, memo, useEffect } from 'react';
 import { useDrop } from 'react-dnd';
 import type { Column as ColumnType, Card as CardType } from '~/types';
 import { Card } from './Card';
@@ -31,6 +31,28 @@ const Column: React.FC<ColumnProps> = memo(({
   const [showAddForm, setShowAddForm] = useState(false);
   const [isOver, setIsOver] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const columnRef = useRef<HTMLDivElement>(null);
+  
+  // Add mouse position tracking for the column lighting effect
+  useEffect(() => {
+    const columnElement = columnRef.current;
+    if (!columnElement) return;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = columnElement.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      
+      columnElement.style.setProperty('--x', `${x}%`);
+      columnElement.style.setProperty('--y', `${y}%`);
+    };
+    
+    columnElement.addEventListener('mousemove', handleMouseMove);
+    
+    return () => {
+      columnElement.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
   
   // Set up drop functionality for the column
   const [{ isOverCurrent, canDrop }, drop] = useDrop({
@@ -185,22 +207,55 @@ const Column: React.FC<ColumnProps> = memo(({
       }
     }
     
+    // Add glass-border-animated class but only when not dragging
+    if (!isDraggingCard) {
+      classes += " glass-border-animated";
+    }
+    
     return classes;
   }, [isDraggingCard, isSourceColumn, isOverCurrent, canDrop]);
   
   return (
     <motion.div 
+      ref={columnRef}
       className={getColumnClasses()}
-      style={{ width: `${column.width}%` }}
+      style={{ 
+        width: `${column.width}%`,
+        // Initial position for lighting variables
+        ['--x' as string]: '50%',
+        ['--y' as string]: '50%'
+      }}
       layout="position"
       animate={{
         scale: isOverCurrent && canDrop ? 1.02 : 1,
-        boxShadow: isOverCurrent && canDrop ? "0 8px 16px rgba(0,0,0,0.2)" : "none"
+        boxShadow: isOverCurrent && canDrop ? "0 8px 16px rgba(0,0,0,0.2)" : "none",
+        zIndex: isOverCurrent && canDrop ? 10 : 1
       }}
-      transition={{ duration: 0.2 }}
+      transition={{ 
+        duration: 0.2,
+        type: "spring",
+        damping: 20,
+        stiffness: 300
+      }}
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">{column.title}</h3>
+        <h3 
+          className="text-lg font-semibold hover:text-primary-light transition-colors glass-border-animated py-1 px-2 rounded-md" 
+          style={{
+            ['--x' as string]: '50%',
+            ['--y' as string]: '50%'
+          }}
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            
+            e.currentTarget.style.setProperty('--x', `${x}%`);
+            e.currentTarget.style.setProperty('--y', `${y}%`);
+          }}
+        >
+          {column.title}
+        </h3>
         <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
           {sortedCards.length}
         </span>
@@ -225,8 +280,14 @@ const Column: React.FC<ColumnProps> = memo(({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.2 }}
-              // Removed layout prop to prevent animations when not needed
+              transition={{ 
+                duration: 0.2,
+                type: "spring",
+                damping: 20,
+                stiffness: 300
+              }}
+              // Prevent layout shifts during drag operations
+              layout={!isDraggingCard}
             >
               <Card 
                 card={card}

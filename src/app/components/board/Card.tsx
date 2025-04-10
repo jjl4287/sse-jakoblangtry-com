@@ -150,7 +150,7 @@ export const Card = memo(({
       boxShadow: "0 10px 20px rgba(0,0,0,0.2)",
       opacity: 0.7,
       cursor: "grabbing",
-      zIndex: 10,
+      zIndex: 20,
     },
     normal: {
       scale: 1,
@@ -160,9 +160,10 @@ export const Card = memo(({
       zIndex: 1,
     },
     hover: {
+      scale: 1.02,
+      y: -4,
       boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
-      zIndex: 5,
-      // We're removing scale and y transform as those are handled in CSS now
+      zIndex: 10,
     }
   };
 
@@ -186,9 +187,10 @@ export const Card = memo(({
         type: "spring", 
         damping: 20, 
         stiffness: 300,
-        // Disable layout animations to prevent jittery movement
+        // Disable layout animations to prevent jittery movement during drag
         layout: { duration: 0 }
       }}
+      layoutId={`card-${card.id}`}
     >
       <h4 className="font-medium">{card.title}</h4>
       

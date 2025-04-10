@@ -162,6 +162,8 @@
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
     color: #ffffff;
+    /* Add overflow visible to ensure hover effects aren't cut off */
+    overflow: visible;
   }
   
   .light .glass-card {
@@ -174,9 +176,10 @@
     color: #2d3748;
   }
   
+  /* Remove transform from CSS hover to avoid conflicts with Framer Motion */
   .glass-card:hover {
     @apply shadow-xl z-10;
-    transform: translateY(-2px);
+    /* transform is now handled by Framer Motion */
   }
   
   .dark .glass-card:hover {
@@ -246,12 +249,16 @@
     @apply relative overflow-visible;
     &::before {
       content: '';
-      @apply absolute inset-0 rounded-lg border-2 pointer-events-none opacity-0 transition-all duration-300;
+      @apply absolute rounded-lg border-2 pointer-events-none opacity-0 transition-all duration-300;
+      /* Extend slightly beyond the card to prevent cutoff when scaling */
+      inset: -1px;
       border-color: var(--border-light);
-      background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.1) 0%, transparent 40%);
-      box-shadow: 0 0 8px rgba(255,255,255,0.05);
+      /* Make the light effect more subtle */
+      background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.05) 0%, transparent 60%);
+      box-shadow: 0 0 8px rgba(255,255,255,0.03);
       transform: scale(1);
-      z-index: 1;
+      transform-origin: center center;
+      z-index: -1;
     }
     &:hover::before {
       @apply opacity-100;
@@ -261,8 +268,22 @@
   
   .light .glass-border-animated::before {
     border-color: rgba(160, 190, 220, 0.25);
-    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(120,160,200,0.08) 0%, transparent 50%);
-    box-shadow: 0 0 10px rgba(100,150,200,0.05);
+    /* Make the light effect more subtle in light mode */
+    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(120,160,200,0.04) 0%, transparent 70%);
+    box-shadow: 0 0 10px rgba(100,150,200,0.03);
+  }
+  
+  /* Special variant for headings */
+  h3.glass-border-animated::before {
+    border-width: 1px;
+    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.03) 0%, transparent 70%);
+    box-shadow: 0 0 6px rgba(255,255,255,0.02);
+  }
+  
+  .light h3.glass-border-animated::before {
+    border-color: rgba(160, 190, 220, 0.15);
+    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(120,160,200,0.02) 0%, transparent 80%);
+    box-shadow: 0 0 6px rgba(100,150,200,0.02);
   }
   
   /* Glass Column - update for frosted glass look */
@@ -274,6 +295,8 @@
     -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.2));
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     color: #ffffff;
+    /* Add overflow visible to ensure hover effects aren't cut off */
+    overflow: visible;
   }
   
   .light .glass-column {
@@ -287,6 +310,7 @@
   
   .glass-column.glass-border-animated:hover {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    /* Remove any transform here to let Framer Motion handle it */
   }
   
   .light .glass-column.glass-border-animated:hover {
@@ -370,5 +394,30 @@
     border-color: rgba(160, 200, 220, 0.5);
     box-shadow: 0 3px 8px rgba(120, 160, 190, 0.15);
     color: #1e3050;
+  }
+}
+
+/* Additional utilities */
+@layer utilities {
+  .text-primary-light {
+    color: var(--primary-light);
+  }
+  
+  .text-primary-dark {
+    color: var(--primary-dark);
+  }
+  
+  /* Add smooth hover motion to elements */
+  .hover-lift {
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  }
+  
+  .dark .hover-lift:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
   }
 }
