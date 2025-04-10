@@ -504,24 +504,31 @@ export class BoardService {
          return finalUpdatedBoard;
       }
 
-      // Use API for development environment (assuming POST replaces the board)
-      const response = await fetch('/api/board', {
+      // Use API for development environment - use non-blocking fetch
+      // Return the updated board immediately to avoid UI delay
+      const updatedBoardToReturn = finalUpdatedBoard;
+      
+      // Make API call in background without waiting for response
+      fetch('/api/board', {
         method: 'POST', 
+        credentials: 'omit', // Prevent credentials from being sent
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(finalUpdatedBoard),
+      }).then(response => {
+        if (!response.ok) {
+          response.text().then(errorBody => {
+            console.error('API Error Response:', errorBody);
+            console.error(`Failed to move card via API. Status: ${response.status}`);
+          });
+        }
+      }).catch(error => {
+        console.error("Error persisting board state after move:", error);
       });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error('API Error Response:', errorBody);
-        throw new Error(`Failed to move card via API. Status: ${response.status}`);
-      }
       
-      // Assuming the API returns the fully updated board state
-      const responseData = await response.json(); 
-      return responseData as Board;
+      // Return the updated board immediately
+      return updatedBoardToReturn;
 
     } catch (error) {
       console.error("Error persisting board state after move:", error);
@@ -550,18 +557,131 @@ export class BoardService {
       columns: updatedColumns,
     };
     
-    const response = await fetch('/api/board', {
+    // Check for production environment
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+      LocalStorage.saveBoard(updatedBoard);
+      return updatedBoard;
+    }
+    
+    // Use non-blocking fetch for better UI responsiveness
+    fetch('/api/board', {
       method: 'POST',
+      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(updatedBoard),
+    }).then(response => {
+      if (!response.ok) {
+        console.error('Failed to delete card, API status:', response.status);
+      }
+    }).catch(error => {
+      console.error('Error persisting card deletion:', error);
     });
     
-    if (!response.ok) {
-      throw new Error('Failed to delete card');
+    return updatedBoard;
+  }
+
+  /**
+   * Duplicates a card
+   * @param cardId The ID of the card to duplicate
+   * @param targetColumnId Optional ID of the column to place the duplicate in (defaults to original column)
+   * @returns The updated board
+   */
+  static async duplicateCard(cardId: string, targetColumnId?: string): Promise<Board> {
+    const board = await this.getBoard();
+    let originalCard: Card | null = null;
+    let originalColumn: Column | null = null;
+    let originalColumnIndex = -1;
+    let originalCardIndex = -1;
+
+    // Find the original card and its column
+    for (let i = 0; i < board.columns.length; i++) {
+        const col = board.columns[i];
+        const cardIndex = col.cards.findIndex(c => c.id === cardId);
+        if (cardIndex !== -1) {
+            originalCard = col.cards[cardIndex];
+            originalColumn = col;
+            originalColumnIndex = i;
+            originalCardIndex = cardIndex;
+            break;
+        }
     }
+
+    if (!originalCard || !originalColumn) {
+        throw new Error(`Card with ID ${cardId} not found for duplication.`);
+    }
+
+    const finalTargetColumnId = targetColumnId || originalColumn.id;
+    const targetColumnIndex = board.columns.findIndex(col => col.id === finalTargetColumnId);
+    if (targetColumnIndex === -1) {
+        throw new Error(`Target column with ID ${finalTargetColumnId} not found.`);
+    }
+
+    const targetColumn = board.columns[targetColumnIndex];
     
+    // Determine the order for the new card (place after original or at end of target)
+    let newOrder: number;
+    if (finalTargetColumnId === originalColumn.id) {
+        newOrder = originalCard.order + 1;
+    } else {
+        newOrder = targetColumn.cards.length; // Add to end of different column
+    }
+
+    const duplicatedCard: Card = {
+        ...originalCard,
+        id: uuidv4(), // Generate a new unique ID
+        title: `(Copy) ${originalCard.title}`, // Prefix title with (Copy)
+        columnId: finalTargetColumnId,
+        order: newOrder,
+        // Deep copy arrays/objects to avoid reference issues if needed (optional)
+        labels: originalCard.labels.map(label => ({ ...label, id: uuidv4() })), // New IDs for labels if needed
+        attachments: originalCard.attachments.map(att => ({ ...att, id: uuidv4() })), // New IDs
+        comments: originalCard.comments.map(com => ({ ...com, id: uuidv4() })), // New IDs
+    };
+
+    let updatedBoard = { ...board, columns: [...board.columns] };
+
+    // Insert the duplicated card into the target column
+    const updatedTargetCards = [
+        ...targetColumn.cards.slice(0, newOrder),
+        duplicatedCard,
+        ...targetColumn.cards.slice(newOrder)
+    ].map((card, index) => ({ // Re-order cards in the target column
+        ...card,
+        order: index
+    }));
+
+    updatedBoard.columns[targetColumnIndex] = {
+        ...targetColumn,
+        cards: updatedTargetCards,
+    };
+
+    // If the card was duplicated within the same column, ensure source column is updated
+    if (finalTargetColumnId === originalColumn.id) {
+         updatedBoard.columns[originalColumnIndex] = updatedBoard.columns[targetColumnIndex];
+    }
+
+    // Persist changes
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+        LocalStorage.saveBoard(updatedBoard);
+        return updatedBoard;
+    }
+
+    // Use non-blocking fetch for better UI responsiveness
+    fetch('/api/board', {
+        method: 'POST',
+        credentials: 'omit',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedBoard),
+    }).then(response => {
+        if (!response.ok) {
+            console.error('Failed to duplicate card, API status:', response.status);
+        }
+    }).catch(error => {
+        console.error('Error persisting duplicated card:', error);
+    });
+
     return updatedBoard;
   }
 

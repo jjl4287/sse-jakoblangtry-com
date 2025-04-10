@@ -4,41 +4,24 @@
       "id": "03033074-2ea4-4848-a566-c7a0e80cf876",
       "title": "Product Backlog",
       "width": 25,
-      "cards": []
-    },
-    {
-      "id": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
-      "title": "In Progress",
-      "width": 25,
       "cards": [
         {
           "id": "82ef1be0-240a-4431-addc-e43ab81906fd",
-          "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
-          "order": 2,
+          "columnId": "03033074-2ea4-4848-a566-c7a0e80cf876",
+          "order": 0.5,
           "title": "blah",
-          "description": "blah",
+          "description": "blah\n",
           "labels": [],
           "assignees": [],
           "priority": "medium",
           "attachments": [],
-          "comments": []
-        },
-        {
-          "id": "60df4045-6ea0-4924-a59a-b0593eb3b6fa",
-          "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
-          "order": 3,
-          "title": "asdfdasf",
-          "description": "dfasdf",
-          "labels": [],
-          "assignees": [],
-          "priority": "medium",
-          "attachments": [],
-          "comments": []
+          "comments": [],
+          "dueDate": "2025-08-13T04:00:00.000Z"
         },
         {
           "id": "e4be17de-be33-4689-bb05-15d255f6dc54",
-          "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
-          "order": 4,
+          "columnId": "03033074-2ea4-4848-a566-c7a0e80cf876",
+          "order": 1.5,
           "title": "usfhdhu",
           "description": "\ndjhdsadh",
           "labels": [],
@@ -46,25 +29,20 @@
           "priority": "medium",
           "attachments": [],
           "comments": []
-        },
+        }
+      ]
+    },
+    {
+      "id": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
+      "title": "In Progress",
+      "width": 25,
+      "cards": [
         {
           "id": "e209cbdb-2339-4134-976a-a05bf75a6b72",
           "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
-          "order": 5,
+          "order": 7.5,
           "title": "hello",
           "description": "world\n",
-          "labels": [],
-          "assignees": [],
-          "priority": "medium",
-          "attachments": [],
-          "comments": []
-        },
-        {
-          "id": "fed27a88-a31b-4eba-b0d2-740937429ab0",
-          "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
-          "order": 6,
-          "title": "myname is ja",
-          "description": "\naslkdf",
           "labels": [],
           "assignees": [],
           "priority": "medium",
@@ -77,7 +55,32 @@
       "id": "d2b8f9e6-f2b1-4df4-a5da-b2bef1172511",
       "title": "Code Review",
       "width": 25,
-      "cards": []
+      "cards": [
+        {
+          "id": "d9f2af97-5914-4614-8be3-2b3680ea0ccc",
+          "columnId": "d2b8f9e6-f2b1-4df4-a5da-b2bef1172511",
+          "order": 7.5,
+          "title": "(Copy) usfhdhu",
+          "description": "\ndjhdsadh",
+          "labels": [],
+          "assignees": [],
+          "priority": "medium",
+          "attachments": [],
+          "comments": []
+        },
+        {
+          "id": "9aa94dd4-70c2-4d8a-be21-454460628729",
+          "columnId": "d2b8f9e6-f2b1-4df4-a5da-b2bef1172511",
+          "order": 8.5,
+          "title": "hello",
+          "description": "my name is",
+          "labels": [],
+          "assignees": [],
+          "priority": "medium",
+          "attachments": [],
+          "comments": []
+        }
+      ]
     },
     {
       "id": "8fa74b1e-a584-482a-aa8f-1e03664d453e",

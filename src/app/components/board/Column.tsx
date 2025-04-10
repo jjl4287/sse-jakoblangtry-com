@@ -261,13 +261,6 @@ const Column: React.FC<ColumnProps> = memo(({
                 onDragStart={handleCardDragStart}
                 onDragEnd={onDragEnd}
               />
-              <button
-                onClick={() => handleCardDelete(card)}
-                className="absolute top-2 right-2 bg-red-500/50 hover:bg-red-500/70 rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                aria-label="Delete card"
-              >
-                ×
-              </button>
             </motion.div>
           ))}
         </AnimatePresence>

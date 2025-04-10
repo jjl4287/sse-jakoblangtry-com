@@ -31,6 +31,7 @@ type BoardContextType = {
     newOrder: number
   ) => Promise<void>;
   deleteCard: (cardId: string) => Promise<void>;
+  duplicateCard: (cardId: string, targetColumnId?: string) => Promise<void>;
   addLabel: (cardId: string, name: string, color: string) => Promise<void>;
   removeLabel: (cardId: string, labelId: string) => Promise<void>;
   addComment: (cardId: string, author: string, content: string) => Promise<void>;
@@ -195,6 +196,20 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Duplicate a card
+  const duplicateCard = async (cardId: string, targetColumnId?: string) => {
+    try {
+      setLoading(true);
+      const updatedBoard = await BoardService.duplicateCard(cardId, targetColumnId);
+      setBoard(updatedBoard);
+    } catch (err) {
+      setError(err as Error);
+      console.error('Error duplicating card:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Add a label to a card
   const addLabel = async (cardId: string, name: string, color: string) => {
     try {
@@ -284,6 +299,7 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
         updateCard,
         moveCard,
         deleteCard,
+        duplicateCard,
         addLabel,
         removeLabel,
         addComment,
