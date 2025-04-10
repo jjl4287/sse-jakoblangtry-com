@@ -16,9 +16,6 @@ const nextConfig = {
     // Skip ESLint during builds
     ignoreDuringBuilds: true,
   },
-  output: 'export',
-  distDir: 'out',   // Specify output directory
-  // Images must be handled differently in static exports
   images: {
     remotePatterns: [
       {
@@ -35,14 +32,6 @@ const nextConfig = {
     // Skipping type checking to fix the build error
     // Remove this when dependencies are updated
     ignoreBuildErrors: true,
-  },
-  experimental: {
-    // Configure for Turbopack compatibility
-    turbo: {
-      rules: {
-        // Add any specific rules if needed
-      }
-    }
   }
 };
 
