@@ -57,8 +57,15 @@ export const Board: React.FC = () => {
 
   // Memoize column counts to prevent recalculations on every render
   const cardCount = useMemo(() => {
-    if (!board) return 0;
-    return board.columns.reduce((acc, col) => acc + col.cards.length, 0);
+    if (!board || !board.columns || !Array.isArray(board.columns)) {
+      return 0;
+    }
+    return board.columns.reduce((acc, col) => {
+      if (col && Array.isArray(col.cards)) {
+        return acc + col.cards.length;
+      }
+      return acc;
+    }, 0);
   }, [board]);
 
   if (loading) {
@@ -112,7 +119,7 @@ export const Board: React.FC = () => {
         </div>
         <div className="flex items-center space-x-3">
           <div className="glass-button px-3 py-1 rounded-full text-sm">
-            {board.columns.length} Columns
+            {board?.columns?.length ?? 0} Columns
           </div>
           <div className="glass-button px-3 py-1 rounded-full text-sm">
             {cardCount} Cards
@@ -127,7 +134,7 @@ export const Board: React.FC = () => {
         layout={false}
       >
         <div className="flex h-full gap-6 overflow-x-auto overflow-y-hidden">
-          {board.columns.map((column) => (
+          {board?.columns?.map((column) => (
             <Column 
               key={column.id} 
               column={column}

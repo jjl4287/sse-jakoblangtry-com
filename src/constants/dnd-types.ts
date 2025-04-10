@@ -18,4 +18,6 @@ export interface CardDragItem extends DragItem {
   columnId: string;
   index: number;
   order: number;
+  originalIndex: number;
+  originalColumnId: string;
 } 

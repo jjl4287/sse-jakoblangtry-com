@@ -250,40 +250,29 @@
     &::before {
       content: '';
       @apply absolute rounded-lg border-2 pointer-events-none opacity-0 transition-all duration-300;
-      /* Extend slightly beyond the card to prevent cutoff when scaling */
+      /* Extend slightly beyond the element to prevent cutoff when scaling */
       inset: -1px;
-      border-color: var(--border-light);
-      /* Make the light effect more subtle */
-      background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.05) 0%, transparent 60%);
-      box-shadow: 0 0 8px rgba(255,255,255,0.03);
+      border-color: rgba(255, 255, 255, 0.08); /* Subtler border */
+      /* Make the radial gradient smaller and more matte */
+      background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.03) 0%, transparent 20%);
+      /* Remove the shadow for a flatter look */
+      box-shadow: none;
       transform: scale(1);
       transform-origin: center center;
       z-index: -1;
     }
     &:hover::before {
       @apply opacity-100;
-      transform: scale(1.03);
+      transform: scale(1.015); /* Even smaller scale */
     }
   }
   
   .light .glass-border-animated::before {
-    border-color: rgba(160, 190, 220, 0.25);
-    /* Make the light effect more subtle in light mode */
-    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(120,160,200,0.04) 0%, transparent 70%);
-    box-shadow: 0 0 10px rgba(100,150,200,0.03);
-  }
-  
-  /* Special variant for headings */
-  h3.glass-border-animated::before {
-    border-width: 1px;
-    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.03) 0%, transparent 70%);
-    box-shadow: 0 0 6px rgba(255,255,255,0.02);
-  }
-  
-  .light h3.glass-border-animated::before {
-    border-color: rgba(160, 190, 220, 0.15);
-    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(120,160,200,0.02) 0%, transparent 80%);
-    box-shadow: 0 0 6px rgba(100,150,200,0.02);
+    border-color: rgba(160, 190, 220, 0.1); /* Subtler light border */
+    /* Make the light mode radial gradient smaller and more matte */
+    background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(120,160,200,0.04) 0%, transparent 25%);
+    /* Remove light mode shadow */
+    box-shadow: none;
   }
   
   /* Glass Column - update for frosted glass look */

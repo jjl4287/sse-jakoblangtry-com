@@ -370,7 +370,7 @@ export class BoardService {
   }
 
   /**
-   * Moves a card to a different column
+   * Moves a card to a different column or position
    * @param cardId The card ID
    * @param targetColumnId The target column ID
    * @param newOrder The new order value in the target column
@@ -382,117 +382,152 @@ export class BoardService {
     newOrder: number
   ): Promise<Board> {
     const board = await this.getBoard();
-    
+
     // Find the card and its source column
     let cardToMove: Card | undefined;
     let sourceColumnIndex = -1;
-    let cardIndex = -1;
-    
+    let sourceColumn: Column | undefined;
+
     for (let i = 0; i < board.columns.length; i++) {
       const column = board.columns[i];
       if (!column) continue;
-      
-      const index = column.cards.findIndex((card) => card.id === cardId);
-      
-      if (index !== -1) {
-        cardToMove = column.cards[index];
+      const card = column.cards.find((c) => c.id === cardId);
+      if (card) {
+        cardToMove = card;
         sourceColumnIndex = i;
-        cardIndex = index;
+        sourceColumn = column;
         break;
       }
     }
-    
-    if (!cardToMove) {
-      throw new Error(`Card with ID ${cardId} not found`);
+
+    if (!cardToMove || sourceColumnIndex === -1 || !sourceColumn) {
+      // It's possible the card data is slightly stale, refresh and retry once
+      console.warn(`Card ${cardId} not found initially, refreshing board data and retrying move...`);
+      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay before refetch
+      const refreshedBoard = await this.getBoard();
+      for (let i = 0; i < refreshedBoard.columns.length; i++) {
+        const column = refreshedBoard.columns[i];
+        if (!column) continue;
+        const card = column.cards.find((c) => c.id === cardId);
+        if (card) {
+          cardToMove = card;
+          sourceColumnIndex = i;
+          sourceColumn = column;
+          board.columns = refreshedBoard.columns; // Use refreshed data
+          break;
+        }
+      }
+      // If still not found after refresh, throw error
+      if (!cardToMove || sourceColumnIndex === -1 || !sourceColumn) {
+         throw new Error(`Card with ID ${cardId} not found even after refresh`);
+      }
     }
-    
+
     // Find the target column
     const targetColumnIndex = board.columns.findIndex(
       (col) => col.id === targetColumnId
     );
-    
-    if (targetColumnIndex === -1) {
+    const targetColumn = board.columns[targetColumnIndex];
+
+    if (targetColumnIndex === -1 || !targetColumn) {
       throw new Error(`Target column with ID ${targetColumnId} not found`);
     }
-    
-    // Remove the card from the source column
+
     const updatedColumns = [...board.columns];
-    const sourceColumn = { ...updatedColumns[sourceColumnIndex] } as Column;
-    
-    if (!sourceColumn || !sourceColumn.cards) {
-      throw new Error(`Source column at index ${sourceColumnIndex} not found or has no cards`);
-    }
-    
-    sourceColumn.cards = sourceColumn.cards.filter((card) => card.id !== cardId);
-    updatedColumns[sourceColumnIndex] = sourceColumn;
-    
-    // Add the card to the target column with the new order
-    const targetColumn = { ...updatedColumns[targetColumnIndex] } as Column;
-    
-    if (!targetColumn || !targetColumn.cards) {
-      throw new Error(`Target column at index ${targetColumnIndex} not found or has no cards`);
-    }
-    
-    // Update card properties for the new location
+
+    // Create the card with its new properties (including the calculated newOrder)
     const updatedCard: Card = {
       ...cardToMove,
-      columnId: targetColumnId,
+      columnId: targetColumnId, 
       order: newOrder,
     };
-    
-    // If we're moving within the same column, just update the order
+
+    // --- Handle the move --- 
     if (sourceColumnIndex === targetColumnIndex) {
-      targetColumn.cards = sourceColumn.cards
+      // --- Moving within the same column --- 
+      const currentColumn = { ...updatedColumns[sourceColumnIndex] } as Column;
+      
+      // Ensure cards array exists
+      if (!currentColumn.cards) { 
+        currentColumn.cards = [];
+      }
+      
+      // Update the specific card's order directly in the array
+      currentColumn.cards = currentColumn.cards
         .map((card) => {
           if (card.id === cardId) {
-            return updatedCard;
+            return updatedCard; // Replace with the card having the new order
           }
-          
-          // Adjust other cards' orders as needed
-          if (newOrder <= card.order && card.order < cardToMove.order) {
-            return { ...card, order: card.order + 1 };
-          }
-          if (cardToMove.order < card.order && card.order <= newOrder) {
-            return { ...card, order: card.order - 1 };
-          }
-          
           return card;
         })
-        .sort((a, b) => a.order - b.order);
+        .sort((a, b) => a.order - b.order); // Re-sort based on potentially updated orders
+
+      updatedColumns[sourceColumnIndex] = currentColumn;
+
     } else {
-      // Moving to a different column
-      // Insert card at the specified order and adjust other cards
-      targetColumn.cards = [
-        ...targetColumn.cards.map((card) => {
-          if (card.order >= newOrder) {
-            return { ...card, order: card.order + 1 };
-          }
-          return card;
-        }),
-        updatedCard,
-      ].sort((a, b) => a.order - b.order);
+      // --- Moving to a different column --- 
+      // 1. Remove card from source column
+      const currentSourceColumn = { ...updatedColumns[sourceColumnIndex] } as Column;
+      if (!currentSourceColumn.cards) { 
+        currentSourceColumn.cards = [];
+      }
+      currentSourceColumn.cards = currentSourceColumn.cards.filter(
+        (card) => card.id !== cardId
+      );
+      updatedColumns[sourceColumnIndex] = currentSourceColumn;
+
+      // 2. Add card to target column
+      const currentTargetColumn = { ...updatedColumns[targetColumnIndex] } as Column;
+      if (!currentTargetColumn.cards) { 
+        currentTargetColumn.cards = [];
+      }
+      // Add the updated card and sort. Assumes newOrder is correctly calculated (fractional)
+      currentTargetColumn.cards = [...currentTargetColumn.cards, updatedCard]
+        .sort((a, b) => a.order - b.order);
+
+      updatedColumns[targetColumnIndex] = currentTargetColumn;
     }
-    
-    updatedColumns[targetColumnIndex] = targetColumn;
-    
-    const updatedBoard = {
+
+    // --- Finalize --- 
+    const finalUpdatedBoard = {
       ...board,
       columns: updatedColumns,
     };
-    
-    const response = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to move card');
+
+    // --- Persist the changes --- 
+    try {
+      // Use localStorage for production/static environment
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+         LocalStorage.saveBoard(finalUpdatedBoard);
+         // Add a small delay to allow localStorage to potentially write before returning
+         await new Promise(resolve => setTimeout(resolve, 10)); 
+         return finalUpdatedBoard;
+      }
+
+      // Use API for development environment (assuming POST replaces the board)
+      const response = await fetch('/api/board', {
+        method: 'POST', 
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(finalUpdatedBoard),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error('API Error Response:', errorBody);
+        throw new Error(`Failed to move card via API. Status: ${response.status}`);
+      }
+      
+      // Assuming the API returns the fully updated board state
+      const responseData = await response.json(); 
+      return responseData as Board;
+
+    } catch (error) {
+      console.error("Error persisting board state after move:", error);
+      // Optionally re-throw or handle the error state in the context
+      throw error; // Re-throw to allow context to catch it
     }
-    
-    return updatedBoard;
   }
 
   /**
