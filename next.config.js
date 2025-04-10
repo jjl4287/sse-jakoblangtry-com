@@ -4,8 +4,14 @@
  */
 import "./src/env.js";
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  ...(isProduction ? {
+    output: 'export',
+    distDir: 'out',
+  } : {}),
   webpack: (config, { isServer }) => {
     // Exclude the scripts directory from webpack processing
     config.externals = [...(config.externals || []), 'scripts'];
