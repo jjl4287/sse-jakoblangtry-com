@@ -197,12 +197,6 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
                               onSelect={setDueDate}
                               initialFocus
                               className="[&>div]:bg-transparent [&_button]:bg-transparent [&_button]:border-0"
-                              classNames={{
-                                  day_selected: "bg-pink-600/80 text-white hover:bg-pink-700/80 focus:bg-pink-700/80",
-                                  day_today: "text-pink-400",
-                                  head_cell: "text-gray-400",
-                                  nav_button: "text-white hover:bg-white/10",
-                              }}
                           />
                       </PopoverContent>
                   </Popover>
