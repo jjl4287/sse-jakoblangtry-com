@@ -2,7 +2,7 @@
 
 import React, { useRef, memo, useEffect, useState } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
-import type { DropTargetMonitor } from 'react-dnd';
+import type { XYCoord, DropTargetMonitor } from 'react-dnd';
 import type { Card as CardType } from '~/types';
 import { ItemTypes } from '~/constants/dnd-types';
 import type { CardDragItem } from '~/constants/dnd-types';
@@ -18,7 +18,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"; // Import DropdownMenu components
-import { MoreHorizontal, Trash2, Copy } from 'lucide-react'; // Import icons
+import { MoreHorizontal, Trash2, Copy, Calendar, User, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react'; // Import icons
+import { format } from 'date-fns'; // For date formatting
 
 // Define the drop result type
 interface CardDropResult {
@@ -142,20 +143,22 @@ export const Card = memo(({
       if (!clientOffset) return; // Check if clientOffset is null
       const hoverClientY = clientOffset.y - hoverBoundingRect.top;
 
+      // Only perform the move when the mouse has crossed half of the items height
+      // When dragging downwards, only move when the cursor is below 50%
+      // When dragging upwards, only move when the cursor is above 50%
+
       // Dragging downwards
       if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) { return; }
       // Dragging upwards
       if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) { return; }
 
-      // --- Perform visual swap only --- 
-      if (dragColumnId === hoverColumnId) { 
-        // Only mutate item index if it's within the same column for visual feedback
+      // Perform the move in the parent component's state for visual feedback
+      if (dragColumnId === hoverColumnId && onMoveCard) { 
+        onMoveCard(dragIndex, hoverIndex);
+        // Note: we're mutating the monitor item here!
+        // Generally it's better to avoid mutations, but it's common practice in react-dnd examples.
+        // It changes the index of the dragged item on the fly to avoid index mismatches during hover.
         item.index = hoverIndex; 
-        // Call onMoveCard ONLY if it's needed for purely visual state updates in parent
-        // For now, assume item.index mutation is enough.
-        // if (onMoveCard) {
-        //   onMoveCard(dragIndex, hoverIndex);
-        // }
       }
     },
     drop: (item: CardDragItem, monitor: DropTargetMonitor<CardDragItem, CardDropResult>): CardDropResult => {
@@ -167,7 +170,6 @@ export const Card = memo(({
 
         // Check if it's a valid drop within the same column and not on itself
         if (dragOriginalColumnId === hoverColumnId && dragOriginalIndex !== hoverIndex) {
-             console.log(`Card ${item.id} dropped onto card ${card.id} (order ${card.order}) in column ${hoverColumnId}`);
             // Call the actual move function from the context, using the target card's order
             moveCard(item.id, hoverColumnId, card.order);
         }
@@ -189,15 +191,15 @@ export const Card = memo(({
 
   // Use the actual deleteCard function
   const handleDelete = (e: Event) => {
-      e.stopPropagation();
-      if (window.confirm(`Are you sure you want to delete card "${card.title}"?`)) {
+      e.stopPropagation(); // Keep stopPropagation for DropdownMenuItem
+      if (window.confirm(`Are you sure you want to delete card \"${card.title}\"?`)) {
         deleteCard(card.id).catch(err => console.error("Error deleting card:", err));
       }
   };
 
   // Use the actual duplicateCard function
   const handleDuplicate = (e: Event) => {
-      e.stopPropagation();
+      e.stopPropagation(); // Keep stopPropagation for DropdownMenuItem
       // Duplicates the card in the same column by default
       duplicateCard(card.id, columnId).catch(err => console.error("Error duplicating card:", err));
   };
@@ -226,6 +228,19 @@ export const Card = memo(({
     }
   };
 
+  // Helper function to get priority icon and color
+  const getPriorityInfo = (priority: 'low' | 'medium' | 'high') => {
+    switch (priority) {
+      case 'high':
+        return { Icon: ArrowUp, color: 'text-red-500' };
+      case 'medium':
+        return { Icon: ArrowRight, color: 'text-yellow-500' };
+      case 'low':
+      default:
+        return { Icon: ArrowDown, color: 'text-green-500' };
+    }
+  };
+
   return (
     <>
       <motion.div
@@ -247,99 +262,104 @@ export const Card = memo(({
           type: "spring", 
           damping: 20, 
           stiffness: 300,
-          // Disable layout animations to prevent jittery movement during drag
-          layout: { duration: 0 }
+          layout: true // Re-enable layout animation for smooth shifting
         }}
         layoutId={`card-${card.id}`}
       >
-        {/* Dropdown Menu Trigger Button - visible on group hover */} 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild 
-            onClick={handleDropdownTriggerClick} // Stop propagation
-            className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <Button variant="ghost" size="icon" className="h-6 w-6 bg-black/10 hover:bg-black/20">
-              <MoreHorizontal className="h-4 w-4 text-white/70" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-gray-800/80 backdrop-blur border-white/20 text-white">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-white/20"/>
-             {/* Edit action is handled by clicking the card itself now */} 
-            <DropdownMenuItem onSelect={handleDuplicate} className="focus:bg-white/20 cursor-pointer">
-              <Copy className="mr-2 h-4 w-4" />
-              <span>Duplicate</span>
-            </DropdownMenuItem>
-            {/* Re-adding the Delete item */}
-            <DropdownMenuSeparator className="bg-white/20"/>
-            <DropdownMenuItem onSelect={handleDelete} className="focus:bg-red-500/30 text-red-400 focus:text-red-300 cursor-pointer">
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Dropdown Menu for actions */}
+        <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+           <DropdownMenu>
+             <DropdownMenuTrigger asChild onClick={handleDropdownTriggerClick}>
+               <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
+                 <MoreHorizontal className="h-4 w-4" />
+               </Button>
+             </DropdownMenuTrigger>
+             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+               <DropdownMenuSeparator />
+               <DropdownMenuItem onSelect={handleDuplicate} className="cursor-pointer">
+                 <Copy className="mr-2 h-4 w-4" />
+                 <span>Duplicate</span>
+               </DropdownMenuItem>
+               <DropdownMenuItem onSelect={handleDelete} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-100/50">
+                 <Trash2 className="mr-2 h-4 w-4" />
+                 <span>Delete</span>
+               </DropdownMenuItem>
+             </DropdownMenuContent>
+           </DropdownMenu>
+        </div>
 
-        <h4 className="font-medium">{card.title}</h4>
-        
-        {card.description && (
-          <p className="text-sm opacity-80 mt-2 line-clamp-2">
-            {card.description}
-          </p>
-        )}
-        
-        {card.labels.length > 0 && (
-          <div className="flex gap-1 mt-2 flex-wrap">
-            {card.labels.map((label) => (
-              <span
+        {/* Card Title */}
+        <h3 className="font-medium text-sm mb-2 pr-6">{card.title}</h3> 
+
+        {/* Card Attributes Section */}
+        <div className="mt-2 flex flex-wrap gap-2 items-center text-xs text-gray-400">
+          {/* Priority */}
+          {card.priority && (() => {
+            const { Icon, color } = getPriorityInfo(card.priority);
+            return (
+              <span className={`flex items-center ${color}`}>
+                <Icon className="h-3 w-3 mr-1" />
+                {/* Optional: Display text like 'High' */}
+                {/* {card.priority.charAt(0).toUpperCase() + card.priority.slice(1)} */}
+              </span>
+            );
+          })()}
+
+          {/* Due Date */}
+          {card.dueDate && (
+            <span className={`flex items-center ${new Date(card.dueDate) < new Date() ? 'text-orange-400' : ''}`}>
+              <Calendar className="h-3 w-3 mr-1" />
+              {format(new Date(card.dueDate), 'MMM d')}
+            </span>
+          )}
+
+          {/* Assignees */}
+          {card.assignees && card.assignees.length > 0 && (
+             <div className="flex items-center space-x-1">
+                <User className="h-3 w-3" />
+                {/* Display first initial for simplicity, max 2 */}
+                {card.assignees.slice(0, 2).map((assignee, i) => (
+                  <span key={i} className="bg-gray-600/50 rounded-full px-1.5 py-0.5 text-xs">
+                    {assignee.charAt(0).toUpperCase()}
+                  </span>
+                ))}
+                {card.assignees.length > 2 && (
+                   <span className="text-xs">+{card.assignees.length - 2}</span>
+                )}
+             </div>
+          )}
+        </div>
+
+        {/* Labels */}
+        {card.labels && card.labels.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {card.labels.slice(0, 3).map((label) => ( // Show max 3 labels
+              <span 
                 key={label.id}
-                className="px-2 py-0.5 text-xs rounded-full glass-depth-1"
-                style={{ backgroundColor: `${label.color}4D` }}
+                className="px-1.5 py-0.5 rounded text-xs font-medium"
+                style={{ backgroundColor: label.color, color: '#ffffff' }} // Basic contrast, might need adjustment
               >
                 {label.name}
               </span>
             ))}
-          </div>
-        )}
-        
-        <div className="flex justify-between items-center mt-3">
-          {card.dueDate && (
-            <div className="text-xs opacity-80">
-              Due: {new Date(card.dueDate).toLocaleDateString()}
-            </div>
-          )}
-          {card.priority && (
-            <div className={`text-xs px-2 py-0.5 rounded-full glass-depth-1 ${
-              card.priority === 'high' ? 'bg-red-500/30' :
-              card.priority === 'medium' ? 'bg-yellow-500/30' : 'bg-green-500/30'
-            }`}>
-              {card.priority}
-            </div>
-          )}
-        </div>
-        
-        {card.assignees.length > 0 && (
-          <div className="flex mt-2 -space-x-2">
-            {card.assignees.map((assignee, index) => (
-              <div 
-                key={index} 
-                className="w-6 h-6 rounded-full glass-depth-1 flex items-center justify-center text-xs border border-white/10"
-                title={assignee}
-              >
-                {assignee.charAt(0).toUpperCase()}
-              </div>
-            ))}
+            {card.labels.length > 3 && (
+               <span className="text-xs text-gray-400 mt-1">+{card.labels.length - 3} more</span>
+            )}
           </div>
         )}
       </motion.div>
 
-      {/* Pass the full card object to the Modal */}
-      <ExpandedCardModal 
-        isOpen={isModalOpen} 
-        onOpenChange={setIsModalOpen} 
-        card={card} // Pass the card object
-      >
-        {/* Children are no longer needed here as content is managed inside the modal */}
-      </ExpandedCardModal>
+      {/* Expanded Card Modal */}
+      {isModalOpen && (
+        <ExpandedCardModal 
+          card={card} 
+          isOpen={isModalOpen} 
+          onOpenChange={setIsModalOpen}
+        />
+      )}
     </>
   );
-}); 
+});
+
+Card.displayName = 'Card'; // Add display name for better debugging 

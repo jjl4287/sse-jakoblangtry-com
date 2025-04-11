@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, CalendarIcon } from 'lucide-react'; // Added CalendarIcon
-import { format } from 'date-fns'; // For formatting date
-import type { Card as CardType, Priority } from '~/types'; // Import CardType and Priority
+import { X, CalendarIcon, Paperclip, MessageSquare, Trash2 } from 'lucide-react'; // Added icons
+import { format, formatDistanceToNow } from 'date-fns'; // Added formatDistanceToNow
+import type { Card as CardType, Priority, Comment, Attachment } from '~/types'; // Import Comment & Attachment
 import { Input } from '~/components/ui/input'; // Import Shadcn Input
 import { Textarea } from '~/components/ui/textarea'; // Import Shadcn Textarea
 import { Label } from '~/components/ui/label'; // Import Shadcn Label
@@ -30,13 +30,18 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
   card, // Use the card object
   children,
 }) => {
-  const { updateCard } = useBoard(); // Get updateCard function
+  const { updateCard, addComment, deleteComment, addAttachment, deleteAttachment } = useBoard(); // Get comment/attachment functions
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description || '');
   const [priority, setPriority] = useState<Priority>(card.priority || 'medium');
   const [dueDate, setDueDate] = useState<Date | undefined>(card.dueDate ? new Date(card.dueDate) : undefined);
   const [isSaving, setIsSaving] = useState(false); // Add saving state indicator
   const [titleError, setTitleError] = useState<string | null>(null); // State for title validation
+  
+  // State for new comment/attachment
+  const [newCommentContent, setNewCommentContent] = useState('');
+  const [newAttachmentName, setNewAttachmentName] = useState('');
+  const [newAttachmentUrl, setNewAttachmentUrl] = useState('');
 
   // Effect to reset form state when the modal opens for a different card
   useEffect(() => {
@@ -47,6 +52,10 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
       setDueDate(card.dueDate ? new Date(card.dueDate) : undefined);
       setIsSaving(false); // Reset saving state
       setTitleError(null); // Reset validation error
+      // Reset comment/attachment forms
+      setNewCommentContent('');
+      setNewAttachmentName('');
+      setNewAttachmentUrl('');
     }
   }, [isOpen, card]);
 
@@ -91,7 +100,57 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
     };
   }, [title, description, priority, dueDate, card, updateCard, isOpen, titleError]); // Added dependencies
 
-  // TODO: Implement validation logic
+  // --- Handlers for Comments & Attachments --- 
+
+  const handleAddComment = async () => {
+    if (!newCommentContent.trim()) return;
+    try {
+      await addComment(card.id, 'User', newCommentContent.trim()); 
+      setNewCommentContent(''); 
+    } catch (error) {
+      console.error("Failed to add comment:", error);
+      // Error handling deferred
+    }
+  };
+  
+  const handleDeleteComment = async (commentId: string) => {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      try {
+        await deleteComment(card.id, commentId);
+      } catch (error) {
+        console.error("Failed to delete comment:", error);
+        // Error handling deferred
+      }
+    }
+  };
+  
+  const handleAddAttachment = async () => {
+    if (!newAttachmentName.trim() || !newAttachmentUrl.trim()) return;
+    try {
+      new URL(newAttachmentUrl.trim()); 
+      await addAttachment(card.id, newAttachmentName.trim(), newAttachmentUrl.trim(), 'link'); 
+      setNewAttachmentName('');
+      setNewAttachmentUrl('');
+    } catch (error) {
+      console.error("Failed to add attachment:", error);
+      // Removed basic alert
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+     if (window.confirm('Are you sure you want to delete this attachment?')) {
+      try {
+        await deleteAttachment(card.id, attachmentId);
+      } catch (error) {
+        console.error("Failed to delete attachment:", error);
+        // Error handling deferred
+      }
+    }
+  };
+
+  // Get Attachments and Comments (handle potential undefined)
+  const attachments = card.attachments || [];
+  const comments = card.comments || [];
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
@@ -125,7 +184,7 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
           </Dialog.Description> */}
 
           {/* Dynamic Content Area */}
-          <div className="overflow-y-auto max-h-[calc(90vh-100px)] space-y-4 pr-3"> {/* Added padding-right for scrollbar */}
+          <div className="overflow-y-auto max-h-[calc(90vh-100px)] space-y-6 pr-3"> {/* Increased space-y */}
             {/* Title Field with Validation */}
             <div className="grid w-full items-center gap-1.5">
               <Label htmlFor={`card-title-${card.id}`} className="text-xs text-gray-400">Title</Label>
@@ -230,6 +289,100 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
                 </div>
               </div>
             )}
+
+            {/* --- Attachments Section --- */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium flex items-center text-gray-300">
+                 <Paperclip className="mr-2 h-4 w-4" /> Attachments ({attachments.length})
+              </Label>
+              {attachments.length > 0 && (
+                <ul className="space-y-2">
+                  {attachments.map((att) => (
+                    <li key={att.id} className="flex items-center justify-between bg-white/5 p-2 rounded">
+                      <a 
+                        href={att.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xs hover:underline truncate mr-2"
+                        title={att.name}
+                      >
+                        {att.name || 'Untitled Attachment'}
+                      </a>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-gray-400 hover:text-red-400"
+                        onClick={() => handleDeleteAttachment(att.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {/* Add Attachment Form */}
+              <div className="flex items-end gap-2">
+                 <div className="flex-grow grid gap-1.5">
+                    <Label htmlFor={`attachment-name-${card.id}`} className="sr-only">Name</Label>
+                    <Input 
+                      id={`attachment-name-${card.id}`}
+                      value={newAttachmentName}
+                      onChange={(e) => setNewAttachmentName(e.target.value)}
+                      placeholder="Attachment Name"
+                      className="bg-white/5 border-white/20 h-8 text-xs"
+                     />
+                     <Label htmlFor={`attachment-url-${card.id}`} className="sr-only">URL</Label>
+                     <Input 
+                      id={`attachment-url-${card.id}`}
+                      value={newAttachmentUrl}
+                      onChange={(e) => setNewAttachmentUrl(e.target.value)}
+                      placeholder="Attachment URL"
+                      type="url"
+                      className="bg-white/5 border-white/20 h-8 text-xs"
+                     />
+                 </div>
+                 <Button onClick={handleAddAttachment} size="sm" className="h-8">Add</Button>
+              </div>
+            </div>
+
+            {/* --- Comments Section --- */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium flex items-center text-gray-300">
+                 <MessageSquare className="mr-2 h-4 w-4" /> Comments ({comments.length})
+              </Label>
+              {comments.length > 0 && (
+                <ul className="space-y-3">
+                  {comments.map((comment) => (
+                    <li key={comment.id} className="text-xs bg-white/5 p-2 rounded group relative">
+                       <div className="flex justify-between items-center mb-1">
+                          <span className="font-medium text-gray-300">{comment.author || 'User'}</span>
+                          <span className="text-gray-400 text-[10px]">{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}</span>
+                       </div>
+                      <p className="text-gray-200 whitespace-pre-wrap">{comment.content}</p>
+                      <Button 
+                         variant="ghost" 
+                         size="icon" 
+                         className="absolute top-1 right-1 h-5 w-5 text-gray-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                         onClick={() => handleDeleteComment(comment.id)}
+                       >
+                         <Trash2 className="h-3 w-3" />
+                       </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {/* Add Comment Form */}
+              <div className="flex items-start gap-2">
+                <Textarea 
+                  value={newCommentContent}
+                  onChange={(e) => setNewCommentContent(e.target.value)}
+                  placeholder="Add a comment..."
+                  className="bg-white/5 border-white/20 text-xs min-h-[60px] flex-grow"
+                  rows={2}
+                />
+                <Button onClick={handleAddComment} size="sm" className="mt-auto h-8">Send</Button> 
+              </div>
+            </div>
 
             {children} {/* Keep for potential future extensibility */} 
           </div>

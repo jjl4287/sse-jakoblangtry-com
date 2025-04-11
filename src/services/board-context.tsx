@@ -41,6 +41,10 @@ type BoardContextType = {
     url: string,
     type: string
   ) => Promise<void>;
+  deleteComment: (cardId: string, commentId: string) => Promise<void>;
+  deleteAttachment: (cardId: string, attachmentId: string) => Promise<void>;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
 };
 
 const BoardContext = createContext<BoardContextType | undefined>(undefined);
@@ -49,6 +53,7 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
   const [board, setBoard] = useState<Board | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Load the board data on initial render
   useEffect(() => {
@@ -260,6 +265,20 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Delete a comment from a card
+  const deleteComment = async (cardId: string, commentId: string) => {
+    try {
+      setLoading(true);
+      const updatedBoard = await BoardService.deleteComment(cardId, commentId);
+      setBoard(updatedBoard);
+    } catch (err) {
+      setError(err as Error);
+      console.error('Error deleting comment:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Add an attachment to a card
   const addAttachment = async (
     cardId: string,
@@ -279,6 +298,20 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       setError(err as Error);
       console.error('Error adding attachment:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete an attachment from a card
+  const deleteAttachment = async (cardId: string, attachmentId: string) => {
+    try {
+      setLoading(true);
+      const updatedBoard = await BoardService.deleteAttachment(cardId, attachmentId);
+      setBoard(updatedBoard);
+    } catch (err) {
+      setError(err as Error);
+      console.error('Error deleting attachment:', err);
     } finally {
       setLoading(false);
     }
@@ -304,6 +337,10 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
         removeLabel,
         addComment,
         addAttachment,
+        deleteComment,
+        deleteAttachment,
+        searchQuery,
+        setSearchQuery,
       }}
     >
       {children}

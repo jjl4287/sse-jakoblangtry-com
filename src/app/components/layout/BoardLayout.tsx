@@ -11,7 +11,7 @@ export const BoardLayout: React.FC = () => {
     <BoardProvider>
       <ThemeProvider>
         <DndContext>
-          <div className="flex flex-col h-screen bg-gradient-to-br dark:from-primary dark:to-secondary light:from-[#f8f9fa] light:to-gray-100">
+          <div className="flex flex-col h-screen bg-[#4d4d4d]">
             <Board />
           </div>
         </DndContext>

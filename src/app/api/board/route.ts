@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import type { Board } from '~/types';
+import type { Board, Card, Comment, Attachment } from '~/types';
 import { createDefaultBoard } from '~/types/defaults';
+import crypto from 'crypto'; // Import crypto for UUID generation
 
 // For static export, this forces the route to be included in the export
 export const dynamic = 'force-static';
@@ -101,17 +102,86 @@ export async function PATCH(request: Request) {
       board = createDefaultBoard();
     }
     
+    let updated = false;
+
     if (data.action === 'updateTheme' && data.theme) {
       // Update the theme
       board.theme = data.theme;
-      
-      // Write the updated board back to the file
-      await fs.writeFile(BOARD_FILE, JSON.stringify(board, null, 2), 'utf-8');
-      
-      return NextResponse.json(board);
+      updated = true;
+    } else if (data.action === 'addComment' && data.cardId && data.comment) {
+      // Add a comment to a specific card
+      const { cardId, comment } = data as { cardId: string, comment: { author: string, content: string } };
+      const newComment: Comment = {
+        id: crypto.randomUUID(),
+        author: comment.author || 'User', // Default author
+        content: comment.content,
+        createdAt: new Date(),
+      };
+      board.columns.forEach(column => {
+        column.cards.forEach(card => {
+          if (card.id === cardId) {
+            card.comments = [...(card.comments || []), newComment];
+            updated = true;
+          }
+        });
+      });
+    } else if (data.action === 'deleteComment' && data.cardId && data.commentId) {
+      // Delete a comment from a specific card
+      const { cardId, commentId } = data as { cardId: string, commentId: string };
+      board.columns.forEach(column => {
+        column.cards.forEach(card => {
+          if (card.id === cardId && card.comments) {
+            card.comments = card.comments.filter(c => c.id !== commentId);
+            updated = true;
+          }
+        });
+      });
+    } else if (data.action === 'addAttachment' && data.cardId && data.attachment) {
+        // Add an attachment to a specific card
+        const { cardId, attachment } = data as { cardId: string, attachment: { name: string, url: string, type: string } };
+        const newAttachment: Attachment = {
+            id: crypto.randomUUID(),
+            name: attachment.name,
+            url: attachment.url,
+            type: attachment.type || 'link', // Default type
+            createdAt: new Date(),
+        };
+        board.columns.forEach(column => {
+            column.cards.forEach(card => {
+                if (card.id === cardId) {
+                    card.attachments = [...(card.attachments || []), newAttachment];
+                    updated = true;
+                }
+            });
+        });
+    } else if (data.action === 'deleteAttachment' && data.cardId && data.attachmentId) {
+        // Delete an attachment from a specific card
+        const { cardId, attachmentId } = data as { cardId: string, attachmentId: string };
+        board.columns.forEach(column => {
+            column.cards.forEach(card => {
+                if (card.id === cardId && card.attachments) {
+                    card.attachments = card.attachments.filter(a => a.id !== attachmentId);
+                    updated = true;
+                }
+            });
+        });
     }
     
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    if (updated) {
+      // Write the updated board back to the file
+      await fs.writeFile(BOARD_FILE, JSON.stringify(board, null, 2), 'utf-8');
+      return NextResponse.json(board); // Return the updated board
+    } else {
+      // If no action matched or no update occurred, return original board or error
+      // Check if it was just an unknown action or if the item wasn't found
+       if (data.action && !['updateTheme', 'addComment', 'deleteComment', 'addAttachment', 'deleteAttachment'].includes(data.action)) {
+         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+       } else {
+         // Action might be valid but target card/comment/attachment not found, return current board state
+         return NextResponse.json(board);
+       }
+    }
+
   } catch (error) {
     console.error('Error updating board:', error);
     return NextResponse.json({ error: 'Failed to update board data' }, { status: 500 });

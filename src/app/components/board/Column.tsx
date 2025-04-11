@@ -10,6 +10,7 @@ import { useBoard } from '~/services/board-context';
 import { ItemTypes } from '~/constants/dnd-types';
 import type { CardDragItem } from '~/constants/dnd-types';
 import { motion, AnimatePresence } from 'framer-motion';
+import update from 'immutability-helper'; // Import immutability-helper
 
 interface ColumnProps {
   column: ColumnType;
@@ -33,6 +34,12 @@ const Column: React.FC<ColumnProps> = memo(({
   const [isOver, setIsOver] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const columnMotionRef = useRef<HTMLDivElement>(null);
+  const [internalCards, setInternalCards] = useState(column.cards);
+  
+  // Update internal state when the column prop changes
+  useEffect(() => {
+    setInternalCards(column.cards.sort((a, b) => a.order - b.order));
+  }, [column.cards]);
   
   // Add mouse position tracking for lighting effect
   useEffect(() => {
@@ -164,11 +171,34 @@ const Column: React.FC<ColumnProps> = memo(({
     }
   }, [onDragStart]);
   
+  // Callback for visual reordering within the column during hover
+  const moveCardInternally = useCallback((dragIndex: number, hoverIndex: number) => {
+    setInternalCards((prevCards) => {
+      if (!prevCards) return [];
+      // Ensure indices are within bounds
+      if (dragIndex < 0 || dragIndex >= prevCards.length || hoverIndex < 0 || hoverIndex >= prevCards.length) {
+        console.warn("Attempted to move card with invalid index", { dragIndex, hoverIndex, cardsLength: prevCards.length });
+        return prevCards;
+      }
+      const cardToMove = prevCards[dragIndex];
+      if (!cardToMove) {
+        console.warn("Card to move not found at index", dragIndex);
+        return prevCards;
+      }
+      return update(prevCards, {
+        $splice: [
+          [dragIndex, 1], // Remove card from original position
+          [hoverIndex, 0, cardToMove], // Insert card at new position
+        ],
+      });
+    });
+  }, []);
+  
   // Apply the drop ref to the column content area (the scrollable div)
   drop(ref);
   
-  // Sort cards by order for rendering
-  const sortedCards = [...column.cards].sort((a, b) => a.order - b.order);
+  // Render using the internal state for smooth animations
+  const sortedCards = internalCards;
   
   // Determine column appearance during drag operations
   const getColumnClasses = useCallback(() => {
@@ -227,7 +257,7 @@ const Column: React.FC<ColumnProps> = memo(({
       
       <div 
         ref={ref}
-        className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 scrollbar-thin pr-1 -mr-1"
+        className="flex-1 overflow-y-auto overflow-x-visible space-y-3 scrollbar-thin px-2 pr-1"
       >
         {showAddForm && (
           <CardAddForm 
@@ -257,9 +287,9 @@ const Column: React.FC<ColumnProps> = memo(({
                 card={card}
                 index={index}
                 columnId={column.id}
-                onClick={handleCardClick}
                 onDragStart={handleCardDragStart}
                 onDragEnd={onDragEnd}
+                onMoveCard={moveCardInternally}
               />
             </motion.div>
           ))}

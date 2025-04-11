@@ -6,12 +6,15 @@ import { useBoard } from '~/services/board-context';
 import type { CardDragItem } from '~/constants/dnd-types';
 import { motion } from 'framer-motion';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { Input } from "~/components/ui/input";
+import { Search } from 'lucide-react';
 
 export const Board: React.FC = () => {
-  const { board, loading, error } = useBoard();
+  const { board, loading, error, searchQuery, setSearchQuery } = useBoard();
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
   const [dragSourceColumnId, setDragSourceColumnId] = useState<string | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   // Track mouse position for the header lighting effect
   const [mousePos, setMousePos] = useState({ x: '50%', y: '50%' });
 
@@ -55,18 +58,52 @@ export const Board: React.FC = () => {
     };
   }, []);
 
-  // Memoize column counts to prevent recalculations on every render
-  const cardCount = useMemo(() => {
-    if (!board || !board.columns || !Array.isArray(board.columns)) {
+  // Add keyboard shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Filter cards based on search query
+  const filteredBoard = useMemo(() => {
+    if (!board) return null;
+    if (!searchQuery.trim()) return board; // Return original board if search is empty
+    
+    const query = searchQuery.toLowerCase();
+    const columns = board.columns.map(column => ({
+      ...column,
+      cards: column.cards.filter(card => 
+        card.title.toLowerCase().includes(query) || 
+        (card.description && card.description.toLowerCase().includes(query)) ||
+        card.labels.some(label => label.name.toLowerCase().includes(query))
+        // Add other fields to search if needed (e.g., assignees, comments)
+      )
+    }));
+    
+    return { ...board, columns };
+  }, [board, searchQuery]);
+
+  // Recalculate card count based on filtered board
+   const cardCount = useMemo(() => {
+    if (!filteredBoard || !filteredBoard.columns || !Array.isArray(filteredBoard.columns)) {
       return 0;
     }
-    return board.columns.reduce((acc, col) => {
+    return filteredBoard.columns.reduce((acc, col) => {
       if (col && Array.isArray(col.cards)) {
         return acc + col.cards.length;
       }
       return acc;
     }, 0);
-  }, [board]);
+  }, [filteredBoard]);
 
   if (loading) {
     return (
@@ -113,13 +150,24 @@ export const Board: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center">
-          <h1 className="text-xl font-bold mr-2">Society of Software Engineers</h1>
-          <h2 className="text-lg font-semibold opacity-80">Goals for 25/26</h2>
+        <div className="flex items-center flex-grow mr-4">
+          <h1 className="text-xl font-bold mr-2 whitespace-nowrap">Society of Software Engineers</h1>
+          <h2 className="text-lg font-semibold opacity-80 whitespace-nowrap">Goals for 25/26</h2>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 flex-shrink-0">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              ref={searchInputRef}
+              type="search"
+              placeholder="Search (⌘K)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-3 py-1 h-8 w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50"
+            />
+          </div>
           <div className="glass-button px-3 py-1 rounded-full text-sm">
-            {board?.columns?.length ?? 0} Columns
+            {filteredBoard?.columns?.length ?? 0} Columns
           </div>
           <div className="glass-button px-3 py-1 rounded-full text-sm">
             {cardCount} Cards
@@ -134,7 +182,7 @@ export const Board: React.FC = () => {
         layout={false}
       >
         <div className="flex h-full gap-6 overflow-x-auto overflow-y-hidden">
-          {board?.columns?.map((column) => (
+          {filteredBoard?.columns?.map((column) => (
             <Column 
               key={column.id} 
               column={column}

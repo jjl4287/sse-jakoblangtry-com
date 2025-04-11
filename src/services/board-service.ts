@@ -2,55 +2,115 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Board, Card, Column, Label, Attachment, Comment } from '~/types';
 import { createDefaultBoard } from '~/types/defaults';
 
-// Local storage key for board data
+// Constants
 const BOARD_STORAGE_KEY = 'kanban_board_data';
+const API_ENDPOINT = '/api/boards'; // Standardized API endpoint
+const STATIC_BOARD_PATH = '/data/board.json'; // Path to static JSON
+
+// --- Robust Save/Load Helpers --- 
 
 /**
- * Helper functions for localStorage operations in static/production environments
+ * Saves the board data, trying API first and falling back to localStorage.
+ * @param boardData The board data to save.
+ * @returns boolean indicating if server save was successful.
  */
-const LocalStorage = {
-  // Get the board from localStorage
-  getBoard: async (): Promise<Board> => {
-    const storedData = localStorage.getItem(BOARD_STORAGE_KEY);
-    
-    if (storedData) {
+const saveBoardWithFallback = async (boardData: Board): Promise<boolean> => {
+  try {
+    // 1. Try saving to server API
+    const response = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      credentials: 'omit',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(boardData),
+    });
+
+    if (response.ok) {
+      // 2. If server save successful, also update localStorage
+      localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(boardData));
+      return true; // Server save succeeded
+    } else {
+      console.warn(`Server save failed with status ${response.status}. Falling back to localStorage only.`);
+      response.text().then(body => console.warn("Server response body:", body)).catch(() => {});
+      // 3. If server save failed, save only to localStorage
+      localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(boardData));
+      return false; // Server save failed
+    }
+  } catch (error) {
+    console.error('Error saving board (API or network issue). Falling back to localStorage only:', error);
+    // 4. On network error or other issues, save only to localStorage
+    localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(boardData));
+    return false; // Server save failed
+  }
+};
+
+/**
+ * Loads the board data, trying API first, then localStorage, then static JSON, then default.
+ * @returns The loaded board data.
+ */
+const loadBoardWithFallback = async (): Promise<Board> => {
+  let loadedBoard: Board | null = null;
+  let source: string = 'unknown';
+
+  try {
+    // 1. Try loading from server API
+    const apiResponse = await fetch(API_ENDPOINT, { method: 'GET', credentials: 'omit' });
+    if (apiResponse.ok) {
+      loadedBoard = await apiResponse.json();
+      source = 'API';
+      // Update localStorage with the latest data from the server
+      if (loadedBoard) {
+         localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(loadedBoard));
+      }
+    } else {
+      console.warn(`Failed to load from API (status ${apiResponse.status}). Trying localStorage.`);
+    }
+  } catch (error) {
+    console.warn('Error loading from API. Trying localStorage:', error);
+  }
+
+  // 2. If API failed or returned no data, try loading from localStorage
+  if (!loadedBoard) {
+    const localData = localStorage.getItem(BOARD_STORAGE_KEY);
+    if (localData) {
       try {
-        return JSON.parse(storedData);
+        loadedBoard = JSON.parse(localData);
+        source = 'localStorage';
       } catch (e) {
-        console.error('Error parsing stored board data:', e);
+        console.error('Error parsing localStorage data. Trying static JSON:', e);
       }
     }
-    
-    // If no stored data or parsing error, fetch the static JSON
+  }
+
+  // 3. If localStorage failed or was empty, try loading from static JSON
+  if (!loadedBoard) {
     try {
-      const response = await fetch('/data/board.json');
-      if (response.ok) {
-        const initialData = await response.json();
-        localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(initialData));
-        return initialData;
+      const staticResponse = await fetch(STATIC_BOARD_PATH);
+      if (staticResponse.ok) {
+        loadedBoard = await staticResponse.json();
+        source = 'static JSON';
+        // Save the initial static data to localStorage
+        if (loadedBoard) {
+          localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(loadedBoard));
+        }
+      } else {
+         console.warn(`Failed to load static JSON (status ${staticResponse.status}). Using default board.`);
       }
     } catch (e) {
-      console.error('Error fetching initial board data:', e);
+      console.error('Error fetching static JSON. Using default board:', e);
     }
-    
-    // Fallback to default board
-    const defaultBoard = createDefaultBoard();
-    localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(defaultBoard));
-    return defaultBoard;
-  },
-  
-  // Save the board to localStorage
-  saveBoard: (board: Board): void => {
-    localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(board));
-  },
-  
-  // Update the board in localStorage and return the updated board
-  updateBoard: async (updateFn: (board: Board) => Board): Promise<Board> => {
-    const board = await LocalStorage.getBoard();
-    const updatedBoard = updateFn(board);
-    LocalStorage.saveBoard(updatedBoard);
-    return updatedBoard;
   }
+
+  // 4. If all else fails, create a default board
+  if (!loadedBoard) {
+    console.warn('All loading methods failed. Creating default board.');
+    loadedBoard = createDefaultBoard();
+    source = 'default';
+    // Save the default board to localStorage
+    localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(loadedBoard));
+  }
+
+  console.log(`Board loaded from: ${source}`);
+  return loadedBoard;
 };
 
 /**
@@ -62,24 +122,8 @@ export class BoardService {
    * @returns The board data
    */
   static async getBoard(): Promise<Board> {
-    // Use localStorage for production/static environment
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-      return await LocalStorage.getBoard();
-    }
-    
-    // Use API for development environment
-    const response = await fetch('/api/board', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch board data');
-    }
-    
-    return await response.json();
+    // Always use the fallback logic for consistency
+    return await loadBoardWithFallback();
   }
 
   /**
@@ -88,31 +132,10 @@ export class BoardService {
    * @returns The updated board
    */
   static async updateTheme(theme: 'light' | 'dark'): Promise<Board> {
-    // Use localStorage for production/static environment
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-      return await LocalStorage.updateBoard((board) => {
-        board.theme = theme;
-        return board;
-      });
-    }
-    
-    // Use API for development environment
-    const response = await fetch('/api/board', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action: 'updateTheme',
-        theme,
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to update theme');
-    }
-    
-    return await response.json();
+    const board = await this.getBoard();
+    const updatedBoard = { ...board, theme };
+    await saveBoardWithFallback(updatedBoard);
+    return updatedBoard;
   }
 
   /**
@@ -146,18 +169,7 @@ export class BoardService {
       columns: [...board.columns, newColumn],
     };
     
-    const response = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to create column');
-    }
-    
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 
@@ -185,18 +197,7 @@ export class BoardService {
       columns: updatedColumns,
     };
     
-    const response = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to update column');
-    }
-    
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 
@@ -213,18 +214,7 @@ export class BoardService {
       columns: board.columns.filter((col) => col.id !== columnId),
     };
     
-    const response = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to delete column');
-    }
-    
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 
@@ -297,18 +287,7 @@ export class BoardService {
       columns: updatedColumns,
     };
     
-    const response = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to create card');
-    }
-    
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 
@@ -354,18 +333,7 @@ export class BoardService {
       columns: updatedColumns,
     };
     
-    const response = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to update card');
-    }
-    
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 
@@ -496,40 +464,9 @@ export class BoardService {
 
     // --- Persist the changes --- 
     try {
-      // Use localStorage for production/static environment
-      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-         LocalStorage.saveBoard(finalUpdatedBoard);
-         // Add a small delay to allow localStorage to potentially write before returning
-         await new Promise(resolve => setTimeout(resolve, 10)); 
-         return finalUpdatedBoard;
-      }
-
-      // Use API for development environment - use non-blocking fetch
-      // Return the updated board immediately to avoid UI delay
-      const updatedBoardToReturn = finalUpdatedBoard;
-      
-      // Make API call in background without waiting for response
-      fetch('/api/board', {
-        method: 'POST', 
-        credentials: 'omit', // Prevent credentials from being sent
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(finalUpdatedBoard),
-      }).then(response => {
-        if (!response.ok) {
-          response.text().then(errorBody => {
-            console.error('API Error Response:', errorBody);
-            console.error(`Failed to move card via API. Status: ${response.status}`);
-          });
-        }
-      }).catch(error => {
-        console.error("Error persisting board state after move:", error);
-      });
-      
-      // Return the updated board immediately
-      return updatedBoardToReturn;
-
+      // Use robust fallback mechanism
+      await saveBoardWithFallback(finalUpdatedBoard);
+      return finalUpdatedBoard;
     } catch (error) {
       console.error("Error persisting board state after move:", error);
       // Optionally re-throw or handle the error state in the context
@@ -557,28 +494,7 @@ export class BoardService {
       columns: updatedColumns,
     };
     
-    // Check for production environment
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-      LocalStorage.saveBoard(updatedBoard);
-      return updatedBoard;
-    }
-    
-    // Use non-blocking fetch for better UI responsiveness
-    fetch('/api/board', {
-      method: 'POST',
-      credentials: 'omit',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    }).then(response => {
-      if (!response.ok) {
-        console.error('Failed to delete card, API status:', response.status);
-      }
-    }).catch(error => {
-      console.error('Error persisting card deletion:', error);
-    });
-    
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 
@@ -663,25 +579,7 @@ export class BoardService {
     }
 
     // Persist changes
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-        LocalStorage.saveBoard(updatedBoard);
-        return updatedBoard;
-    }
-
-    // Use non-blocking fetch for better UI responsiveness
-    fetch('/api/board', {
-        method: 'POST',
-        credentials: 'omit',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedBoard),
-    }).then(response => {
-        if (!response.ok) {
-            console.error('Failed to duplicate card, API status:', response.status);
-        }
-    }).catch(error => {
-        console.error('Error persisting duplicated card:', error);
-    });
-
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 
@@ -737,18 +635,7 @@ export class BoardService {
       columns: updatedColumns,
     };
     
-    const response = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to add label');
-    }
-    
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 
@@ -793,18 +680,7 @@ export class BoardService {
       columns: updatedColumns,
     };
     
-    const response = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to remove label');
-    }
-    
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 
@@ -820,59 +696,62 @@ export class BoardService {
     author: string,
     content: string
   ): Promise<Board> {
-    const board = await this.getBoard();
+    const commentData = { author, content };
     
+    // Create the new comment object
+    const newComment: Comment = {
+      id: uuidv4(),
+      author: commentData.author || 'User',
+      content: commentData.content,
+      createdAt: new Date(),
+    };
+
+    // Update the board state locally first
+    const board = await this.getBoard();
     const updatedColumns = board.columns.map((column) => {
-      const cardIndex = column.cards.findIndex((card) => card.id === cardId);
-      
-      if (cardIndex === -1) {
-        return column;
-      }
-      
-      const card = column.cards[cardIndex];
-      
-      if (!card) {
-        return column;
-      }
-      
-      const newComment: Comment = {
-        id: uuidv4(),
-        author,
-        content,
-        createdAt: new Date(),
-      };
-      
-      const updatedCard = {
+      const cardIndex = column.cards.findIndex((c) => c.id === cardId);
+      if (cardIndex === -1) return column;
+      const updatedCards = [...column.cards];
+      const card = updatedCards[cardIndex];
+      if (!card) return column;
+      updatedCards[cardIndex] = {
         ...card,
         comments: [...(card.comments || []), newComment],
       };
-      
+      return { ...column, cards: updatedCards };
+    });
+    const updatedBoard = { ...board, columns: updatedColumns };
+    
+    // Persist changes using the fallback mechanism
+    await saveBoardWithFallback(updatedBoard);
+    return updatedBoard;
+  }
+
+  /**
+   * Deletes a comment from a card
+   * @param cardId The card ID
+   * @param commentId The comment ID
+   * @returns The updated board
+   */
+  static async deleteComment(cardId: string, commentId: string): Promise<Board> {
+    // Update the board state locally first
+    const board = await this.getBoard();
+    const updatedColumns = board.columns.map((column) => {
+      const cardIndex = column.cards.findIndex((c) => c.id === cardId);
+      if (cardIndex === -1) return column;
       const updatedCards = [...column.cards];
-      updatedCards[cardIndex] = updatedCard;
-      
-      return {
-        ...column,
-        cards: updatedCards,
+      const card = updatedCards[cardIndex];
+      if (!card || !card.comments) return column;
+      updatedCards[cardIndex] = {
+        ...card,
+        comments: card.comments.filter(c => c.id !== commentId),
       };
+      return { ...column, cards: updatedCards };
     });
-    
-    const updatedBoard = {
-      ...board,
-      columns: updatedColumns,
-    };
-    
-    const response = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to add comment');
-    }
-    
+    const updatedBoard = { ...board, columns: updatedColumns };
+
+    // Persist changes using the fallback mechanism
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 
@@ -890,60 +769,63 @@ export class BoardService {
     url: string,
     type: string
   ): Promise<Board> {
-    const board = await this.getBoard();
-    
-    const updatedColumns = board.columns.map((column) => {
-      const cardIndex = column.cards.findIndex((card) => card.id === cardId);
-      
-      if (cardIndex === -1) {
-        return column;
-      }
-      
-      const card = column.cards[cardIndex];
-      
-      if (!card) {
-        return column;
-      }
-      
-      const newAttachment: Attachment = {
+    const attachmentData = { name, url, type };
+
+    // Create the new attachment object
+    const newAttachment: Attachment = {
         id: uuidv4(),
-        name,
-        url,
-        type,
+        name: attachmentData.name,
+        url: attachmentData.url,
+        type: attachmentData.type || 'link',
         createdAt: new Date(),
-      };
-      
-      const updatedCard = {
+    };
+
+    // Update the board state locally first
+    const board = await this.getBoard();
+    const updatedColumns = board.columns.map((column) => {
+      const cardIndex = column.cards.findIndex((c) => c.id === cardId);
+      if (cardIndex === -1) return column;
+      const updatedCards = [...column.cards];
+      const card = updatedCards[cardIndex];
+      if (!card) return column;
+      updatedCards[cardIndex] = {
         ...card,
         attachments: [...(card.attachments || []), newAttachment],
       };
-      
+      return { ...column, cards: updatedCards };
+    });
+    const updatedBoard = { ...board, columns: updatedColumns };
+
+    // Persist changes using the fallback mechanism
+    await saveBoardWithFallback(updatedBoard);
+    return updatedBoard;
+  }
+
+  /**
+   * Deletes an attachment from a card
+   * @param cardId The card ID
+   * @param attachmentId The attachment ID
+   * @returns The updated board
+   */
+  static async deleteAttachment(cardId: string, attachmentId: string): Promise<Board> {
+    // Update the board state locally first
+    const board = await this.getBoard();
+    const updatedColumns = board.columns.map((column) => {
+      const cardIndex = column.cards.findIndex((c) => c.id === cardId);
+      if (cardIndex === -1) return column;
       const updatedCards = [...column.cards];
-      updatedCards[cardIndex] = updatedCard;
-      
-      return {
-        ...column,
-        cards: updatedCards,
+      const card = updatedCards[cardIndex];
+      if (!card || !card.attachments) return column;
+      updatedCards[cardIndex] = {
+        ...card,
+        attachments: card.attachments.filter(a => a.id !== attachmentId),
       };
+      return { ...column, cards: updatedCards };
     });
-    
-    const updatedBoard = {
-      ...board,
-      columns: updatedColumns,
-    };
-    
-    const response = await fetch('/api/board', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedBoard),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to add attachment');
-    }
-    
+    const updatedBoard = { ...board, columns: updatedColumns };
+
+    // Persist changes using the fallback mechanism
+    await saveBoardWithFallback(updatedBoard);
     return updatedBoard;
   }
 } 
