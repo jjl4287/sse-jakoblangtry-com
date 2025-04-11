@@ -10,7 +10,19 @@ export const ThemeToggle: React.FC = () => {
   return (
     <motion.button
       onClick={toggleTheme}
-      className="relative inline-flex items-center justify-center rounded-full w-16 h-8 bg-accent/50 backdrop-blur-sm p-1 transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-50 border border-white/20"
+      className="relative inline-flex items-center justify-center rounded-full w-16 h-8 
+                 p-1 border shadow-md hover:shadow-lg 
+                 dark:bg-[rgba(10,54,34,var(--glass-bg-opacity-dark))] 
+                 dark:border-[rgba(255,255,255,var(--glass-border-opacity-dark))] 
+                 bg-[rgba(255,255,255,var(--glass-bg-opacity-light))] 
+                 border-[rgba(210,220,230,var(--glass-border-opacity-light))] 
+                 [backdrop-filter:blur(var(--glass-blur))] 
+                 dark:hover:bg-[rgba(10,54,34,var(--glass-hover-bg-opacity-dark))] 
+                 dark:hover:border-[rgba(255,255,255,var(--glass-hover-border-opacity-dark))] 
+                 hover:bg-[rgba(255,255,255,var(--glass-hover-bg-opacity-light))] 
+                 hover:border-[rgba(210,220,230,var(--glass-hover-border-opacity-light))] 
+                 transition-colors duration-300 ease-in-out 
+                 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-50"
       aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
       whileTap={{ scale: 0.95 }}
     >

@@ -207,24 +207,27 @@ export const Card = memo(({
   // Card appearance animation variants
   const cardVariants = {
     dragging: {
-      scale: 1.03,
-      boxShadow: "0 10px 20px rgba(0,0,0,0.2)",
-      opacity: 0.7,
+      scale: 1.05, // Slightly larger scale for "pick-up"
+      rotate: 2, // Slight rotation
+      boxShadow: "0 15px 25px rgba(0,0,0,0.25)", // More pronounced shadow
+      opacity: 0.9, // Slightly more opaque than before
       cursor: "grabbing",
-      zIndex: 20,
+      zIndex: 50, // Ensure it's above everything
     },
     normal: {
       scale: 1,
+      rotate: 0, // Ensure rotation resets
       boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
       opacity: 1,
       cursor: "grab",
       zIndex: 1,
+      transition: { type: "spring", stiffness: 500, damping: 30 } // Smoother return
     },
     hover: {
-      scale: 1.02,
-      y: -4,
-      boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
+      scale: 1.03, // Keep hover subtle
+      y: -2,
       zIndex: 10,
+      transition: { duration: 0.15 }
     }
   };
 
@@ -245,26 +248,23 @@ export const Card = memo(({
     <>
       <motion.div
         ref={ref}
-        className={`relative glass-card glass-depth-2 p-3 cursor-pointer transition-all group ${!isDragging && 'glass-border-animated'} ${isOver && canDrop && 'ring-2 ring-pink-400/50'}`}
+        className={`relative glass-card p-3 cursor-pointer transition-all group 
+                   border rounded-lg shadow-md hover:shadow-lg 
+                   ${isOver && canDrop && 'ring-2 ring-pink-400/50'}`}
         style={{ 
-          transformOrigin: "center center",
-          // Initial position for lighting variables
+          originX: 0.5, // Ensure scaling/rotation is centered
+          originY: 0.5,
           ['--x' as string]: '50%',
-          ['--y' as string]: '50%'
+          ['--y' as string]: '50%' 
         }}
-        onClick={handleOpenModal}
-        data-handler-id={handlerId}
+        variants={cardVariants}
         initial="normal"
         animate={isDragging ? "dragging" : "normal"}
         whileHover="hover"
-        variants={cardVariants}
-        transition={{ 
-          type: "spring", 
-          damping: 20, 
-          stiffness: 300,
-          layout: true // Re-enable layout animation for smooth shifting
-        }}
-        layoutId={`card-${card.id}`}
+        layout="position" // Crucial for smooth reordering animation
+        data-handler-id={handlerId} // Attach handler ID for dnd
+        data-card-id={card.id} // Add data attribute for querying in Column
+        onClick={handleOpenModal} // Re-add modal opening on click
       >
         {/* Dropdown Menu for actions */}
         <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -353,6 +353,10 @@ export const Card = memo(({
             )}
           </div>
         )}
+
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10 text-xs text-gray-400">
+          {/* ... (rest of the existing code remains unchanged) ... */}
+        </div>
       </motion.div>
 
       {/* Expanded Card Modal */}

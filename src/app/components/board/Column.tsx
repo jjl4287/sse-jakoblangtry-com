@@ -12,6 +12,10 @@ import type { CardDragItem } from '~/constants/dnd-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import update from 'immutability-helper'; // Import immutability-helper
 
+// Auto-scroll constants
+const SCROLL_AREA_HEIGHT = 60; // Pixels from top/bottom edge to trigger scroll
+const SCROLL_SPEED = 10; // Pixels per frame
+
 interface ColumnProps {
   column: ColumnType;
   isDraggingCard?: boolean;
@@ -35,6 +39,7 @@ const Column: React.FC<ColumnProps> = memo(({
   const ref = useRef<HTMLDivElement>(null);
   const columnMotionRef = useRef<HTMLDivElement>(null);
   const [internalCards, setInternalCards] = useState(column.cards);
+  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref for scroll interval
   
   // Update internal state when the column prop changes
   useEffect(() => {
@@ -91,6 +96,76 @@ const Column: React.FC<ColumnProps> = memo(({
     hover: (item: CardDragItem, monitor) => {
       const isHovering = monitor.isOver({ shallow: true });
       setIsOver(isHovering); // Keep for visual feedback (column highlight)
+
+      // Auto-scroll logic
+      if (isHovering && ref.current) {
+        handleAutoScroll(monitor, ref.current);
+      } else {
+        stopAutoScroll();
+      }
+      
+      // --- Start: Visual Reordering Logic --- 
+      if (!ref.current || !monitor.isOver({ shallow: true })) {
+        return; // Don't reorder if not hovering over the column directly
+      }
+      
+      const dragIndex = internalCards.findIndex(c => c.id === item.id);
+      const clientOffset = monitor.getClientOffset();
+      if (!clientOffset || dragIndex === -1) {
+        return; // Can't reorder if we don't know the dragged card or mouse position
+      }
+      
+      const columnRect = ref.current.getBoundingClientRect();
+      const hoverClientY = clientOffset.y - columnRect.top + ref.current.scrollTop; // Adjust for scroll position
+      
+      let hoverIndex = -1;
+      let smallestDiff = Infinity;
+      
+      // Find the closest card index to the hover position
+      internalCards.forEach((card, i) => {
+        const cardElement = ref.current?.querySelector(`[data-card-id="${card.id}"]`);
+        if (!cardElement || !ref.current) return;
+        const cardRect = cardElement.getBoundingClientRect();
+        const cardMiddleY = cardRect.top + cardRect.height / 2 - columnRect.top + ref.current.scrollTop; // Adjust for scroll
+        const diff = Math.abs(hoverClientY - cardMiddleY);
+        
+        if (diff < smallestDiff) {
+          smallestDiff = diff;
+          hoverIndex = i;
+        }
+      });
+      
+      // Determine if we should insert before or after the closest card
+      if (hoverIndex !== -1) {
+        const closestCard = internalCards[hoverIndex];
+        if (!closestCard || !ref.current) return;
+        const closestCardElement = ref.current.querySelector(`[data-card-id="${closestCard.id}"]`);
+        if (closestCardElement) {
+          const closestCardRect = closestCardElement.getBoundingClientRect();
+          const closestCardMiddleY = closestCardRect.top + closestCardRect.height / 2 - columnRect.top + ref.current.scrollTop;
+          // If hovering below the middle of the closest card, target the next index
+          if (hoverClientY > closestCardMiddleY) {
+            hoverIndex += 1;
+          }
+        }
+      } else {
+        // If no card is close (e.g., empty column or dragging below all cards), target the end
+        hoverIndex = internalCards.length;
+      }
+      
+      // Adjust hoverIndex if dragging downwards past the original position
+      if (dragIndex < hoverIndex) {
+        hoverIndex -= 1;
+      }
+      
+      // Prevent reordering with self
+      if (dragIndex === hoverIndex) {
+        return;
+      }
+
+      // Perform the visual move using the internal state
+      moveCardInternally(dragIndex, hoverIndex);
+      // --- End: Visual Reordering Logic --- 
     },
     collect: (monitor) => ({
       isOverCurrent: monitor.isOver({ shallow: true }),
@@ -141,6 +216,64 @@ const Column: React.FC<ColumnProps> = memo(({
     }
   }, [column.cards]);
   
+  // Auto-scroll handling function
+  const handleAutoScroll = (monitor: DropTargetMonitor<CardDragItem, void>, scrollElement: HTMLDivElement) => {
+    const clientOffset = monitor.getClientOffset();
+    if (!clientOffset) {
+      stopAutoScroll();
+      return;
+    }
+
+    const elementRect = scrollElement.getBoundingClientRect();
+    const hoverY = clientOffset.y - elementRect.top;
+
+    let scrollDirection = 0;
+
+    // Check if near top edge
+    if (hoverY < SCROLL_AREA_HEIGHT) {
+      scrollDirection = -1; // Scroll up
+    }
+    // Check if near bottom edge
+    else if (elementRect.height - hoverY < SCROLL_AREA_HEIGHT) {
+      scrollDirection = 1; // Scroll down
+    }
+
+    if (scrollDirection !== 0) {
+      startAutoScroll(scrollElement, scrollDirection);
+    } else {
+      stopAutoScroll();
+    }
+  };
+
+  // Function to start the scrolling interval
+  const startAutoScroll = (element: HTMLDivElement, direction: number) => {
+    if (scrollIntervalRef.current) return; // Already scrolling
+
+    scrollIntervalRef.current = setInterval(() => {
+      element.scrollTop += direction * SCROLL_SPEED;
+    }, 16); // Approx 60 FPS
+  };
+
+  // Function to stop the scrolling interval
+  const stopAutoScroll = () => {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  };
+
+  // Cleanup scroll interval on unmount or when dragging stops externally
+  useEffect(() => {
+    return () => stopAutoScroll();
+  }, []);
+
+  // Also stop scroll when the drag ends globally (handled by Board.tsx)
+  useEffect(() => {
+    if (!isDraggingCard) {
+      stopAutoScroll();
+    }
+  }, [isDraggingCard]);
+
   const handleCardClick = useCallback((card: CardType) => {
     setActiveCard(card);
     // For now we just select the card, expanded view will be implemented in a later task
@@ -202,7 +335,8 @@ const Column: React.FC<ColumnProps> = memo(({
   
   // Determine column appearance during drag operations
   const getColumnClasses = useCallback(() => {
-    let classes = "flex flex-col h-full glass-column p-4"; // Removed overflow-hidden from here
+    // Start with the base glass column style and add layout/border/shadow utilities
+    let classes = "flex flex-col h-full glass-column p-4 relative border rounded-lg shadow-md hover:shadow-lg"; 
     
     // Highlight based on drag state
     if (isDraggingCard) {
@@ -216,11 +350,6 @@ const Column: React.FC<ColumnProps> = memo(({
       } else if (isOverCurrent && canDrop) {
         classes += " ring-2 ring-green-400/50 ring-inset";
       }
-    }
-    
-    // Add animated border when not dragging
-    if (!isDraggingCard) {
-      classes += " glass-border-animated";
     }
     
     return classes;
@@ -257,7 +386,11 @@ const Column: React.FC<ColumnProps> = memo(({
       
       <div 
         ref={ref}
-        className="flex-1 overflow-y-auto overflow-x-visible space-y-3 scrollbar-thin px-2 pr-1"
+        className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent pr-1 -mr-1"
+        style={{ 
+          maskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 20px), transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 20px), transparent 100%)'
+        }}
       >
         {showAddForm && (
           <CardAddForm 

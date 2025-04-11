@@ -19,11 +19,11 @@
           "dueDate": null
         },
         {
-          "id": "040f088f-888f-48dc-9105-3515f025f90a",
+          "id": "aee5d6f5-bcb7-4234-985b-18b04915a222",
           "columnId": "03033074-2ea4-4848-a566-c7a0e80cf876",
-          "order": 0.5,
-          "title": "Consistent Iconography",
-          "description": "",
+          "order": 1,
+          "title": "Alumni Events",
+          "description": "This is very important for getting jobs!",
           "labels": [],
           "assignees": [],
           "priority": "high",
@@ -32,11 +32,11 @@
           "dueDate": null
         },
         {
-          "id": "aee5d6f5-bcb7-4234-985b-18b04915a222",
+          "id": "040f088f-888f-48dc-9105-3515f025f90a",
           "columnId": "03033074-2ea4-4848-a566-c7a0e80cf876",
-          "order": 1,
-          "title": "Alumni Events",
-          "description": "This is very important for getting jobs!",
+          "order": 2,
+          "title": "Consistent Iconography",
+          "description": "",
           "labels": [],
           "assignees": [],
           "priority": "high",
@@ -188,19 +188,6 @@
       "width": 25,
       "cards": [
         {
-          "id": "cd9773cc-b0de-4287-9779-d9f21836ba52",
-          "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
-          "order": 0.5,
-          "title": "SSE Club Fair",
-          "description": "SSE should be participating in club fair",
-          "labels": [],
-          "assignees": [],
-          "priority": "high",
-          "attachments": [],
-          "comments": [],
-          "dueDate": null
-        },
-        {
           "id": "9bb8701a-c78b-47e7-bda4-aec31fd1d28f",
           "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
           "order": 1.5,
@@ -212,19 +199,6 @@
           "attachments": [],
           "comments": [],
           "dueDate": "2025-07-16T04:00:00.000Z"
-        },
-        {
-          "id": "478fbfc4-80c7-4332-804e-fdf023f3fca3",
-          "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
-          "order": 3.5,
-          "title": "Alumni Tracking",
-          "description": "Maybe through some sort of yearbook\nIts essential we have more continuity",
-          "labels": [],
-          "assignees": [],
-          "priority": "high",
-          "attachments": [],
-          "comments": [],
-          "dueDate": null
         },
         {
           "id": "116e2232-6714-4077-922d-ddd28611a845",
@@ -251,6 +225,19 @@
           "attachments": [],
           "comments": [],
           "dueDate": null
+        },
+        {
+          "id": "478fbfc4-80c7-4332-804e-fdf023f3fca3",
+          "columnId": "39a7bbf8-6019-4b2a-a3da-92b8848855ae",
+          "order": 7.5,
+          "title": "Alumni Tracking",
+          "description": "Maybe through some sort of yearbook\nIts essential we have more continuity",
+          "labels": [],
+          "assignees": [],
+          "priority": "high",
+          "attachments": [],
+          "comments": [],
+          "dueDate": null
         }
       ]
     },
@@ -258,7 +245,21 @@
       "id": "d2b8f9e6-f2b1-4df4-a5da-b2bef1172511",
       "title": "Code Review",
       "width": 25,
-      "cards": []
+      "cards": [
+        {
+          "id": "cd9773cc-b0de-4287-9779-d9f21836ba52",
+          "columnId": "d2b8f9e6-f2b1-4df4-a5da-b2bef1172511",
+          "order": 1.5,
+          "title": "SSE Club Fair",
+          "description": "SSE should be participating in club fair",
+          "labels": [],
+          "assignees": [],
+          "priority": "high",
+          "attachments": [],
+          "comments": [],
+          "dueDate": null
+        }
+      ]
     },
     {
       "id": "8fa74b1e-a584-482a-aa8f-1e03664d453e",
