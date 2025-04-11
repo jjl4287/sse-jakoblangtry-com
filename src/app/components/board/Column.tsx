@@ -321,7 +321,7 @@ const Column: React.FC<ColumnProps> = memo(({
   // Determine column appearance during drag operations
   const getColumnClasses = useCallback(() => {
     // Start with the base glass column style and add layout/border/shadow utilities
-    let classes = "flex flex-col h-full glass-column p-4 relative border rounded-lg shadow-md hover:shadow-lg"; 
+    let classes = "flex flex-col h-full glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible"; 
     
     // Highlight based on drag state
     if (isDraggingCard) {
@@ -347,7 +347,8 @@ const Column: React.FC<ColumnProps> = memo(({
       style={{ 
         width: `${column.width}%`,
         ['--x' as string]: '50%',
-        ['--y' as string]: '50%'
+        ['--y' as string]: '50%',
+        padding: '1rem' // Add padding here instead of in the class string
       }}
       layout="position"
       animate={{
@@ -382,69 +383,75 @@ const Column: React.FC<ColumnProps> = memo(({
       
       <div 
         ref={ref}
-        className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent pr-1 -mr-1"
+        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent px-1"
         style={{ 
           maskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 20px), transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 20px), transparent 100%)'
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 20px), transparent 100%)',
+          position: 'relative', // Ensure proper stacking context
+          overflowX: 'visible', // Allow cards to expand beyond the column width
+          marginLeft: '-4px', // Extra space on the left
+          marginRight: '-4px' // Extra space on the right
         }}
       >
-        <AnimatePresence mode="popLayout">
-          {[...Array(sortedCards.length + 1)].map((_, index) => {
-            // Render placeholder if index matches and it should be shown
-            if (placeholderIndex === index) {
+        <div className="relative z-0 w-full">
+          <AnimatePresence mode="popLayout">
+            {[...Array(sortedCards.length + 1)].map((_, index) => {
+              // Render placeholder if index matches and it should be shown
+              if (placeholderIndex === index) {
+                return (
+                  <motion.div
+                    key="placeholder"
+                    className="bg-white/10 rounded-lg border-2 border-dashed border-white/30"
+                    style={{ height: placeholderHeight }}
+                    initial={{ opacity: 0.5, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    layout // Ensures smooth animation when placeholder appears/disappears
+                  />
+                );
+              }
+              
+              // Adjust card index if placeholder is rendered before it
+              const cardIndex = placeholderIndex !== null && index > placeholderIndex ? index - 1 : index;
+              const card = sortedCards[cardIndex];
+
+              // Don't render anything further if card doesn't exist (handles the +1 in the map array)
+              if (!card) return null;
+
+              // Render the actual card
               return (
-                <motion.div
-                  key="placeholder"
-                  className="bg-white/10 rounded-lg border-2 border-dashed border-white/30"
-                  style={{ height: placeholderHeight }}
-                  initial={{ opacity: 0.5, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  layout // Ensures smooth animation when placeholder appears/disappears
-                />
+                <motion.div 
+                  key={card.id} 
+                  className="relative group card-wrapper mb-3"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ 
+                    layout: { 
+                      duration: 0.15, // Faster duration
+                      ease: "easeOut" // Use a standard ease-out for snappiness
+                    },
+                    // Keep spring for initial mount/exit animations if desired
+                    type: "spring", 
+                    stiffness: 400, 
+                    damping: 30
+                  }}
+                  layout // Keep layout prop enabled, but configure its transition separately
+                  data-card-id={card.id}
+                >
+                  <Card 
+                    card={card}
+                    index={cardIndex}
+                    columnId={column.id}
+                    onDragStart={handleCardDragStart}
+                    onDragEnd={onDragEnd}
+                    onMoveCard={moveCardInternally}
+                  />
+                </motion.div>
               );
-            }
-            
-            // Adjust card index if placeholder is rendered before it
-            const cardIndex = placeholderIndex !== null && index > placeholderIndex ? index - 1 : index;
-            const card = sortedCards[cardIndex];
-
-            // Don't render anything further if card doesn't exist (handles the +1 in the map array)
-            if (!card) return null;
-
-            // Render the actual card
-            return (
-              <motion.div 
-                key={card.id} 
-                className="relative group card-wrapper mb-3"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ 
-                  layout: { 
-                    duration: 0.15, // Faster duration
-                    ease: "easeOut" // Use a standard ease-out for snappiness
-                  },
-                  // Keep spring for initial mount/exit animations if desired
-                  type: "spring", 
-                  stiffness: 400, 
-                  damping: 30
-                }}
-                layout // Keep layout prop enabled, but configure its transition separately
-                data-card-id={card.id}
-              >
-                <Card 
-                  card={card}
-                  index={cardIndex}
-                  columnId={column.id}
-                  onDragStart={handleCardDragStart}
-                  onDragEnd={onDragEnd}
-                  onMoveCard={moveCardInternally}
-                />
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+            })}
+          </AnimatePresence>
+        </div>
       </div>
       
       {/* New Card Modal */}

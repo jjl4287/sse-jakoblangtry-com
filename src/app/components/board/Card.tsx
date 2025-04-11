@@ -224,10 +224,13 @@ export const Card = memo(({
       transition: { type: "spring", stiffness: 500, damping: 30 } // Smoother return
     },
     hover: {
-      scale: 1.03, // Keep hover subtle
-      y: -2,
-      zIndex: 10,
-      transition: { duration: 0.15 }
+      scale: 1.05, // Slightly larger scale
+      y: -4, // Lift card up more
+      x: 0, // Ensure centered expansion
+      boxShadow: "0 12px 20px rgba(0,0,0,0.2)", // More pronounced shadow on hover
+      zIndex: 50, // Ensure it's above other cards and columns
+      transition: { duration: 0.2, ease: "easeOut" },
+      opacity: 1
     }
   };
 
@@ -314,10 +317,13 @@ export const Card = memo(({
                    border rounded-lg shadow-md hover:shadow-lg 
                    ${isOver && canDrop && 'ring-2 ring-pink-400/50'}`}
         style={{ 
-          originX: 0.5, // Ensure scaling/rotation is centered
+          originX: 0.5,
           originY: 0.5,
           ['--x' as string]: '50%',
-          ['--y' as string]: '50%' 
+          ['--y' as string]: '50%',
+          transformOrigin: 'center center', // More explicitly define the transform origin
+          position: 'relative',
+          transform: 'translateZ(0)' // Force GPU acceleration
         }}
         variants={cardVariants}
         initial="normal"

@@ -160,6 +160,42 @@
 
 /* Glassmorphic card styles */
 @layer components {
+  /* Column styles to ensure cards aren't clipped */
+  .glass-column {
+    overflow: visible !important; /* Override any other overflow settings */
+    contain: none !important; /* Prevent containment that might clip cards */
+  }
+
+  /* Card wrapper for properly handling hover effects */
+  .card-wrapper {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 0.75rem;
+    transition: z-index 0ms; /* Prevent z-index transition */
+    margin-left: 6px; /* Increase left margin */
+    margin-right: 6px;
+    padding-left: 2px; /* Add padding for hover area */
+    padding-right: 2px;
+    /* Create space for the card to expand into */
+    transform: translateZ(0); /* Force GPU acceleration for smoother animations */
+    overflow: visible; /* Ensure overflow is visible for the wrapper */
+    width: calc(100% - 12px); /* Adjust width to account for margins */
+    transform-style: preserve-3d; /* Better 3D positioning */
+  }
+  
+  .card-wrapper:hover {
+    z-index: 50; /* Ensure card appears above all other elements when hovered */
+  }
+  
+  /* This ensures the card can expand outside its container without being clipped */
+  .card-wrapper .glass-card {
+    transform-origin: center center;
+    /* Ensures card is not clipped by column's overflow */
+    margin: 0;
+    will-change: transform, box-shadow;
+    isolation: isolate; /* Create a new stacking context */
+  }
+  
   /* Specific styles for cards using the glass effect */
   .glass-card {
     /* Apply core glass styles directly */
