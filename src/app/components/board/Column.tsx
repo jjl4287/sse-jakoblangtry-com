@@ -5,12 +5,12 @@ import { useDrop } from 'react-dnd';
 import type { DropTargetMonitor } from 'react-dnd';
 import type { Column as ColumnType, Card as CardType } from '~/types';
 import { Card } from './Card';
-import { CardAddForm } from './CardAddForm';
 import { useBoard } from '~/services/board-context';
 import { ItemTypes } from '~/constants/dnd-types';
 import type { CardDragItem } from '~/constants/dnd-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import update from 'immutability-helper'; // Import immutability-helper
+import { ExpandedCardModal } from './ExpandedCardModal'; // Import the ExpandedCardModal
 
 // Auto-scroll constants
 const SCROLL_AREA_HEIGHT = 60; // Pixels from top/bottom edge to trigger scroll
@@ -37,14 +37,14 @@ const Column: React.FC<ColumnProps> = memo(({
 }) => {
   const { deleteCard, moveCard } = useBoard();
   const [activeCard, setActiveCard] = useState<CardType | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isOver, setIsOver] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const columnMotionRef = useRef<HTMLDivElement>(null);
   const [internalCards, setInternalCards] = useState(column.cards);
-  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref for scroll interval
-  const [placeholderIndex, setPlaceholderIndex] = useState<number | null>(null); // State for placeholder position
-  const [placeholderHeight, setPlaceholderHeight] = useState<number>(PLACEHOLDER_HEIGHT); // State for dynamic placeholder height
+  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [placeholderIndex, setPlaceholderIndex] = useState<number | null>(null);
+  const [placeholderHeight, setPlaceholderHeight] = useState<number>(PLACEHOLDER_HEIGHT);
   
   // Update internal state when the column prop changes
   useEffect(() => {
@@ -279,13 +279,9 @@ const Column: React.FC<ColumnProps> = memo(({
   }, [deleteCard]);
   
   const handleAddCardClick = useCallback(() => {
-    setShowAddForm(true);
+    setIsCardModalOpen(true);
   }, []);
   
-  const handleCancelAdd = useCallback(() => {
-    setShowAddForm(false);
-  }, []);
-
   // Handle card drag started 
   const handleCardDragStart = useCallback((item: CardDragItem) => {
     if (onDragStart) {
@@ -392,13 +388,6 @@ const Column: React.FC<ColumnProps> = memo(({
           WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 20px), transparent 100%)'
         }}
       >
-        {showAddForm && (
-          <CardAddForm 
-            columnId={column.id} 
-            onCancel={handleCancelAdd}
-          />
-        )}
-        
         <AnimatePresence mode="popLayout">
           {[...Array(sortedCards.length + 1)].map((_, index) => {
             // Render placeholder if index matches and it should be shown
@@ -457,6 +446,13 @@ const Column: React.FC<ColumnProps> = memo(({
           })}
         </AnimatePresence>
       </div>
+      
+      {/* New Card Modal */}
+      <ExpandedCardModal
+        isOpen={isCardModalOpen}
+        onOpenChange={setIsCardModalOpen}
+        columnId={column.id}
+      />
     </motion.div>
   );
 });

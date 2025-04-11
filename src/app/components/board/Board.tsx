@@ -140,7 +140,7 @@ export const Board: React.FC = () => {
       {/* Board Header */}
       <motion.div 
         ref={headerRef}
-        className="glass-column glass-border-animated p-4 mb-4 mx-6 mt-6 flex justify-between items-center"
+        className="glass-column glass-border-animated p-4 mb-4 mx-6 mt-6 flex justify-between items-center rounded-lg"
         style={{ 
           ['--x' as string]: mousePos.x, 
           ['--y' as string]: mousePos.y,
@@ -163,13 +163,13 @@ export const Board: React.FC = () => {
               placeholder="Search (⌘K)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-3 py-1 h-8 w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50"
+              className="pl-9 pr-3 py-1 h-8 w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
             />
           </div>
-          <div className="glass-button px-3 py-1 rounded-full text-sm">
+          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm">
             {filteredBoard?.columns?.length ?? 0} Columns
           </div>
-          <div className="glass-button px-3 py-1 rounded-full text-sm">
+          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm">
             {cardCount} Cards
           </div>
           <ThemeToggle />

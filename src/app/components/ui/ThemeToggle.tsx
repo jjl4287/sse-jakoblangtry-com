@@ -11,7 +11,7 @@ export const ThemeToggle: React.FC = () => {
     <motion.button
       onClick={toggleTheme}
       className="relative inline-flex items-center justify-center rounded-full w-16 h-8 
-                 p-1 border shadow-md hover:shadow-lg 
+                 px-1 py-1 border shadow-md hover:shadow-lg 
                  dark:bg-[rgba(10,54,34,var(--glass-bg-opacity-dark))] 
                  dark:border-[rgba(255,255,255,var(--glass-border-opacity-dark))] 
                  bg-[rgba(255,255,255,var(--glass-bg-opacity-light))] 
@@ -69,15 +69,20 @@ export const ThemeToggle: React.FC = () => {
       
       {/* Toggle slider */}
       <motion.div
-        className="absolute w-6 h-6 rounded-full shadow-md flex items-center justify-center transition-colors"
+        className="absolute w-6 h-6 rounded-full shadow-md flex items-center justify-center"
         style={{
           background: theme === 'dark' 
             ? 'linear-gradient(to bottom right, #0A3622, #1A7F56)' 
             : 'linear-gradient(to bottom right, #fbbf24, #f59e0b)'
         }}
-        initial={{ x: theme === 'dark' ? -7 : 7 }}
-        animate={{ x: theme === 'dark' ? -7 : 7 }}
-        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        initial={{ x: theme === 'dark' ? -10 : 10 }}
+        animate={{ x: theme === 'dark' ? -10 : 10 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 400, 
+          damping: 22,
+          mass: 0.8
+        }}
       >
         {theme === 'dark' ? (
           <span className="w-2 h-2 bg-white rounded-full opacity-80" />

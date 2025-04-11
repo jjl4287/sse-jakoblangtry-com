@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"; // Import DropdownMenu components
-import { MoreHorizontal, Trash2, Copy, Calendar, User, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react'; // Import icons
+import { MoreHorizontal, Trash2, Copy, Calendar, User, ArrowUp, ArrowDown, ArrowRight, Paperclip } from 'lucide-react'; // Import icons
 import { format } from 'date-fns'; // For date formatting
 
 // Define the drop result type
@@ -244,6 +244,68 @@ export const Card = memo(({
     }
   };
 
+  // Function to render attachment embed
+  const renderAttachmentEmbed = (url: string) => {
+    try {
+      const parsedUrl = new URL(url);
+      
+      // YouTube embed
+      if (parsedUrl.hostname.includes('youtube.com') || parsedUrl.hostname.includes('youtu.be')) {
+        const videoId = parsedUrl.hostname.includes('youtube.com') 
+          ? parsedUrl.searchParams.get('v')
+          : parsedUrl.pathname.substring(1);
+          
+        if (videoId) {
+          return (
+            <div className="relative pt-[56.25%] w-full overflow-hidden rounded mb-2">
+              <iframe 
+                className="absolute top-0 left-0 w-full h-full border-0"
+                src={`https://www.youtube.com/embed/${videoId}`}
+                title="YouTube video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+          );
+        }
+      }
+      
+      // Image embed
+      if (url.match(/\.(jpeg|jpg|gif|png)$/) !== null) {
+        return (
+          <img 
+            src={url} 
+            alt="Attachment" 
+            className="mb-2 max-w-full rounded h-auto max-h-28 object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        );
+      }
+      
+      // Default link preview
+      return (
+        <div className="flex items-center p-2 bg-white/5 rounded mb-2">
+          <img 
+            src={`${parsedUrl.protocol}//${parsedUrl.hostname}/favicon.ico`} 
+            alt=""
+            className="w-4 h-4 mr-2"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+          <span className="text-xs truncate">{parsedUrl.hostname}</span>
+        </div>
+      );
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Get the first attachment if there is one
+  const firstAttachment = card.attachments && card.attachments.length > 0 ? card.attachments[0] : null;
+
   return (
     <>
       <motion.div
@@ -292,12 +354,17 @@ export const Card = memo(({
         {/* Card Content */}
         <div onClick={handleOpenModal} className="flex-grow">
           <h3 className="font-semibold text-sm mb-1 text-gray-800 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{card.title}</h3>
-          {/* Add Description Here */}
+          
+          {/* Attachment Embed (if exists) */}
+          {firstAttachment && renderAttachmentEmbed(firstAttachment.url)}
+          
+          {/* Description */}
           {card.description && (
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 mb-2 whitespace-pre-wrap break-words">
               {card.description}
             </p>
           )}
+          
           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
             <div className="flex items-center space-x-2">
               {card.priority && (() => {
@@ -332,6 +399,14 @@ export const Card = memo(({
                     )}
                  </div>
               )}
+              
+              {/* Attachments */}
+              {card.attachments && card.attachments.length > 0 && (
+                <span className="flex items-center">
+                  <Paperclip className="h-3 w-3 mr-1" />
+                  {card.attachments.length}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -339,11 +414,11 @@ export const Card = memo(({
         {/* Labels */}
         {card.labels && card.labels.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
-            {card.labels.slice(0, 3).map((label) => ( // Show max 3 labels
+            {card.labels.slice(0, 3).map((label) => (
               <span 
                 key={label.id}
                 className="px-1.5 py-0.5 rounded text-xs font-medium"
-                style={{ backgroundColor: label.color, color: '#ffffff' }} // Basic contrast, might need adjustment
+                style={{ backgroundColor: label.color, color: '#ffffff' }}
               >
                 {label.name}
               </span>
