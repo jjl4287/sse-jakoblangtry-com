@@ -1,38 +1,69 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useTheme } from '~/app/contexts/ThemeContext';
 import { motion } from 'framer-motion';
 
-export const ThemeToggle: React.FC = () => {
+// Extracted constant styles
+const BUTTON_BASE_CLASSES = `
+  relative inline-flex items-center justify-center rounded-full w-16 h-8 
+  px-1 py-1 border shadow-md hover:shadow-lg
+  [backdrop-filter:blur(var(--glass-blur))]
+  transition-colors duration-300 ease-in-out
+  focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-50
+`;
+
+const DARK_MODE_CLASSES = `
+  dark:bg-[rgba(10,54,34,var(--glass-bg-opacity-dark))]
+  dark:border-[rgba(255,255,255,var(--glass-border-opacity-dark))]
+  dark:hover:bg-[rgba(10,54,34,var(--glass-hover-bg-opacity-dark))]
+  dark:hover:border-[rgba(255,255,255,var(--glass-hover-border-opacity-dark))]
+`;
+
+const LIGHT_MODE_CLASSES = `
+  bg-[rgba(255,255,255,var(--glass-bg-opacity-light))]
+  border-[rgba(210,220,230,var(--glass-border-opacity-light))]
+  hover:bg-[rgba(255,255,255,var(--glass-hover-bg-opacity-light))]
+  hover:border-[rgba(210,220,230,var(--glass-hover-border-opacity-light))]
+`;
+
+export const ThemeToggle: React.FC = React.memo(() => {
   const { theme, toggleTheme } = useTheme();
+  
+  const handleToggle = useCallback(() => {
+    toggleTheme();
+  }, [toggleTheme]);
+  
+  const buttonClasses = useMemo(() => {
+    return `${BUTTON_BASE_CLASSES} ${DARK_MODE_CLASSES} ${LIGHT_MODE_CLASSES}`;
+  }, []);
+  
+  const isDarkMode = theme === 'dark';
+  
+  const trackClasses = useMemo(() => {
+    return `absolute inset-0 rounded-full transition-colors duration-300 ${
+      isDarkMode ? 'bg-[rgba(10,54,34,0.4)]' : 'bg-[rgba(10,54,34,0.2)]'
+    }`;
+  }, [isDarkMode]);
+  
+  const sliderStyle = useMemo(() => ({
+    background: isDarkMode 
+      ? 'linear-gradient(to bottom right, #0A3622, #1A7F56)' 
+      : 'linear-gradient(to bottom right, #fbbf24, #f59e0b)'
+  }), [isDarkMode]);
   
   return (
     <motion.button
-      onClick={toggleTheme}
-      className="relative inline-flex items-center justify-center rounded-full w-16 h-8 
-                 px-1 py-1 border shadow-md hover:shadow-lg 
-                 dark:bg-[rgba(10,54,34,var(--glass-bg-opacity-dark))] 
-                 dark:border-[rgba(255,255,255,var(--glass-border-opacity-dark))] 
-                 bg-[rgba(255,255,255,var(--glass-bg-opacity-light))] 
-                 border-[rgba(210,220,230,var(--glass-border-opacity-light))] 
-                 [backdrop-filter:blur(var(--glass-blur))] 
-                 dark:hover:bg-[rgba(10,54,34,var(--glass-hover-bg-opacity-dark))] 
-                 dark:hover:border-[rgba(255,255,255,var(--glass-hover-border-opacity-dark))] 
-                 hover:bg-[rgba(255,255,255,var(--glass-hover-bg-opacity-light))] 
-                 hover:border-[rgba(210,220,230,var(--glass-hover-border-opacity-light))] 
-                 transition-colors duration-300 ease-in-out 
-                 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-50"
-      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+      onClick={handleToggle}
+      className={buttonClasses}
+      aria-label={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
       whileTap={{ scale: 0.95 }}
     >
       <span className="sr-only">Toggle theme</span>
       
       {/* Track and icons background */}
       <span className="absolute inset-0 rounded-full overflow-hidden">
-        <span className={`absolute inset-0 rounded-full transition-colors duration-300 ${
-          theme === 'dark' ? 'bg-[rgba(10,54,34,0.4)]' : 'bg-[rgba(10,54,34,0.2)]'
-        }`} />
+        <span className={trackClasses} />
       </span>
       
       {/* Sun icon (visible in dark mode) */}
@@ -41,8 +72,8 @@ export const ThemeToggle: React.FC = () => {
         className="absolute left-2 w-4 h-4 text-yellow-300"
         viewBox="0 0 20 20" 
         fill="currentColor"
-        initial={{ opacity: theme === 'dark' ? 1 : 0 }}
-        animate={{ opacity: theme === 'dark' ? 1 : 0 }}
+        initial={{ opacity: isDarkMode ? 1 : 0 }}
+        animate={{ opacity: isDarkMode ? 1 : 0 }}
         transition={{ duration: 0.2 }}
       >
         <path 
@@ -58,8 +89,8 @@ export const ThemeToggle: React.FC = () => {
         className="absolute right-2 w-4 h-4 text-blue-200"
         viewBox="0 0 20 20" 
         fill="currentColor"
-        initial={{ opacity: theme === 'light' ? 1 : 0 }}
-        animate={{ opacity: theme === 'light' ? 1 : 0 }}
+        initial={{ opacity: !isDarkMode ? 1 : 0 }}
+        animate={{ opacity: !isDarkMode ? 1 : 0 }}
         transition={{ duration: 0.2 }}
       >
         <path 
@@ -70,13 +101,9 @@ export const ThemeToggle: React.FC = () => {
       {/* Toggle slider */}
       <motion.div
         className="absolute w-6 h-6 rounded-full shadow-md flex items-center justify-center"
-        style={{
-          background: theme === 'dark' 
-            ? 'linear-gradient(to bottom right, #0A3622, #1A7F56)' 
-            : 'linear-gradient(to bottom right, #fbbf24, #f59e0b)'
-        }}
-        initial={{ x: theme === 'dark' ? -10 : 10 }}
-        animate={{ x: theme === 'dark' ? -10 : 10 }}
+        style={sliderStyle}
+        initial={{ x: isDarkMode ? -10 : 10 }}
+        animate={{ x: isDarkMode ? -10 : 10 }}
         transition={{ 
           type: "spring", 
           stiffness: 400, 
@@ -84,7 +111,7 @@ export const ThemeToggle: React.FC = () => {
           mass: 0.8
         }}
       >
-        {theme === 'dark' ? (
+        {isDarkMode ? (
           <span className="w-2 h-2 bg-white rounded-full opacity-80" />
         ) : (
           <span className="w-3 h-3 bg-white rounded-full opacity-90 transform scale-75" />
@@ -92,4 +119,4 @@ export const ThemeToggle: React.FC = () => {
       </motion.div>
     </motion.button>
   );
-}; 
+}); 

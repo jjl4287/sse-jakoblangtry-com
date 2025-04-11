@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useBoard } from '~/services/board-context';
 
@@ -13,6 +13,35 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+/**
+ * Apply theme visual changes to the document
+ * @param theme The theme to apply ('light' or 'dark')
+ */
+const applyThemeToDOM = (theme: Theme): void => {
+  // Remove both classes first
+  document.documentElement.classList.remove('light', 'dark');
+  // Add the current theme class
+  document.documentElement.classList.add(theme);
+  
+  // Set body class for component specific styling
+  if (theme === 'light') {
+    document.body.classList.add('light');
+    document.body.classList.remove('dark');
+  } else {
+    document.body.classList.add('dark');
+    document.body.classList.remove('light');
+  }
+  
+  // Update CSS variables for theme-specific styles
+  if (theme === 'dark') {
+    document.documentElement.style.setProperty('--bg-color', '#000000');
+    document.documentElement.style.setProperty('--text-color', '#ffffff');
+  } else {
+    document.documentElement.style.setProperty('--bg-color', '#f8f9fa');
+    document.documentElement.style.setProperty('--text-color', '#212529');
+  }
+};
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Default to dark as specified in the PRD
@@ -40,34 +69,12 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
     
     setIsInitialized(true);
-  }, [board]);
+  }, [board?.theme, updateTheme]); // More specific dependency
   
   // Apply theme class to document when theme changes
   useEffect(() => {
     if (!isInitialized) return;
-    
-    // Remove both classes first
-    document.documentElement.classList.remove('light', 'dark');
-    // Add the current theme class
-    document.documentElement.classList.add(theme);
-    
-    // Set body class for component specific styling
-    if (theme === 'light') {
-      document.body.classList.add('light');
-      document.body.classList.remove('dark');
-    } else {
-      document.body.classList.add('dark');
-      document.body.classList.remove('light');
-    }
-    
-    // Update CSS variables for theme-specific styles
-    if (theme === 'dark') {
-      document.documentElement.style.setProperty('--bg-color', '#000000');
-      document.documentElement.style.setProperty('--text-color', '#ffffff');
-    } else {
-      document.documentElement.style.setProperty('--bg-color', '#f8f9fa');
-      document.documentElement.style.setProperty('--text-color', '#212529');
-    }
+    applyThemeToDOM(theme);
   }, [theme, isInitialized]);
   
   // Set theme and save to localStorage
@@ -89,8 +96,15 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setTheme(newTheme);
   }, [theme, setTheme]);
   
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    theme,
+    toggleTheme,
+    setTheme
+  }), [theme, toggleTheme, setTheme]);
+  
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );

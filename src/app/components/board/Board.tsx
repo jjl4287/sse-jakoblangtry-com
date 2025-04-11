@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Column } from './Column';
 import { useBoard } from '~/services/board-context';
 import type { CardDragItem } from '~/constants/dnd-types';
@@ -19,16 +19,16 @@ export const Board: React.FC = () => {
   const [mousePos, setMousePos] = useState({ x: '50%', y: '50%' });
 
   // Track card drag start
-  const handleDragStart = (item: CardDragItem) => {
+  const handleDragStart = useCallback((item: CardDragItem) => {
     setDraggedCardId(item.id);
     setDragSourceColumnId(item.columnId);
-  };
+  }, []);
 
   // Reset drag state when drag ends
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setDraggedCardId(null);
     setDragSourceColumnId(null);
-  };
+  }, []);
   
   // Handle mouse movement for the header glow effect
   useEffect(() => {
@@ -73,6 +73,11 @@ export const Board: React.FC = () => {
     };
   }, []);
 
+  // Handle search input change
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, [setSearchQuery]);
+
   // Filter cards based on search query
   const filteredBoard = useMemo(() => {
     if (!board) return null;
@@ -92,8 +97,8 @@ export const Board: React.FC = () => {
     return { ...board, columns };
   }, [board, searchQuery]);
 
-  // Recalculate card count based on filtered board
-   const cardCount = useMemo(() => {
+  // Calculate card count based on filtered board
+  const cardCount = useMemo(() => {
     if (!filteredBoard || !filteredBoard.columns || !Array.isArray(filteredBoard.columns)) {
       return 0;
     }
@@ -105,6 +110,7 @@ export const Board: React.FC = () => {
     }, 0);
   }, [filteredBoard]);
 
+  // Different UI states
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full w-full">
@@ -135,6 +141,9 @@ export const Board: React.FC = () => {
     );
   }
 
+  // Column count stat
+  const columnCount = filteredBoard?.columns?.length ?? 0;
+
   return (
     <div className="flex flex-col h-full w-full">
       {/* Board Header */}
@@ -162,12 +171,12 @@ export const Board: React.FC = () => {
               type="search"
               placeholder="Search (⌘K)"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               className="pl-9 pr-3 py-1 h-8 w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
             />
           </div>
           <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm">
-            {filteredBoard?.columns?.length ?? 0} Columns
+            {columnCount} Columns
           </div>
           <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm">
             {cardCount} Cards

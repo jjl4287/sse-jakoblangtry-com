@@ -7,6 +7,21 @@ const BOARD_STORAGE_KEY = 'kanban_board_data';
 const API_ENDPOINT = '/api/boards'; // Standardized API endpoint
 const STATIC_BOARD_PATH = '/data/board.json'; // Path to static JSON
 
+// --- Error types ---
+class BoardServiceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BoardServiceError';
+  }
+}
+
+class ItemNotFoundError extends BoardServiceError {
+  constructor(itemType: string, itemId: string) {
+    super(`${itemType} with ID ${itemId} not found`);
+    this.name = 'ItemNotFoundError';
+  }
+}
+
 // --- Robust Save/Load Helpers --- 
 
 /**
@@ -139,13 +154,59 @@ export class BoardService {
   }
 
   /**
+   * Finds a column by ID (internal helper method)
+   * @param board The board containing columns
+   * @param columnId The column ID to find
+   * @returns The column and its index or throws if not found
+   */
+  private static findColumn(board: Board, columnId: string): { column: Column; index: number } {
+    const index = board.columns.findIndex((col) => col.id === columnId);
+    if (index === -1) {
+      throw new ItemNotFoundError('Column', columnId);
+    }
+    
+    const column = board.columns[index];
+    return { column, index };
+  }
+  
+  /**
+   * Finds a card by ID (internal helper method)
+   * @param board The board containing columns and cards
+   * @param cardId The card ID to find
+   * @returns The card, its column, and indices or throws if not found
+   */
+  private static findCard(board: Board, cardId: string): { 
+    card: Card; 
+    column: Column; 
+    columnIndex: number; 
+    cardIndex: number 
+  } {
+    for (let i = 0; i < board.columns.length; i++) {
+      const column = board.columns[i];
+      const cardIndex = column.cards.findIndex(card => card.id === cardId);
+      
+      if (cardIndex !== -1) {
+        return { 
+          card: column.cards[cardIndex], 
+          column, 
+          columnIndex: i, 
+          cardIndex 
+        };
+      }
+    }
+    
+    throw new ItemNotFoundError('Card', cardId);
+  }
+
+  /**
    * Gets a column by ID
    * @param columnId The column ID
    * @returns The column or undefined if not found
    */
-  static async getColumn(columnId: string): Promise<Column | undefined> {
+  static async getColumn(columnId: string): Promise<Column> {
     const board = await this.getBoard();
-    return board.columns.find((col) => col.id === columnId);
+    const { column } = this.findColumn(board, columnId);
+    return column;
   }
 
   /**
@@ -185,20 +246,30 @@ export class BoardService {
   ): Promise<Board> {
     const board = await this.getBoard();
     
-    const updatedColumns = board.columns.map((col) => {
-      if (col.id === columnId) {
-        return { ...col, ...updates };
+    try {
+      const { index } = this.findColumn(board, columnId);
+      
+      // Create a new columns array with the updated column
+      const updatedColumns = [...board.columns];
+      updatedColumns[index] = {
+        ...updatedColumns[index],
+        ...updates
+      };
+      
+      const updatedBoard = {
+        ...board,
+        columns: updatedColumns,
+      };
+      
+      await saveBoardWithFallback(updatedBoard);
+      return updatedBoard;
+    } catch (error) {
+      if (error instanceof ItemNotFoundError) {
+        console.error(error.message);
+        return board; // Return unchanged board if column not found
       }
-      return col;
-    });
-    
-    const updatedBoard = {
-      ...board,
-      columns: updatedColumns,
-    };
-    
-    await saveBoardWithFallback(updatedBoard);
-    return updatedBoard;
+      throw error;
+    }
   }
 
   /**
@@ -221,21 +292,12 @@ export class BoardService {
   /**
    * Gets a card by ID
    * @param cardId The card ID
-   * @returns The card and its column or undefined if not found
+   * @returns The card and its column
    */
-  static async getCard(
-    cardId: string
-  ): Promise<{ card: Card; column: Column } | undefined> {
+  static async getCard(cardId: string): Promise<{ card: Card; column: Column }> {
     const board = await this.getBoard();
-    
-    for (const column of board.columns) {
-      const card = column.cards.find((c) => c.id === cardId);
-      if (card) {
-        return { card, column };
-      }
-    }
-    
-    return undefined;
+    const { card, column } = this.findCard(board, cardId);
+    return { card, column };
   }
 
   /**
@@ -250,45 +312,42 @@ export class BoardService {
   ): Promise<Board> {
     const board = await this.getBoard();
     
-    const columnIndex = board.columns.findIndex((col) => col.id === columnId);
-    
-    if (columnIndex === -1) {
-      throw new Error(`Column with ID ${columnId} not found`);
-    }
-    
-    const column = board.columns[columnIndex];
-    
-    // Check if column exists
-    if (!column) {
-      throw new Error(`Column with index ${columnIndex} not found`);
-    }
-    
-    // Get the highest order value and add 1
-    const order =
-      column.cards.length > 0
+    try {
+      const { column, index: columnIndex } = this.findColumn(board, columnId);
+      
+      // Get the highest order value and add 1
+      const order = column.cards.length > 0
         ? Math.max(...column.cards.map((card) => card.order)) + 1
         : 0;
-    
-    const newCard: Card = {
-      id: uuidv4(),
-      columnId,
-      order,
-      ...cardData,
-    };
-    
-    const updatedColumns = [...board.columns];
-    updatedColumns[columnIndex] = {
-      ...column,
-      cards: [...column.cards, newCard],
-    };
-    
-    const updatedBoard = {
-      ...board,
-      columns: updatedColumns,
-    };
-    
-    await saveBoardWithFallback(updatedBoard);
-    return updatedBoard;
+      
+      const newCard: Card = {
+        id: uuidv4(),
+        columnId,
+        order,
+        ...cardData,
+      };
+      
+      // Create a new columns array with the updated column
+      const updatedColumns = [...board.columns];
+      updatedColumns[columnIndex] = {
+        ...column,
+        cards: [...column.cards, newCard],
+      };
+      
+      const updatedBoard = {
+        ...board,
+        columns: updatedColumns,
+      };
+      
+      await saveBoardWithFallback(updatedBoard);
+      return updatedBoard;
+    } catch (error) {
+      if (error instanceof ItemNotFoundError) {
+        console.error(error.message);
+        return board; // Return unchanged board if column not found
+      }
+      throw error;
+    }
   }
 
   /**
@@ -303,38 +362,37 @@ export class BoardService {
   ): Promise<Board> {
     const board = await this.getBoard();
     
-    const updatedColumns = board.columns.map((column) => {
-      const cardIndex = column.cards.findIndex((card) => card.id === cardId);
+    try {
+      const { card, column, columnIndex, cardIndex } = this.findCard(board, cardId);
       
-      if (cardIndex === -1) {
-        return column;
-      }
-      
+      // Create a new cards array with the updated card
       const updatedCards = [...column.cards];
-      const existingCard = updatedCards[cardIndex];
-      
-      if (!existingCard) {
-        return column;
-      }
-      
       updatedCards[cardIndex] = {
-        ...existingCard,
+        ...card,
         ...updates,
-      } as Card;
+      };
       
-      return {
+      // Create a new columns array with the updated column
+      const updatedColumns = [...board.columns];
+      updatedColumns[columnIndex] = {
         ...column,
         cards: updatedCards,
       };
-    });
-    
-    const updatedBoard = {
-      ...board,
-      columns: updatedColumns,
-    };
-    
-    await saveBoardWithFallback(updatedBoard);
-    return updatedBoard;
+      
+      const updatedBoard = {
+        ...board,
+        columns: updatedColumns,
+      };
+      
+      await saveBoardWithFallback(updatedBoard);
+      return updatedBoard;
+    } catch (error) {
+      if (error instanceof ItemNotFoundError) {
+        console.error(error.message);
+        return board; // Return unchanged board if card not found
+      }
+      throw error;
+    }
   }
 
   /**
@@ -350,127 +408,81 @@ export class BoardService {
     newOrder: number
   ): Promise<Board> {
     const board = await this.getBoard();
-
-    // Find the card and its source column
-    let cardToMove: Card | undefined;
-    let sourceColumnIndex = -1;
-    let sourceColumn: Column | undefined;
-
-    for (let i = 0; i < board.columns.length; i++) {
-      const column = board.columns[i];
-      if (!column) continue;
-      const card = column.cards.find((c) => c.id === cardId);
-      if (card) {
-        cardToMove = card;
-        sourceColumnIndex = i;
-        sourceColumn = column;
-        break;
-      }
-    }
-
-    if (!cardToMove || sourceColumnIndex === -1 || !sourceColumn) {
-      // It's possible the card data is slightly stale, refresh and retry once
-      console.warn(`Card ${cardId} not found initially, refreshing board data and retrying move...`);
-      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay before refetch
-      const refreshedBoard = await this.getBoard();
-      for (let i = 0; i < refreshedBoard.columns.length; i++) {
-        const column = refreshedBoard.columns[i];
-        if (!column) continue;
-        const card = column.cards.find((c) => c.id === cardId);
-        if (card) {
-          cardToMove = card;
-          sourceColumnIndex = i;
-          sourceColumn = column;
-          board.columns = refreshedBoard.columns; // Use refreshed data
-          break;
-        }
-      }
-      // If still not found after refresh, throw error
-      if (!cardToMove || sourceColumnIndex === -1 || !sourceColumn) {
-         throw new Error(`Card with ID ${cardId} not found even after refresh`);
-      }
-    }
-
-    // Find the target column
-    const targetColumnIndex = board.columns.findIndex(
-      (col) => col.id === targetColumnId
-    );
-    const targetColumn = board.columns[targetColumnIndex];
-
-    if (targetColumnIndex === -1 || !targetColumn) {
-      throw new Error(`Target column with ID ${targetColumnId} not found`);
-    }
-
-    const updatedColumns = [...board.columns];
-
-    // Create the card with its new properties (including the calculated newOrder)
-    const updatedCard: Card = {
-      ...cardToMove,
-      columnId: targetColumnId, 
-      order: newOrder,
-    };
-
-    // --- Handle the move --- 
-    if (sourceColumnIndex === targetColumnIndex) {
-      // --- Moving within the same column --- 
-      const currentColumn = { ...updatedColumns[sourceColumnIndex] } as Column;
-      
-      // Ensure cards array exists
-      if (!currentColumn.cards) { 
-        currentColumn.cards = [];
-      }
-      
-      // Update the specific card's order directly in the array
-      currentColumn.cards = currentColumn.cards
-        .map((card) => {
-          if (card.id === cardId) {
-            return updatedCard; // Replace with the card having the new order
-          }
-          return card;
-        })
-        .sort((a, b) => a.order - b.order); // Re-sort based on potentially updated orders
-
-      updatedColumns[sourceColumnIndex] = currentColumn;
-
-    } else {
-      // --- Moving to a different column --- 
-      // 1. Remove card from source column
-      const currentSourceColumn = { ...updatedColumns[sourceColumnIndex] } as Column;
-      if (!currentSourceColumn.cards) { 
-        currentSourceColumn.cards = [];
-      }
-      currentSourceColumn.cards = currentSourceColumn.cards.filter(
-        (card) => card.id !== cardId
-      );
-      updatedColumns[sourceColumnIndex] = currentSourceColumn;
-
-      // 2. Add card to target column
-      const currentTargetColumn = { ...updatedColumns[targetColumnIndex] } as Column;
-      if (!currentTargetColumn.cards) { 
-        currentTargetColumn.cards = [];
-      }
-      // Add the updated card and sort. Assumes newOrder is correctly calculated (fractional)
-      currentTargetColumn.cards = [...currentTargetColumn.cards, updatedCard]
-        .sort((a, b) => a.order - b.order);
-
-      updatedColumns[targetColumnIndex] = currentTargetColumn;
-    }
-
-    // --- Finalize --- 
-    const finalUpdatedBoard = {
-      ...board,
-      columns: updatedColumns,
-    };
-
-    // --- Persist the changes --- 
+    
     try {
-      // Use robust fallback mechanism
-      await saveBoardWithFallback(finalUpdatedBoard);
-      return finalUpdatedBoard;
+      // Find the card to move
+      const { card, column: sourceColumn, columnIndex: sourceColumnIndex, cardIndex } = 
+        this.findCard(board, cardId);
+      
+      // Handle in-column reordering vs. cross-column move
+      if (sourceColumn.id === targetColumnId) {
+        // Same column - just update the order
+        const updatedCards = [...sourceColumn.cards];
+        updatedCards[cardIndex] = {
+          ...card,
+          order: newOrder,
+        };
+        
+        // Sort the cards by order
+        updatedCards.sort((a, b) => a.order - b.order);
+        
+        // Create a new columns array with the updated column
+        const updatedColumns = [...board.columns];
+        updatedColumns[sourceColumnIndex] = {
+          ...sourceColumn,
+          cards: updatedCards,
+        };
+        
+        const updatedBoard = {
+          ...board,
+          columns: updatedColumns,
+        };
+        
+        await saveBoardWithFallback(updatedBoard);
+        return updatedBoard;
+      } else {
+        // Different column - remove from source, add to target
+        const { column: targetColumn, index: targetColumnIndex } = 
+          this.findColumn(board, targetColumnId);
+        
+        // Remove card from source column
+        const updatedSourceCards = sourceColumn.cards.filter(c => c.id !== cardId);
+        
+        // Add card to target column with new properties
+        const updatedCard: Card = {
+          ...card,
+          columnId: targetColumnId,
+          order: newOrder,
+        };
+        
+        const updatedTargetCards = [...targetColumn.cards, updatedCard];
+        updatedTargetCards.sort((a, b) => a.order - b.order);
+        
+        // Create a new columns array with both updated columns
+        const updatedColumns = [...board.columns];
+        updatedColumns[sourceColumnIndex] = {
+          ...sourceColumn,
+          cards: updatedSourceCards,
+        };
+        updatedColumns[targetColumnIndex] = {
+          ...targetColumn,
+          cards: updatedTargetCards,
+        };
+        
+        const updatedBoard = {
+          ...board,
+          columns: updatedColumns,
+        };
+        
+        await saveBoardWithFallback(updatedBoard);
+        return updatedBoard;
+      }
     } catch (error) {
-      console.error("Error persisting board state after move:", error);
-      // Optionally re-throw or handle the error state in the context
-      throw error; // Re-throw to allow context to catch it
+      if (error instanceof ItemNotFoundError) {
+        console.error(error.message);
+        return board; // Return unchanged board if items not found
+      }
+      throw error;
     }
   }
 

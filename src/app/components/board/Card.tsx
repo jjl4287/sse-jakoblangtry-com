@@ -55,7 +55,7 @@ const cardVariants = {
     opacity: 1,
     cursor: "grab",
     zIndex: 1,
-    transition: { type: "spring", stiffness: 500, damping: 30 }
+    transition: { duration: 0.05 }
   },
   hover: {
     scale: 1.05,
@@ -63,7 +63,7 @@ const cardVariants = {
     x: 0,
     boxShadow: "0 20px 25px rgba(0,0,0,0.25)",
     zIndex: 100,
-    transition: { duration: 0.2, ease: "easeOut" },
+    transition: { duration: 0.05 },
     opacity: 1
   }
 };
@@ -79,6 +79,7 @@ export const Card = memo(({
   const ref = useRef<HTMLDivElement>(null);
   const { moveCard, deleteCard, duplicateCard } = useBoard();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   // Add mouse position tracking for lighting effect
   useEffect(() => {
@@ -199,6 +200,10 @@ export const Card = memo(({
     e.stopPropagation();
   }, []);
 
+  const handleDropdownOpenChange = useCallback((open: boolean) => {
+    setIsDropdownOpen(open);
+  }, []);
+
   const handleDelete = useCallback((e: Event) => {
     e.stopPropagation();
     if (window.confirm(`Are you sure you want to delete card "${card.title}"?`)) {
@@ -290,7 +295,7 @@ export const Card = memo(({
     <>
       <motion.div
         ref={ref}
-        className={`relative glass-card p-2 cursor-pointer transition-all group 
+        className={`relative glass-card p-2 cursor-pointer transition-transform transition-shadow duration-[50ms] group 
                    border rounded-lg shadow-md hover:shadow-lg 
                    ${isOver && canDrop && 'ring-2 ring-pink-400/50'}`}
         style={{ 
@@ -306,16 +311,15 @@ export const Card = memo(({
         }}
         variants={cardVariants}
         initial="normal"
-        animate={isDragging ? "dragging" : "normal"}
+        animate={isDragging ? "dragging" : (isDropdownOpen ? "hover" : "normal")}
         whileHover="hover"
-        layout="position"
         data-handler-id={handlerId}
         data-card-id={card.id}
         onClick={handleOpenModal}
       >
         {/* Dropdown Menu for actions */}
-        <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-           <DropdownMenu>
+        <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-[50ms]">
+           <DropdownMenu onOpenChange={handleDropdownOpenChange}>
              <DropdownMenuTrigger asChild onClick={handleDropdownTriggerClick}>
                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
                  <MoreHorizontal className="h-4 w-4" />
@@ -338,7 +342,7 @@ export const Card = memo(({
 
         {/* Card Content */}
         <div className="flex-grow">
-          <h3 className="font-semibold text-sm mb-1 text-gray-800 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{card.title}</h3>
+          <h3 className="font-semibold text-sm mb-1 text-gray-800 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-[50ms]">{card.title}</h3>
           
           {/* Attachment Embed (if exists) */}
           {firstAttachment && renderAttachmentEmbed(firstAttachment.url)}
