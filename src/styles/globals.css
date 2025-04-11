@@ -20,14 +20,14 @@
     --transition-speed: 0.3s;
 
     /* Base theme colors */
-    --bg-color: #4d4d4d; /* Updated to solid gray */
-    --text-color: #ffffff; /* Updated text color for better contrast */
+    --bg-color: #ffffff; /* Pure white for light mode */
+    --text-color: #000000; /* Updated text color for better contrast on white */
     --primary-light: #26A96C; /* Brighter green for light mode */
     --primary-dark: #198754;
-    --column-bg-light: rgba(245, 248, 252, 0.7); /* Base background for columns */
-    --column-bg-dark: rgba(10, 54, 34, 0.2);  /* Base background for columns */
-    --card-bg-light: rgba(255, 255, 255, 0.85);   /* Base background for cards */
-    --card-bg-dark: rgba(10, 54, 34, 0.25); /* Base background for cards */
+    --column-bg-light: rgba(66, 110, 140, 0.7); /* Changed to #426e8c with transparency */
+    --column-bg-dark: rgba(66, 110, 140, 0.7);  /* Changed to #426e8c with transparency */
+    --card-bg-light: rgba(82, 137, 175, 0.85);   /* Changed to #5289af with transparency */
+    --card-bg-dark: rgba(82, 137, 175, 0.85); /* Changed to #5289af with transparency */
     --border-light: rgba(210, 220, 230, 0.5);
     --border-dark: rgba(255, 255, 255, 0.1);
 
@@ -36,37 +36,37 @@
     --glass-border-width: 1px;
     --glass-shadow-intensity: 0.1; /* Softer shadow */
     --glass-bg-opacity-light: 0.65; /* Adjusted opacity */
-    --glass-bg-opacity-dark: 0.15; /* Adjusted opacity */
+    --glass-bg-opacity-dark: 0.65; /* Adjusted opacity */
     --glass-border-opacity-light: 0.2;
     --glass-border-opacity-dark: 0.1;
     --glass-hover-bg-opacity-light: 0.8; /* Hover state opacity */
-    --glass-hover-bg-opacity-dark: 0.25; /* Hover state opacity */
+    --glass-hover-bg-opacity-dark: 0.8; /* Hover state opacity */
     --glass-hover-border-opacity-light: 0.4;
     --glass-hover-border-opacity-dark: 0.2;
   }
 
   .dark {
     color-scheme: dark;
-    --bg-color: #4d4d4d; /* Updated to solid gray */
+    --bg-color: #333333; /* Darker gray for dark mode */
     --text-color: #ffffff;
     --primary-light: #1A7F56;
     --primary-dark: #0A3622;
-    --column-bg-light: rgba(10, 54, 34, 0.3); /* Base background for columns */
-    --column-bg-dark: rgba(10, 54, 34, 0.2);  /* Base background for columns */
-    --card-bg-light: rgba(10, 54, 34, 0.35);  /* Base background for cards */
-    --card-bg-dark: rgba(10, 54, 34, 0.25); /* Base background for cards */
+    --column-bg-light: rgba(66, 110, 140, 0.7); /* Changed to #426e8c with transparency */
+    --column-bg-dark: rgba(66, 110, 140, 0.7);  /* Changed to #426e8c with transparency */
+    --card-bg-light: rgba(82, 137, 175, 0.85);  /* Changed to #5289af with transparency */
+    --card-bg-dark: rgba(82, 137, 175, 0.85); /* Changed to #5289af with transparency */
     --border-light: rgba(255, 255, 255, 0.2);
     --border-dark: rgba(255, 255, 255, 0.1);
 
     /* Darker theme glass variables */
     --glass-blur: 14px; /* Slightly more blur for dark */
     --glass-shadow-intensity: 0.2;
-    --glass-bg-opacity-light: 0.2;
-    --glass-bg-opacity-dark: 0.15;
+    --glass-bg-opacity-light: 0.65;
+    --glass-bg-opacity-dark: 0.65;
     --glass-border-opacity-light: 0.15;
     --glass-border-opacity-dark: 0.1;
-    --glass-hover-bg-opacity-light: 0.3;
-    --glass-hover-bg-opacity-dark: 0.25;
+    --glass-hover-bg-opacity-light: 0.8;
+    --glass-hover-bg-opacity-dark: 0.8;
     --glass-hover-border-opacity-light: 0.3;
     --glass-hover-border-opacity-dark: 0.2;
   }
@@ -79,13 +79,13 @@
 
   /* Remove background patterns and use solid color */
   html.light {
-    background-color: #4d4d4d;
+    background-color: #ffffff; /* Pure white */
     background-image: none;
   }
 
   /* Remove background patterns for dark mode */
   html.dark {
-    background-color: #4d4d4d;
+    background-color: #333333; /* Darker gray */
     background-image: none;
   }
 
@@ -230,27 +230,27 @@
     transition: background-color var(--transition-speed) ease-in-out,
                 border-color var(--transition-speed) ease-in-out,
                 box-shadow var(--transition-speed) ease-in-out;
-    background-color: rgba(10, 54, 34, var(--glass-bg-opacity-dark)); 
+    background-color: rgba(82, 137, 175, var(--glass-bg-opacity-dark)); 
     border-color: rgba(255, 255, 255, var(--glass-border-opacity-dark));
     color: var(--text-color);
   }
 
   .light .glass-card {
     /* Light theme overrides for cards */
-    background-color: rgba(255, 255, 255, var(--glass-bg-opacity-light));
+    background-color: rgba(82, 137, 175, var(--glass-bg-opacity-light));
     border-color: rgba(210, 220, 230, var(--glass-border-opacity-light));
-    color: #2d3748; 
+    color: #ffffff; 
   }
 
   /* Define hover styles directly on the card */
   .dark .glass-card:hover {
-    background-color: rgba(10, 54, 34, var(--glass-hover-bg-opacity-dark));
+    background-color: rgba(82, 137, 175, var(--glass-hover-bg-opacity-dark));
     border-color: rgba(255, 255, 255, var(--glass-hover-border-opacity-dark));
     /* Shadow is handled by hover:shadow-lg utility class */
   }
 
   .light .glass-card:hover {
-    background-color: rgba(255, 255, 255, var(--glass-hover-bg-opacity-light));
+    background-color: rgba(82, 137, 175, var(--glass-hover-bg-opacity-light));
     border-color: rgba(210, 220, 230, var(--glass-hover-border-opacity-light));
     /* Shadow is handled by hover:shadow-lg utility class */
   }
@@ -261,12 +261,12 @@
     /* Maybe slightly increase blur or change background further */
     backdrop-filter: blur(calc(var(--glass-blur) * 1.1));
     -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.1));
-    background-color: rgba(10, 54, 34, calc(var(--glass-hover-bg-opacity-dark) * 1.1)); /* Example */
+    background-color: rgba(82, 137, 175, calc(var(--glass-hover-bg-opacity-dark) * 1.1)); 
     border-color: rgba(255, 255, 255, calc(var(--glass-hover-border-opacity-dark) * 1.2));
   }
 
   .light .glass-card.elevated {
-    background-color: rgba(255, 255, 255, calc(var(--glass-hover-bg-opacity-light) * 1.1)); /* Example */
+    background-color: rgba(82, 137, 175, calc(var(--glass-hover-bg-opacity-light) * 1.1)); 
     border-color: rgba(210, 220, 230, calc(var(--glass-hover-border-opacity-light) * 1.2));
     box-shadow: 0 8px 15px rgba(50, 50, 80, calc(var(--glass-shadow-intensity) * 1.5));
   }
@@ -280,26 +280,26 @@
     transition: background-color var(--transition-speed) ease-in-out,
                 border-color var(--transition-speed) ease-in-out,
                 box-shadow var(--transition-speed) ease-in-out;
-    background-color: rgba(10, 54, 34, var(--glass-bg-opacity-dark)); 
+    background-color: rgba(66, 110, 140, var(--glass-bg-opacity-dark)); 
     border-color: rgba(255, 255, 255, var(--glass-border-opacity-dark));
     /* Layout (flex, flex-col) and shadow are applied in JSX */
   }
 
   .light .glass-column {
      /* Light theme overrides for columns */
-     background-color: rgba(245, 248, 252, var(--glass-bg-opacity-light));
+     background-color: rgba(66, 110, 140, var(--glass-bg-opacity-light));
      border-color: rgba(210, 220, 230, var(--glass-border-opacity-light));
   }
 
   /* Define hover styles directly on the column */
   .dark .glass-column:hover {
-    background-color: rgba(10, 54, 34, var(--glass-hover-bg-opacity-dark));
+    background-color: rgba(66, 110, 140, var(--glass-hover-bg-opacity-dark));
     border-color: rgba(255, 255, 255, var(--glass-hover-border-opacity-dark));
     /* Shadow is handled by hover:shadow-lg utility class */
   }
 
   .light .glass-column:hover {
-    background-color: rgba(245, 248, 252, var(--glass-hover-bg-opacity-light));
+    background-color: rgba(66, 110, 140, var(--glass-hover-bg-opacity-light));
     border-color: rgba(210, 220, 230, var(--glass-hover-border-opacity-light));
     /* Shadow is handled by hover:shadow-lg utility class */
   }
@@ -401,12 +401,12 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #4d4d4d;
-  --foreground: #ffffff;
-  --card: #4d4d4d;
-  --card-foreground: #ffffff;
-  --popover: #4d4d4d;
-  --popover-foreground: #ffffff;
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
   --primary: oklch(0.208 0.042 265.755);
   --primary-foreground: oklch(0.984 0.003 247.858);
   --secondary: oklch(0.968 0.007 247.896);
@@ -424,8 +424,8 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: #4d4d4d;
-  --sidebar-foreground: #ffffff;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #000000;
   --sidebar-primary: oklch(0.208 0.042 265.755);
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
   --sidebar-accent: oklch(0.968 0.007 247.896);
@@ -435,11 +435,11 @@
 }
 
 .dark {
-  --background: #4d4d4d;
+  --background: #333333;
   --foreground: #ffffff;
-  --card: #4d4d4d;
+  --card: #333333;
   --card-foreground: #ffffff;
-  --popover: #4d4d4d;
+  --popover: #333333;
   --popover-foreground: #ffffff;
   --primary: oklch(0.929 0.013 255.508);
   --primary-foreground: oklch(0.208 0.042 265.755);
@@ -458,7 +458,7 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: #4d4d4d;
+  --sidebar: #333333;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
@@ -482,23 +482,18 @@
 .glass-morph-light {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  background-color: rgba(10, 54, 34, var(--glass-bg-opacity-dark)); 
+  background-color: rgba(66, 110, 140, var(--glass-bg-opacity-dark)); 
   border: var(--glass-border-width) solid rgba(255, 255, 255, var(--glass-border-opacity-dark));
   transition: background-color var(--transition-speed) ease-in-out,
               border-color var(--transition-speed) ease-in-out;
 }
 
 .light .glass-morph-light {
-  background-color: rgba(255, 255, 255, var(--glass-bg-opacity-light));
+  background-color: rgba(66, 110, 140, var(--glass-bg-opacity-light));
   border-color: rgba(210, 220, 230, var(--glass-border-opacity-light));
 }
 
 .dark .glass-morph-light:hover {
-  background-color: rgba(10, 54, 34, var(--glass-hover-bg-opacity-dark));
+  background-color: rgba(66, 110, 140, var(--glass-hover-bg-opacity-dark));
   border-color: rgba(255, 255, 255, var(--glass-hover-border-opacity-dark));
-}
-
-.light .glass-morph-light:hover {
-  background-color: rgba(255, 255, 255, var(--glass-hover-bg-opacity-light));
-  border-color: rgba(210, 220, 230, var(--glass-hover-border-opacity-light));
 }

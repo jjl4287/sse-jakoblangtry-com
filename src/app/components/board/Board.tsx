@@ -160,7 +160,11 @@ export const Board: React.FC = () => {
         transition={{ duration: 0.3 }}
       >
         <div className="flex items-center flex-grow mr-4">
-          <h1 className="text-xl font-bold mr-2 whitespace-nowrap">Society of Software Engineers</h1>
+          <img 
+            src="/BigLogo.svg" 
+            alt="Society of Software Engineers" 
+            className="mr-2 h-8"
+          />
           <h2 className="text-lg font-semibold opacity-80 whitespace-nowrap">Goals for 25/26</h2>
         </div>
         <div className="flex items-center space-x-3 flex-shrink-0">
