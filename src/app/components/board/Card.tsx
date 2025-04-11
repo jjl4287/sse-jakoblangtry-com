@@ -289,46 +289,51 @@ export const Card = memo(({
            </DropdownMenu>
         </div>
 
-        {/* Card Title */}
-        <h3 className="font-medium text-sm mb-2 pr-6">{card.title}</h3> 
-
-        {/* Card Attributes Section */}
-        <div className="mt-2 flex flex-wrap gap-2 items-center text-xs text-gray-400">
-          {/* Priority */}
-          {card.priority && (() => {
-            const { Icon, color } = getPriorityInfo(card.priority);
-            return (
-              <span className={`flex items-center ${color}`}>
-                <Icon className="h-3 w-3 mr-1" />
-                {/* Optional: Display text like 'High' */}
-                {/* {card.priority.charAt(0).toUpperCase() + card.priority.slice(1)} */}
-              </span>
-            );
-          })()}
-
-          {/* Due Date */}
-          {card.dueDate && (
-            <span className={`flex items-center ${new Date(card.dueDate) < new Date() ? 'text-orange-400' : ''}`}>
-              <Calendar className="h-3 w-3 mr-1" />
-              {format(new Date(card.dueDate), 'MMM d')}
-            </span>
+        {/* Card Content */}
+        <div onClick={handleOpenModal} className="flex-grow">
+          <h3 className="font-semibold text-sm mb-1 text-gray-800 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{card.title}</h3>
+          {/* Add Description Here */}
+          {card.description && (
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 mb-2 whitespace-pre-wrap break-words">
+              {card.description}
+            </p>
           )}
-
-          {/* Assignees */}
-          {card.assignees && card.assignees.length > 0 && (
-             <div className="flex items-center space-x-1">
-                <User className="h-3 w-3" />
-                {/* Display first initial for simplicity, max 2 */}
-                {card.assignees.slice(0, 2).map((assignee, i) => (
-                  <span key={i} className="bg-gray-600/50 rounded-full px-1.5 py-0.5 text-xs">
-                    {assignee.charAt(0).toUpperCase()}
+          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
+            <div className="flex items-center space-x-2">
+              {card.priority && (() => {
+                const { Icon, color } = getPriorityInfo(card.priority);
+                return (
+                  <span className={`flex items-center ${color}`}>
+                    <Icon className="h-3 w-3 mr-1" />
                   </span>
-                ))}
-                {card.assignees.length > 2 && (
-                   <span className="text-xs">+{card.assignees.length - 2}</span>
-                )}
-             </div>
-          )}
+                );
+              })()}
+
+              {/* Due Date */}
+              {card.dueDate && (
+                <span className={`flex items-center ${new Date(card.dueDate) < new Date() ? 'text-orange-400' : ''}`}>
+                  <Calendar className="h-3 w-3 mr-1" />
+                  {format(new Date(card.dueDate), 'MMM d')}
+                </span>
+              )}
+
+              {/* Assignees */}
+              {card.assignees && card.assignees.length > 0 && (
+                 <div className="flex items-center space-x-1">
+                    <User className="h-3 w-3" />
+                    {/* Display first initial for simplicity, max 2 */}
+                    {card.assignees.slice(0, 2).map((assignee, i) => (
+                      <span key={i} className="bg-gray-600/50 rounded-full px-1.5 py-0.5 text-xs">
+                        {assignee.charAt(0).toUpperCase()}
+                      </span>
+                    ))}
+                    {card.assignees.length > 2 && (
+                       <span className="text-xs">+{card.assignees.length - 2}</span>
+                    )}
+                 </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Labels */}
