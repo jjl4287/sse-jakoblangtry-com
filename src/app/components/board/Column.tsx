@@ -16,6 +16,9 @@ import update from 'immutability-helper'; // Import immutability-helper
 const SCROLL_AREA_HEIGHT = 60; // Pixels from top/bottom edge to trigger scroll
 const SCROLL_SPEED = 10; // Pixels per frame
 
+// Placeholder height (should match card height or be close)
+const PLACEHOLDER_HEIGHT = 100; // Adjust as needed based on your Card component's styling
+
 interface ColumnProps {
   column: ColumnType;
   isDraggingCard?: boolean;
@@ -40,6 +43,8 @@ const Column: React.FC<ColumnProps> = memo(({
   const columnMotionRef = useRef<HTMLDivElement>(null);
   const [internalCards, setInternalCards] = useState(column.cards);
   const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref for scroll interval
+  const [placeholderIndex, setPlaceholderIndex] = useState<number | null>(null); // State for placeholder position
+  const [placeholderHeight, setPlaceholderHeight] = useState<number>(PLACEHOLDER_HEIGHT); // State for dynamic placeholder height
   
   // Update internal state when the column prop changes
   useEffect(() => {
@@ -67,6 +72,24 @@ const Column: React.FC<ColumnProps> = memo(({
     };
   }, []);
   
+  // Helper function to calculate hover index based on Y coordinate
+  const calculateHoverIndex = (hoverClientY: number, cards: CardType[], scrollContainer: HTMLDivElement): number => {
+      let targetIndex = cards.findIndex((card) => {
+          const cardElement = scrollContainer.querySelector(`[data-card-id="${card.id}"]`);
+          if (!cardElement) return false;
+          const cardRect = cardElement.getBoundingClientRect();
+          const elementTopRelativeToScrollContainer = cardRect.top - scrollContainer.getBoundingClientRect().top + scrollContainer.scrollTop;
+          const cardMiddleY = elementTopRelativeToScrollContainer + cardRect.height / 2;
+          return hoverClientY < cardMiddleY;
+      });
+
+      if (targetIndex === -1) {
+          // If not found, means we are hovering below all cards or column is empty
+          targetIndex = cards.length;
+      }
+      return targetIndex;
+  };
+  
   // Set up drop functionality for the column (dropping cards INTO the column area)
   const [{ isOverCurrent, canDrop, draggedItem }, drop] = useDrop<
     CardDragItem, // Type of the dragged item
@@ -75,97 +98,104 @@ const Column: React.FC<ColumnProps> = memo(({
   >({
     accept: ItemTypes.CARD,
     drop: (item: CardDragItem, monitor) => {
-      const didDropOnCard = monitor.didDrop() && (monitor.getDropResult() as any)?.droppedOnCard;
+      setPlaceholderIndex(null); // Clear placeholder on drop
       
-      // If the card was dropped onto another card within this column, the Card component's drop handler already took care of it.
-      if (didDropOnCard) {
-        console.log(`Card ${item.id} drop handled by Card component, skipping column drop.`);
-        if (onDragEnd) onDragEnd();
+      // Column's drop handler now takes precedence to determine final position.
+      if (!monitor.isOver({ shallow: true }) || !ref.current) {
+        // If not dropped directly on this column or ref is missing, bail out.
+        // The dragEnd handler in Board.tsx will handle cleanup if needed.
         return;
       }
 
+      // Calculate final hover index at the moment of drop
+      const clientOffset = monitor.getClientOffset();
+      if (!clientOffset) {
+        console.warn("Cannot determine drop position: no client offset.");
+        if (onDragEnd) onDragEnd();
+        return; 
+      }
+      
+      const columnRect = ref.current.getBoundingClientRect();
+      const hoverClientY = clientOffset.y - columnRect.top + ref.current.scrollTop;
+      const finalHoverIndex = calculateHoverIndex(hoverClientY, column.cards, ref.current); // Use original column.cards for stable calculation
+
+      // Calculate the target order based on surrounding cards at the final index
+      const sortedOriginalCards = [...column.cards].sort((a, b) => a.order - b.order);
+      const cardBefore = sortedOriginalCards[finalHoverIndex - 1];
+      const cardAfter = sortedOriginalCards[finalHoverIndex];
+      const prevOrder = cardBefore?.order ?? 0; 
+      const nextOrder = cardAfter?.order;
+
+      let targetOrder: number;
+      if (finalHoverIndex === 0) {
+        targetOrder = (nextOrder ?? 1) / 2;
+      } else if (nextOrder === undefined) {
+        targetOrder = prevOrder + 1;
+      } else {
+        targetOrder = (prevOrder + nextOrder) / 2;
+      }
+
       // Handle dropping a card INTO this column (either from another column or into empty space)
-      console.log(`Card ${item.id} dropped into column ${column.id}`);
-      const targetOrder = getDropOrder(monitor); // Calculate target order based on drop position
-      moveCard(item.id, column.id, targetOrder);
+      console.log(`Card ${item.id} dropped into column ${column.id} at index ${finalHoverIndex} with target order ${targetOrder}`);
+      moveCard(item.id, column.id, targetOrder); // Use the calculated targetOrder
 
       if (onDragEnd) {
         onDragEnd();
       }
     },
     hover: (item: CardDragItem, monitor) => {
-      const isHovering = monitor.isOver({ shallow: true });
-      setIsOver(isHovering); // Keep for visual feedback (column highlight)
+      const isHoveringShallow = monitor.isOver({ shallow: true });
+      setIsOver(isHoveringShallow); // Keep for visual feedback (column highlight)
 
       // Auto-scroll logic
-      if (isHovering && ref.current) {
+      if (isHoveringShallow && ref.current) {
         handleAutoScroll(monitor, ref.current);
       } else {
         stopAutoScroll();
       }
       
-      // --- Start: Visual Reordering Logic --- 
-      if (!ref.current || !monitor.isOver({ shallow: true })) {
-        return; // Don't reorder if not hovering over the column directly
+      // Placeholder and Visual Reordering Logic
+      if (!ref.current || !isHoveringShallow) {
+        if (placeholderIndex !== null) {
+            setPlaceholderIndex(null); // Clear placeholder if not hovering shallowly over this column
+        }
+        return; 
       }
       
-      const dragIndex = internalCards.findIndex(c => c.id === item.id);
       const clientOffset = monitor.getClientOffset();
-      if (!clientOffset || dragIndex === -1) {
-        return; // Can't reorder if we don't know the dragged card or mouse position
-      }
-      
-      const columnRect = ref.current.getBoundingClientRect();
-      const hoverClientY = clientOffset.y - columnRect.top + ref.current.scrollTop; // Adjust for scroll position
-      
-      let hoverIndex = -1;
-      let smallestDiff = Infinity;
-      
-      // Find the closest card index to the hover position
-      internalCards.forEach((card, i) => {
-        const cardElement = ref.current?.querySelector(`[data-card-id="${card.id}"]`);
-        if (!cardElement || !ref.current) return;
-        const cardRect = cardElement.getBoundingClientRect();
-        const cardMiddleY = cardRect.top + cardRect.height / 2 - columnRect.top + ref.current.scrollTop; // Adjust for scroll
-        const diff = Math.abs(hoverClientY - cardMiddleY);
-        
-        if (diff < smallestDiff) {
-          smallestDiff = diff;
-          hoverIndex = i;
-        }
-      });
-      
-      // Determine if we should insert before or after the closest card
-      if (hoverIndex !== -1) {
-        const closestCard = internalCards[hoverIndex];
-        if (!closestCard || !ref.current) return;
-        const closestCardElement = ref.current.querySelector(`[data-card-id="${closestCard.id}"]`);
-        if (closestCardElement) {
-          const closestCardRect = closestCardElement.getBoundingClientRect();
-          const closestCardMiddleY = closestCardRect.top + closestCardRect.height / 2 - columnRect.top + ref.current.scrollTop;
-          // If hovering below the middle of the closest card, target the next index
-          if (hoverClientY > closestCardMiddleY) {
-            hoverIndex += 1;
-          }
-        }
-      } else {
-        // If no card is close (e.g., empty column or dragging below all cards), target the end
-        hoverIndex = internalCards.length;
-      }
-      
-      // Adjust hoverIndex if dragging downwards past the original position
-      if (dragIndex < hoverIndex) {
-        hoverIndex -= 1;
-      }
-      
-      // Prevent reordering with self
-      if (dragIndex === hoverIndex) {
-        return;
+      if (!clientOffset) {
+         if (placeholderIndex !== null) setPlaceholderIndex(null);
+         return;
       }
 
-      // Perform the visual move using the internal state
-      moveCardInternally(dragIndex, hoverIndex);
-      // --- End: Visual Reordering Logic --- 
+      const dragIndexInInternal = internalCards.findIndex(c => c.id === item.id); // Find dragged card in *this* column's state
+      const columnRect = ref.current.getBoundingClientRect();
+      const hoverClientY = clientOffset.y - columnRect.top + ref.current.scrollTop; // Adjust for scroll position
+
+      // Calculate target index for placeholder or visual reordering
+      const hoverIndex = calculateHoverIndex(hoverClientY, internalCards, ref.current);
+
+      // --- Logic branching based on source column ---
+      
+      // A) Dragging within the same column: Perform visual reordering
+      if (item.columnId === column.id) {
+        setPlaceholderIndex(null); // Ensure no placeholder in source column
+        if (dragIndexInInternal === -1 || dragIndexInInternal === hoverIndex) {
+          return; // Item not found in internal state or no move needed
+        }
+        moveCardInternally(dragIndexInInternal, hoverIndex);
+      } 
+      // B) Dragging from a different column: Show placeholder
+      else {
+        if (hoverIndex !== placeholderIndex) {
+           // Update placeholder height based on the dragged item if possible
+           // This requires accessing the dragged item's element size, which is tricky.
+           // We'll use a fixed height for now, but ideally, this would be dynamic.
+           // Consider passing height in the drag item if possible.
+           setPlaceholderHeight(PLACEHOLDER_HEIGHT); // Or get height from item if available
+           setPlaceholderIndex(hoverIndex);
+        }
+      }
     },
     collect: (monitor) => ({
       isOverCurrent: monitor.isOver({ shallow: true }),
@@ -174,48 +204,6 @@ const Column: React.FC<ColumnProps> = memo(({
     }),
   });
 
-  // Calculate the target order based on mouse position and existing cards
-  const getDropOrder = useCallback((monitor: DropTargetMonitor<CardDragItem, void>): number => {
-    if (!ref.current) return 0;
-
-    const sortedColumnCards = [...column.cards].sort((a, b) => a.order - b.order);
-    const clientOffset = monitor.getClientOffset();
-    const columnRect = ref.current.getBoundingClientRect();
-    if (!clientOffset) return (sortedColumnCards[sortedColumnCards.length - 1]?.order ?? 0) + 1; // Drop at end if no offset
-
-    const hoverY = clientOffset.y - columnRect.top;
-
-    // Find the index where the card should be inserted
-    let targetIndex = sortedColumnCards.findIndex((card) => {
-      const cardElement = ref.current?.querySelector(`[data-card-id="${card.id}"]`);
-      if (!cardElement) return false;
-      const cardRect = cardElement.getBoundingClientRect();
-      if (cardRect.top === undefined) return false;
-      const cardMiddleY = cardRect.top + cardRect.height / 2 - columnRect.top;
-      return hoverY < cardMiddleY;
-    });
-
-    if (targetIndex === -1) {
-      targetIndex = sortedColumnCards.length;
-    }
-
-    const cardBefore = sortedColumnCards[targetIndex - 1];
-    const cardAfter = sortedColumnCards[targetIndex];
-    const prevOrder = cardBefore?.order ?? 0; // Default to 0 if no card before
-    const nextOrder = cardAfter?.order; // Can be undefined if inserting at the end
-
-    if (targetIndex === 0) {
-      // Insert at the beginning: halfway between 0 and the first card's order (or 1 if no cards)
-      return (nextOrder ?? 1) / 2;
-    } else if (nextOrder === undefined) {
-      // Insert at the end: order of the last card + 1
-      return prevOrder + 1;
-    } else {
-      // Insert between two cards
-      return (prevOrder + nextOrder) / 2;
-    }
-  }, [column.cards]);
-  
   // Auto-scroll handling function
   const handleAutoScroll = (monitor: DropTargetMonitor<CardDragItem, void>, scrollElement: HTMLDivElement) => {
     const clientOffset = monitor.getClientOffset();
@@ -271,6 +259,7 @@ const Column: React.FC<ColumnProps> = memo(({
   useEffect(() => {
     if (!isDraggingCard) {
       stopAutoScroll();
+      setPlaceholderIndex(null); // Clear placeholder when drag ends globally
     }
   }, [isDraggingCard]);
 
@@ -379,9 +368,20 @@ const Column: React.FC<ColumnProps> = memo(({
     >
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <h3 className="text-lg font-semibold hover:text-primary-light transition-colors">{column.title}</h3>
-        <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
-          {sortedCards.length}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
+            {sortedCards.length}
+          </span>
+          <button 
+            onClick={handleAddCardClick}
+            className="glass-morph-light text-xs p-1 rounded-full hover:bg-white/10 transition-colors hover-lift"
+            aria-label="Add Card"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14"></path>
+            </svg>
+          </button>
+        </div>
       </div>
       
       <div 
@@ -400,45 +400,63 @@ const Column: React.FC<ColumnProps> = memo(({
         )}
         
         <AnimatePresence mode="popLayout">
-          {sortedCards.map((card, index) => (
-            <motion.div 
-              key={card.id} 
-              className="relative group card-wrapper"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ 
-                duration: 0.2,
-                type: "spring",
-                damping: 20,
-                stiffness: 300
-              }}
-              layout={!isDraggingCard}
-              data-card-id={card.id}
-            >
-              <Card 
-                card={card}
-                index={index}
-                columnId={column.id}
-                onDragStart={handleCardDragStart}
-                onDragEnd={onDragEnd}
-                onMoveCard={moveCardInternally}
-              />
-            </motion.div>
-          ))}
+          {[...Array(sortedCards.length + 1)].map((_, index) => {
+            // Render placeholder if index matches and it should be shown
+            if (placeholderIndex === index) {
+              return (
+                <motion.div
+                  key="placeholder"
+                  className="bg-white/10 rounded-lg border-2 border-dashed border-white/30"
+                  style={{ height: placeholderHeight }}
+                  initial={{ opacity: 0.5, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  layout // Ensures smooth animation when placeholder appears/disappears
+                />
+              );
+            }
+            
+            // Adjust card index if placeholder is rendered before it
+            const cardIndex = placeholderIndex !== null && index > placeholderIndex ? index - 1 : index;
+            const card = sortedCards[cardIndex];
+
+            // Don't render anything further if card doesn't exist (handles the +1 in the map array)
+            if (!card) return null;
+
+            // Render the actual card
+            return (
+              <motion.div 
+                key={card.id} 
+                className="relative group card-wrapper mb-3"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ 
+                  layout: { 
+                    duration: 0.15, // Faster duration
+                    ease: "easeOut" // Use a standard ease-out for snappiness
+                  },
+                  // Keep spring for initial mount/exit animations if desired
+                  type: "spring", 
+                  stiffness: 400, 
+                  damping: 30
+                }}
+                layout // Keep layout prop enabled, but configure its transition separately
+                data-card-id={card.id}
+              >
+                <Card 
+                  card={card}
+                  index={cardIndex}
+                  columnId={column.id}
+                  onDragStart={handleCardDragStart}
+                  onDragEnd={onDragEnd}
+                  onMoveCard={moveCardInternally}
+                />
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
-        
-        {isOverCurrent && canDrop && draggedItem?.columnId !== column.id && (
-            <div className="h-1 bg-green-400/50 rounded my-1"></div>
-        )}
       </div>
-      
-      <button 
-        onClick={handleAddCardClick}
-        className="mt-4 p-2 w-full text-left glass-button hover-lift flex-shrink-0"
-      >
-        + Add Card
-      </button>
     </motion.div>
   );
 });

@@ -416,3 +416,28 @@
     background-image: none !important;
   }
 }
+
+/* Glass morphic light elements (badges, small buttons) */
+.glass-morph-light {
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background-color: rgba(10, 54, 34, var(--glass-bg-opacity-dark)); 
+  border: var(--glass-border-width) solid rgba(255, 255, 255, var(--glass-border-opacity-dark));
+  transition: background-color var(--transition-speed) ease-in-out,
+              border-color var(--transition-speed) ease-in-out;
+}
+
+.light .glass-morph-light {
+  background-color: rgba(255, 255, 255, var(--glass-bg-opacity-light));
+  border-color: rgba(210, 220, 230, var(--glass-border-opacity-light));
+}
+
+.dark .glass-morph-light:hover {
+  background-color: rgba(10, 54, 34, var(--glass-hover-bg-opacity-dark));
+  border-color: rgba(255, 255, 255, var(--glass-hover-border-opacity-dark));
+}
+
+.light .glass-morph-light:hover {
+  background-color: rgba(255, 255, 255, var(--glass-hover-bg-opacity-light));
+  border-color: rgba(210, 220, 230, var(--glass-hover-border-opacity-light));
+}
