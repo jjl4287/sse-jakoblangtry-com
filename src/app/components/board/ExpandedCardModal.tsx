@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, CalendarIcon, Paperclip, Link, Trash2, Save } from 'lucide-react';
 import { format } from 'date-fns';
@@ -45,8 +45,8 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
   
-  // Get attachments
-  const attachments = card?.attachments || [];
+  // Get attachments - memoize to avoid unnecessary recalculations
+  const attachments = useMemo(() => card?.attachments || [], [card?.attachments]);
 
   // Effect to reset form state when the modal opens
   useEffect(() => {
@@ -64,10 +64,8 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
 
   // Validation effect for Title
   useEffect(() => {
-    if (isOpen && title.trim() === '') {
-      setTitleError('Title cannot be empty.');
-    } else {
-      setTitleError(null);
+    if (isOpen) {
+      setTitleError(title.trim() === '' ? 'Title cannot be empty.' : null);
     }
   }, [title, isOpen]);
 
@@ -92,7 +90,7 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
     );
   }, [title, description, priority, dueDate, card, isOpen, isNewCard]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (titleError || !title.trim()) return;
     
     setIsSaving(true);
@@ -127,9 +125,9 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [titleError, title, isNewCard, columnId, createCard, description, priority, dueDate, card, updateCard, onOpenChange]);
 
-  const handleAddAttachment = async () => {
+  const handleAddAttachment = useCallback(async () => {
     if (!attachmentUrl.trim() || !card) return;
     
     try {
@@ -146,9 +144,9 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
     } catch (error) {
       console.error("Failed to add attachment:", error);
     }
-  };
+  }, [attachmentUrl, card, addAttachment]);
 
-  const handleDeleteAttachment = async (attachmentId: string) => {
+  const handleDeleteAttachment = useCallback(async (attachmentId: string) => {
     if (!card) return;
     
     if (window.confirm('Are you sure you want to delete this attachment?')) {
@@ -158,10 +156,10 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
         console.error("Failed to delete attachment:", error);
       }
     }
-  };
+  }, [card, deleteAttachment]);
 
   // Function to render URL embeds
-  const renderAttachmentEmbed = (url: string) => {
+  const renderAttachmentEmbed = useCallback((url: string) => {
     try {
       const parsedUrl = new URL(url);
       
@@ -219,7 +217,24 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
         <div className="text-xs text-red-400">Invalid URL</div>
       );
     }
-  };
+  }, []);
+
+  // Handle input changes
+  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setTitle(e.target.value);
+  }, []);
+
+  const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setDescription(e.target.value);
+  }, []);
+
+  const handlePriorityChange = useCallback((value: Priority) => {
+    setPriority(value);
+  }, []);
+
+  const handleAttachmentUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setAttachmentUrl(e.target.value);
+  }, []);
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
@@ -253,7 +268,7 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
                 id="card-title"
                 type="text" 
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={handleTitleChange}
                 placeholder="Card title"
                 className={cn(
                   "bg-white/5 border-white/20 placeholder:text-gray-400 focus-visible:ring-offset-0 focus-visible:ring-white/50",
@@ -269,7 +284,7 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
               <Textarea 
                 id="card-description"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={handleDescriptionChange}
                 placeholder="Add a more detailed description..."
                 className="bg-white/5 border-white/20 placeholder:text-gray-400 focus-visible:ring-offset-0 focus-visible:ring-white/50 min-h-[80px]"
               />
@@ -279,7 +294,7 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
               {/* Priority Field */}
               <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="card-priority" className="text-xs text-gray-400">Priority</Label>
-                <Select value={priority} onValueChange={(value: Priority) => setPriority(value)}>
+                <Select value={priority} onValueChange={handlePriorityChange}>
                   <SelectTrigger id="card-priority" className="w-full bg-white/5 border-white/20 focus:ring-offset-0 focus:ring-white/50">
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
@@ -365,7 +380,7 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
                   <Input 
                     id="attachment-url"
                     value={attachmentUrl}
-                    onChange={(e) => setAttachmentUrl(e.target.value)}
+                    onChange={handleAttachmentUrlChange}
                     placeholder="Paste URL link here"
                     type="url"
                     className="bg-white/5 border-white/20 h-8 text-sm"

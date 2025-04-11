@@ -140,7 +140,7 @@ export const Board: React.FC = () => {
       {/* Board Header */}
       <motion.div 
         ref={headerRef}
-        className="glass-column glass-border-animated p-4 mb-4 mx-6 mt-6 flex justify-between items-center rounded-lg"
+        className="glass-column glass-border-animated p-3 mb-1 mx-2 mt-2 flex justify-between items-center rounded-lg"
         style={{ 
           ['--x' as string]: mousePos.x, 
           ['--y' as string]: mousePos.y,
@@ -178,10 +178,10 @@ export const Board: React.FC = () => {
       
       {/* Board Content */}
       <motion.div 
-        className="flex-1 overflow-hidden px-6 pb-6 backdrop-blur-[2px]"
+        className="flex-1 overflow-hidden px-2 pb-2 backdrop-blur-[2px]"
         layout={false}
       >
-        <div className="flex h-full gap-6 overflow-x-auto overflow-y-hidden">
+        <div className="flex h-full gap-2 overflow-x-auto overflow-y-hidden">
           {filteredBoard?.columns?.map((column) => (
             <Column 
               key={column.id} 

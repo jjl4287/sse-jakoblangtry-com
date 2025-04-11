@@ -164,23 +164,48 @@
   .glass-column {
     overflow: visible !important; /* Override any other overflow settings */
     contain: none !important; /* Prevent containment that might clip cards */
+    isolation: isolate; /* Create new stacking context */
+    clip-path: none !important; /* Prevent clipping */
+    transform-style: preserve-3d; /* Preserve 3D positioning */
+  }
+
+  /* Make sure the column's children also don't clip content */
+  .glass-column > div {
+    overflow: visible !important;
+    contain: none !important;
+    clip-path: none !important;
+  }
+
+  /* Ensure column scroll container preserves overflow visibility for hover effects */
+  .glass-column .overflow-y-auto {
+    overflow-y: auto !important;
+    overflow-x: visible !important;
+    contain: none !important;
+    clip-path: none !important;
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
   }
 
   /* Card wrapper for properly handling hover effects */
   .card-wrapper {
     position: relative;
     z-index: 1;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem; /* Reduced from 0.75rem */
+    margin-top: 0.3rem; /* Reduced from 0.5rem */
     transition: z-index 0ms; /* Prevent z-index transition */
-    margin-left: 6px; /* Increase left margin */
-    margin-right: 6px;
+    margin-left: 3px; /* Reduced from 6px */
+    margin-right: 3px; /* Reduced from 6px */
     padding-left: 2px; /* Add padding for hover area */
     padding-right: 2px;
+    padding-top: 4px; /* Reduced from 6px */
+    padding-bottom: 4px; /* Reduced from 6px */
     /* Create space for the card to expand into */
     transform: translateZ(0); /* Force GPU acceleration for smoother animations */
-    overflow: visible; /* Ensure overflow is visible for the wrapper */
-    width: calc(100% - 12px); /* Adjust width to account for margins */
+    overflow: visible !important; /* Ensure overflow is visible for the wrapper */
+    width: calc(100% - 6px); /* Adjusted for new margins */
     transform-style: preserve-3d; /* Better 3D positioning */
+    contain: none !important; /* Prevent any form of containment */
+    clip-path: none !important; /* Prevent clipping */
   }
   
   .card-wrapper:hover {

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Board, Card } from '~/types';
 import { BoardService } from './board-service';
@@ -55,267 +55,199 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Generic error handler for service calls
+  const handleServiceCall = async <T extends Board>(
+    serviceCall: () => Promise<T>,
+    showLoading: boolean = true,
+    errorMessage: string = 'Error processing request'
+  ): Promise<T | null> => {
+    try {
+      if (showLoading) setLoading(true);
+      setError(null);
+      
+      const updatedBoard = await serviceCall();
+      setBoard(updatedBoard);
+      return updatedBoard;
+    } catch (err) {
+      const error = err as Error;
+      setError(error);
+      console.error(`${errorMessage}:`, error);
+      return null;
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
   // Load the board data on initial render
   useEffect(() => {
     refreshBoard();
   }, []);
 
   // Refresh the board data
-  const refreshBoard = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await BoardService.getBoard();
-      setBoard(data);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error loading board data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const refreshBoard = useCallback(async () => {
+    await handleServiceCall(
+      BoardService.getBoard,
+      true,
+      'Error loading board data'
+    );
+  }, []);
 
   // Update the board theme
-  const updateTheme = async (theme: 'light' | 'dark') => {
-    try {
-      // Don't set loading to true for theme updates to avoid page refresh
-      const updatedBoard = await BoardService.updateTheme(theme);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error updating theme:', err);
-    }
-  };
+  const updateTheme = useCallback(async (theme: 'light' | 'dark') => {
+    await handleServiceCall(
+      () => BoardService.updateTheme(theme),
+      false,
+      'Error updating theme'
+    );
+  }, []);
 
   // Create a new column
-  const createColumn = async (title: string, width: number) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.createColumn(title, width);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error creating column:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const createColumn = useCallback(async (title: string, width: number) => {
+    await handleServiceCall(
+      () => BoardService.createColumn(title, width),
+      true,
+      'Error creating column'
+    );
+  }, []);
 
   // Update a column
-  const updateColumn = async (
+  const updateColumn = useCallback(async (
     columnId: string,
     updates: { title?: string; width?: number }
   ) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.updateColumn(columnId, updates);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error updating column:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    await handleServiceCall(
+      () => BoardService.updateColumn(columnId, updates),
+      true,
+      'Error updating column'
+    );
+  }, []);
 
   // Delete a column
-  const deleteColumn = async (columnId: string) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.deleteColumn(columnId);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error deleting column:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const deleteColumn = useCallback(async (columnId: string) => {
+    await handleServiceCall(
+      () => BoardService.deleteColumn(columnId),
+      true,
+      'Error deleting column'
+    );
+  }, []);
 
   // Create a new card
-  const createCard = async (
+  const createCard = useCallback(async (
     columnId: string,
     cardData: Omit<Card, 'id' | 'columnId' | 'order'>
   ) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.createCard(columnId, cardData);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error creating card:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    await handleServiceCall(
+      () => BoardService.createCard(columnId, cardData),
+      true,
+      'Error creating card'
+    );
+  }, []);
 
   // Update a card
-  const updateCard = async (
+  const updateCard = useCallback(async (
     cardId: string,
     updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'>>
   ) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.updateCard(cardId, updates);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error updating card:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    await handleServiceCall(
+      () => BoardService.updateCard(cardId, updates),
+      true,
+      'Error updating card'
+    );
+  }, []);
 
   // Move a card to a different column or position
-  const moveCard = async (
+  const moveCard = useCallback(async (
     cardId: string,
     targetColumnId: string,
     newOrder: number
   ) => {
-    try {
-      // Don't set loading to true for card moves to avoid UI flashing
-      // This allows framer-motion to handle the animations smoothly
-      const updatedBoard = await BoardService.moveCard(
-        cardId,
-        targetColumnId,
-        newOrder
-      );
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error moving card:', err);
-    }
-  };
+    await handleServiceCall(
+      () => BoardService.moveCard(cardId, targetColumnId, newOrder),
+      false,
+      'Error moving card'
+    );
+  }, []);
 
   // Delete a card
-  const deleteCard = async (cardId: string) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.deleteCard(cardId);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error deleting card:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const deleteCard = useCallback(async (cardId: string) => {
+    await handleServiceCall(
+      () => BoardService.deleteCard(cardId),
+      true,
+      'Error deleting card'
+    );
+  }, []);
 
   // Duplicate a card
-  const duplicateCard = async (cardId: string, targetColumnId?: string) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.duplicateCard(cardId, targetColumnId);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error duplicating card:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const duplicateCard = useCallback(async (cardId: string, targetColumnId?: string) => {
+    await handleServiceCall(
+      () => BoardService.duplicateCard(cardId, targetColumnId),
+      true,
+      'Error duplicating card'
+    );
+  }, []);
 
   // Add a label to a card
-  const addLabel = async (cardId: string, name: string, color: string) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.addLabel(cardId, name, color);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error adding label:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const addLabel = useCallback(async (cardId: string, name: string, color: string) => {
+    await handleServiceCall(
+      () => BoardService.addLabel(cardId, name, color),
+      true,
+      'Error adding label'
+    );
+  }, []);
 
   // Remove a label from a card
-  const removeLabel = async (cardId: string, labelId: string) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.removeLabel(cardId, labelId);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error removing label:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const removeLabel = useCallback(async (cardId: string, labelId: string) => {
+    await handleServiceCall(
+      () => BoardService.removeLabel(cardId, labelId),
+      true,
+      'Error removing label'
+    );
+  }, []);
 
   // Add a comment to a card
-  const addComment = async (
+  const addComment = useCallback(async (
     cardId: string,
     author: string,
     content: string
   ) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.addComment(
-        cardId,
-        author,
-        content
-      );
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error adding comment:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    await handleServiceCall(
+      () => BoardService.addComment(cardId, author, content),
+      true,
+      'Error adding comment'
+    );
+  }, []);
 
   // Delete a comment from a card
-  const deleteComment = async (cardId: string, commentId: string) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.deleteComment(cardId, commentId);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error deleting comment:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const deleteComment = useCallback(async (cardId: string, commentId: string) => {
+    await handleServiceCall(
+      () => BoardService.deleteComment(cardId, commentId),
+      true,
+      'Error deleting comment'
+    );
+  }, []);
 
   // Add an attachment to a card
-  const addAttachment = async (
+  const addAttachment = useCallback(async (
     cardId: string,
     name: string,
     url: string,
     type: string
   ) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.addAttachment(
-        cardId,
-        name,
-        url,
-        type
-      );
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error adding attachment:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    await handleServiceCall(
+      () => BoardService.addAttachment(cardId, name, url, type),
+      true,
+      'Error adding attachment'
+    );
+  }, []);
 
   // Delete an attachment from a card
-  const deleteAttachment = async (cardId: string, attachmentId: string) => {
-    try {
-      setLoading(true);
-      const updatedBoard = await BoardService.deleteAttachment(cardId, attachmentId);
-      setBoard(updatedBoard);
-    } catch (err) {
-      setError(err as Error);
-      console.error('Error deleting attachment:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const deleteAttachment = useCallback(async (cardId: string, attachmentId: string) => {
+    await handleServiceCall(
+      () => BoardService.deleteAttachment(cardId, attachmentId),
+      true,
+      'Error deleting attachment'
+    );
+  }, []);
 
   return (
     <BoardContext.Provider
