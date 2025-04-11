@@ -6,33 +6,6 @@
       "width": 25,
       "cards": [
         {
-          "id": "101",
-          "title": "Implement dark mode toggle",
-          "description": "Create a toggle switch for changing between light and dark themes",
-          "labels": [
-            {
-              "id": "201",
-              "name": "Feature",
-              "color": "#1A7F56"
-            }
-          ],
-          "assignees": [
-            "John Doe"
-          ],
-          "priority": "medium",
-          "attachments": [],
-          "comments": [],
-          "columnId": "1",
-          "order": 2
-        }
-      ]
-    },
-    {
-      "id": "2",
-      "title": "In Progress",
-      "width": 25,
-      "cards": [
-        {
           "id": "102",
           "title": "Add drag animation",
           "description": "Improve the card drag and drop with smooth animations",
@@ -49,16 +22,9 @@
           "priority": "low",
           "attachments": [],
           "comments": [],
-          "columnId": "2",
-          "order": 0.5
-        }
-      ]
-    },
-    {
-      "id": "3",
-      "title": "Code Review",
-      "width": 25,
-      "cards": [
+          "columnId": "1",
+          "order": 3
+        },
         {
           "id": "104",
           "title": "Initial project setup",
@@ -85,14 +51,14 @@
             }
           ],
           "comments": [],
-          "columnId": "3",
-          "order": 0.5
+          "columnId": "1",
+          "order": 4
         }
       ]
     },
     {
-      "id": "4",
-      "title": "Done",
+      "id": "2",
+      "title": "In Progress",
       "width": 25,
       "cards": [
         {
@@ -119,10 +85,42 @@
               "createdAt": "2024-01-15T00:00:00.000Z"
             }
           ],
-          "columnId": "4",
-          "order": 0.5
+          "columnId": "2",
+          "order": 1.5
+        },
+        {
+          "id": "101",
+          "title": "Implement dark mode toggle",
+          "description": "Create a toggle switch for changing between light and dark themes",
+          "labels": [
+            {
+              "id": "201",
+              "name": "Feature",
+              "color": "#1A7F56"
+            }
+          ],
+          "assignees": [
+            "John Doe"
+          ],
+          "priority": "medium",
+          "attachments": [],
+          "comments": [],
+          "columnId": "2",
+          "order": 2.5
         }
       ]
+    },
+    {
+      "id": "3",
+      "title": "Code Review",
+      "width": 25,
+      "cards": []
+    },
+    {
+      "id": "4",
+      "title": "Done",
+      "width": 25,
+      "cards": []
     }
   ],
   "theme": "dark"
