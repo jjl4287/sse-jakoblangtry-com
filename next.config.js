@@ -9,7 +9,6 @@ const isProduction = process.env.NODE_ENV === 'production';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   ...(isProduction ? {
-    output: 'export',
     distDir: 'out',
   } : {}),
   webpack: (config, { isServer }) => {
