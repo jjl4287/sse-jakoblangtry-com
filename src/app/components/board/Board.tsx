@@ -55,16 +55,15 @@ export const Board: React.FC = () => {
   // Filter cards based on search query
   const filteredBoard = useMemo(() => {
     if (!board) return null;
-    if (!searchQuery.trim()) return board; // Return original board if search is empty
+    if (!searchQuery.trim()) return board;
     
     const query = searchQuery.toLowerCase();
     const columns = board.columns.map(column => ({
       ...column,
       cards: column.cards.filter(card => 
         card.title.toLowerCase().includes(query) || 
-        (card.description && card.description.toLowerCase().includes(query)) ||
+        card.description?.toLowerCase().includes(query) || 
         card.labels.some(label => label.name.toLowerCase().includes(query))
-        // Add other fields to search if needed (e.g., assignees, comments)
       )
     }));
     
@@ -73,15 +72,12 @@ export const Board: React.FC = () => {
 
   // Calculate card count based on filtered board
   const cardCount = useMemo(() => {
-    if (!filteredBoard || !filteredBoard.columns || !Array.isArray(filteredBoard.columns)) {
-      return 0;
-    }
-    return filteredBoard.columns.reduce((acc, col) => {
-      if (col && Array.isArray(col.cards)) {
+    return filteredBoard?.columns?.reduce((acc, col) => {
+      if (col?.cards) {
         return acc + col.cards.length;
       }
       return acc;
-    }, 0);
+    }, 0) ?? 0;
   }, [filteredBoard]);
 
   // Different UI states
@@ -134,7 +130,7 @@ export const Board: React.FC = () => {
       >
         <div className="flex items-center flex-grow mr-4 min-w-0">
           <img 
-            src="/BigLogo.svg" 
+            src="/BigLogo_WhiteText.png"
             alt="Society of Software Engineers" 
             className="mr-2 h-8 min-w-[2rem]"
           />
