@@ -149,7 +149,7 @@ export const Board: React.FC = () => {
       {/* Board Header */}
       <motion.div 
         ref={headerRef}
-        className="glass-column glass-border-animated p-3 mb-1 mx-2 mt-2 flex justify-between items-center rounded-lg"
+        className="glass-column glass-border-animated banner-padding mb-1 mx-2 mt-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 rounded-lg"
         style={{ 
           ['--x' as string]: mousePos.x, 
           ['--y' as string]: mousePos.y,
@@ -159,16 +159,16 @@ export const Board: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex items-center flex-grow mr-4">
+        <div className="flex items-center flex-grow mr-4 min-w-0">
           <img 
             src="/BigLogo.svg" 
             alt="Society of Software Engineers" 
-            className="mr-2 h-8"
+            className="mr-2 h-8 min-w-[2rem]"
           />
-          <h2 className="text-lg font-semibold opacity-80 whitespace-nowrap">Goals for 25/26</h2>
+          <h2 className="text-lg font-semibold opacity-80 whitespace-nowrap truncate">Goals for 25/26</h2>
         </div>
-        <div className="flex items-center space-x-3 flex-shrink-0">
-          <div className="relative">
+        <div className="flex flex-wrap items-center space-x-0 space-y-2 sm:space-y-0 sm:space-x-3 flex-shrink-0">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               ref={searchInputRef}
@@ -176,13 +176,13 @@ export const Board: React.FC = () => {
               placeholder="Search (⌘K)"
               value={searchQuery}
               onChange={handleSearchChange}
-              className="pl-9 pr-3 py-1 h-8 w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
+              className="pl-9 pr-3 py-1 h-8 w-full sm:w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
             />
           </div>
-          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm">
+          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm w-full sm:w-auto text-center">
             {columnCount} Columns
           </div>
-          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm">
+          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm w-full sm:w-auto text-center">
             {cardCount} Cards
           </div>
           <ThemeToggle />
@@ -191,10 +191,10 @@ export const Board: React.FC = () => {
       
       {/* Board Content */}
       <motion.div 
-        className="flex-1 overflow-hidden px-2 pb-2 backdrop-blur-[2px]"
+        className="flex-1 overflow-hidden px-1 sm:px-2 pb-2 backdrop-blur-[2px]"
         layout={false}
       >
-        <div className="flex h-full gap-2 overflow-x-auto overflow-y-hidden">
+        <div className="flex h-full gap-2 sm:gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
           {filteredBoard?.columns?.map((column) => (
             <Column 
               key={column.id} 

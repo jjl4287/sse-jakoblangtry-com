@@ -18,48 +18,38 @@
       "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     color-scheme: light;
     --transition-speed: 0.3s;
-
-    /* Base theme colors */
-    --bg-color: #ffffff; /* Pure white for light mode */
-    --text-color: #000000; /* Updated text color for better contrast on white */
-    --primary-light: #26A96C; /* Brighter green for light mode */
+    --primary-light: #26A96C;
     --primary-dark: #198754;
-    --column-bg-light: rgba(66, 110, 140, 0.7); /* Changed to #426e8c with transparency */
-    --column-bg-dark: rgba(66, 110, 140, 0.7);  /* Changed to #426e8c with transparency */
-    --card-bg-light: rgba(82, 137, 175, 0.85);   /* Changed to #5289af with transparency */
-    --card-bg-dark: rgba(82, 137, 175, 0.85); /* Changed to #5289af with transparency */
+    --column-bg-light: rgba(66, 110, 140, 0.7);
+    --column-bg-dark: rgba(66, 110, 140, 0.7);
+    --card-bg-light: rgba(82, 137, 175, 0.85);
+    --card-bg-dark: rgba(82, 137, 175, 0.85);
     --border-light: rgba(210, 220, 230, 0.5);
     --border-dark: rgba(255, 255, 255, 0.1);
-
-    /* Refined Glassmorphic effect variables for modern look */
-    --glass-blur: 12px; /* Increased blur */
+    --glass-blur: 12px;
     --glass-border-width: 1px;
-    --glass-shadow-intensity: 0.1; /* Softer shadow */
-    --glass-bg-opacity-light: 0.65; /* Adjusted opacity */
-    --glass-bg-opacity-dark: 0.65; /* Adjusted opacity */
+    --glass-shadow-intensity: 0.1;
+    --glass-bg-opacity-light: 0.65;
+    --glass-bg-opacity-dark: 0.65;
     --glass-border-opacity-light: 0.2;
     --glass-border-opacity-dark: 0.1;
-    --glass-hover-bg-opacity-light: 0.8; /* Hover state opacity */
-    --glass-hover-bg-opacity-dark: 0.8; /* Hover state opacity */
+    --glass-hover-bg-opacity-light: 0.8;
+    --glass-hover-bg-opacity-dark: 0.8;
     --glass-hover-border-opacity-light: 0.4;
     --glass-hover-border-opacity-dark: 0.2;
   }
 
   .dark {
     color-scheme: dark;
-    --bg-color: #333333; /* Darker gray for dark mode */
-    --text-color: #ffffff;
     --primary-light: #1A7F56;
     --primary-dark: #0A3622;
-    --column-bg-light: rgba(66, 110, 140, 0.7); /* Changed to #426e8c with transparency */
-    --column-bg-dark: rgba(66, 110, 140, 0.7);  /* Changed to #426e8c with transparency */
-    --card-bg-light: rgba(82, 137, 175, 0.85);  /* Changed to #5289af with transparency */
-    --card-bg-dark: rgba(82, 137, 175, 0.85); /* Changed to #5289af with transparency */
+    --column-bg-light: rgba(66, 110, 140, 0.7);
+    --column-bg-dark: rgba(66, 110, 140, 0.7);
+    --card-bg-light: rgba(82, 137, 175, 0.85);
+    --card-bg-dark: rgba(82, 137, 175, 0.85);
     --border-light: rgba(255, 255, 255, 0.2);
     --border-dark: rgba(255, 255, 255, 0.1);
-
-    /* Darker theme glass variables */
-    --glass-blur: 14px; /* Slightly more blur for dark */
+    --glass-blur: 14px;
     --glass-shadow-intensity: 0.2;
     --glass-bg-opacity-light: 0.65;
     --glass-bg-opacity-dark: 0.65;
@@ -73,20 +63,17 @@
 
   /* Apply theme colors to html and body */
   html, body {
-    background-color: var(--bg-color);
     color: var(--text-color);
   }
 
   /* Remove background patterns and use solid color */
   html.light {
-    background-color: #ffffff; /* Pure white */
-    background-image: none;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%) !important;
   }
 
   /* Remove background patterns for dark mode */
   html.dark {
-    background-color: #333333; /* Darker gray */
-    background-image: none;
+    background: linear-gradient(180deg, #0f172a 0%, #000000 100%) !important;
   }
 
   /* Smooth theme transitions */
@@ -155,6 +142,10 @@
 
   .light * {
     scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+  }
+
+  body {
+    background: transparent !important;
   }
 }
 
@@ -474,7 +465,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image: none !important;
   }
 }
 
@@ -496,4 +486,94 @@
 .dark .glass-morph-light:hover {
   background-color: rgba(66, 110, 140, var(--glass-hover-bg-opacity-dark));
   border-color: rgba(255, 255, 255, var(--glass-hover-border-opacity-dark));
+}
+
+@media (max-width: 900px) {
+  .glass-column {
+    min-width: 80vw !important;
+    max-width: 95vw !important;
+    width: 90vw !important;
+    margin: 0 0.5rem !important;
+    padding: 0.5rem !important;
+  }
+  .card-wrapper {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  .glass-card {
+    font-size: 0.95rem !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+  .glass-morph-light {
+    font-size: 0.9rem !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+  .glass-button {
+    font-size: 0.9rem !important;
+    padding: 0.25rem 0.75rem !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .glass-column {
+    min-width: 85vw !important;
+    max-width: 100vw !important;
+    width: 90vw !important;
+    margin: 0 0.15rem !important;
+    padding: 0.5rem !important;
+  }
+  .card-wrapper {
+    margin-bottom: 0.5rem !important;
+    margin-top: 0.2rem !important;
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+  .glass-card {
+    font-size: 0.9rem !important;
+    padding: 0.4rem 0.5rem !important;
+  }
+  .glass-morph-light {
+    font-size: 0.85rem !important;
+    padding: 0.15rem 0.3rem !important;
+  }
+  .glass-button {
+    font-size: 0.85rem !important;
+    padding: 0.15rem 0.5rem !important;
+  }
+  .glass-column .overflow-y-auto {
+    max-height: 60vh !important;
+  }
+  .glass-column > div {
+    padding: 0 !important;
+  }
+  .glass-column .card-wrapper {
+    min-width: 0 !important;
+  }
+  .glass-column .glass-card {
+    min-width: 0 !important;
+  }
+  .glass-column .glass-morph-light {
+    min-width: 0 !important;
+  }
+  .glass-column .glass-button {
+    min-width: 0 !important;
+  }
+  .banner-padding {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+}
+
+/* Utility for matching banner and column padding */
+.banner-padding {
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
 }
