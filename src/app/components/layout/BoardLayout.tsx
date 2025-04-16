@@ -6,16 +6,16 @@ import { BoardProvider } from '~/services/board-context';
 import { ThemeProvider } from '~/app/contexts/ThemeContext';
 import { DndContext } from '~/app/contexts/DndContext';
 
-export const BoardLayout: React.FC = () => {
+export default function BoardLayout() {
   return (
     <BoardProvider>
       <ThemeProvider>
         <DndContext>
-          <div className="flex flex-col h-screen bg-[#4d4d4d]">
+          <div className="flex flex-col h-screen">
             <Board />
           </div>
         </DndContext>
       </ThemeProvider>
     </BoardProvider>
   );
-}; 
+}
