@@ -11,10 +11,10 @@ import type { CardDragItem } from '~/constants/dnd-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import update from 'immutability-helper';
 import { ExpandedCardModal } from './ExpandedCardModal';
+import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
+import { useAutoScroll } from '~/hooks/useAutoScroll';
 
-// Scroll and placeholder constants
-const SCROLL_AREA_HEIGHT = 60;
-const SCROLL_SPEED = 10;
+// Removed scroll constants, now defined in the hook
 const PLACEHOLDER_HEIGHT = 100;
 
 interface ColumnProps {
@@ -28,7 +28,7 @@ interface ColumnProps {
 // Use memo to prevent unnecessary re-renders of columns that don't change
 export const Column = memo(({ 
   column, 
-  isDraggingCard = false, 
+  isDraggingCard = false,
   isSourceColumn = false,
   onDragStart,
   onDragEnd
@@ -38,31 +38,19 @@ export const Column = memo(({
   const ref = useRef<HTMLDivElement>(null);
   const columnMotionRef = useRef<HTMLDivElement>(null);
   const [internalCards, setInternalCards] = useState(column.cards);
-  const scrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [placeholderIndex, setPlaceholderIndex] = useState<number | null>(null);
   
+  // Use the custom hook for the lighting effect
+  useMousePositionStyle(columnMotionRef);
+  
+  // Use the custom hook for auto-scrolling
+  // Pass the ref of the scrollable container and the global isDraggingCard flag
+  const { handleHoverForScroll, stopAutoScroll } = useAutoScroll(ref, isDraggingCard);
+
   // Update internal state when the column prop changes
   useEffect(() => {
     setInternalCards(column.cards.sort((a, b) => a.order - b.order));
   }, [column.cards]);
-  
-  // Add mouse position tracking for lighting effect
-  useEffect(() => {
-    const columnElement = columnMotionRef.current;
-    if (!columnElement) return;
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = columnElement.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      
-      columnElement.style.setProperty('--x', `${x}%`);
-      columnElement.style.setProperty('--y', `${y}%`);
-    };
-    
-    columnElement.addEventListener('mousemove', handleMouseMove);
-    return () => columnElement.removeEventListener('mousemove', handleMouseMove);
-  }, []);
   
   // Helper function to calculate hover index based on Y coordinate
   const calculateHoverIndex = useCallback((hoverClientY: number, cards: CardType[], scrollContainer: HTMLDivElement): number => {
@@ -87,6 +75,7 @@ export const Column = memo(({
     accept: ItemTypes.CARD,
     drop: (item: CardDragItem, monitor) => {
       setPlaceholderIndex(null);
+      stopAutoScroll(); // Ensure scrolling stops on drop
       
       if (!monitor.isOver({ shallow: true }) || !ref.current) return;
 
@@ -99,9 +88,10 @@ export const Column = memo(({
       
       const columnRect = ref.current.getBoundingClientRect();
       const hoverClientY = clientOffset.y - columnRect.top + ref.current.scrollTop;
-      const finalHoverIndex = calculateHoverIndex(hoverClientY, column.cards, ref.current);
+      // Pass the current internalCards state to calculateHoverIndex for accurate positioning during drag
+      const finalHoverIndex = calculateHoverIndex(hoverClientY, internalCards, ref.current); 
 
-      // Calculate target order based on surrounding cards
+      // Calculate target order based on surrounding cards (using original column cards for persistence)
       const sortedOriginalCards = [...column.cards].sort((a, b) => a.order - b.order);
       const cardBefore = sortedOriginalCards[finalHoverIndex - 1];
       const cardAfter = sortedOriginalCards[finalHoverIndex];
@@ -117,21 +107,15 @@ export const Column = memo(({
         targetOrder = (prevOrder + nextOrder) / 2;
       }
 
-      moveCard(item.id, column.id, targetOrder);
-      if (onDragEnd) onDragEnd();
+      moveCard(item.id, column.id, targetOrder); // Call context function to persist move
+      if (onDragEnd) onDragEnd(); // Notify parent drag ended
     },
     hover: (item: CardDragItem, monitor) => {
-      const isHoveringShallow = monitor.isOver({ shallow: true });
+      // Use the handler from the hook for auto-scroll
+      handleHoverForScroll(monitor); 
       
-      // Auto-scroll logic
-      if (isHoveringShallow && ref.current) {
-        handleAutoScroll(monitor, ref.current);
-      } else {
-        stopAutoScroll();
-      }
-      
-      // Placeholder and Visual Reordering Logic
-      if (!ref.current || !isHoveringShallow) {
+      // Placeholder and Visual Reordering Logic (remains mostly the same)
+      if (!ref.current || !monitor.isOver({ shallow: true })) {
         if (placeholderIndex !== null) {
           setPlaceholderIndex(null);
         }
@@ -147,14 +131,16 @@ export const Column = memo(({
       const dragIndexInInternal = internalCards.findIndex(c => c.id === item.id);
       const columnRect = ref.current.getBoundingClientRect();
       const hoverClientY = clientOffset.y - columnRect.top + ref.current.scrollTop;
-      const hoverIndex = calculateHoverIndex(hoverClientY, internalCards, ref.current);
+      // Pass internalCards for accurate hover index during drag
+      const hoverIndex = calculateHoverIndex(hoverClientY, internalCards, ref.current); 
       
-      // Logic branching based on source column
       if (item.columnId === column.id) {
-        setPlaceholderIndex(null);
+        // Intra-column drag: Use visual reordering
+        setPlaceholderIndex(null); // No placeholder needed
         if (dragIndexInInternal === -1 || dragIndexInInternal === hoverIndex) return;
         moveCardInternally(dragIndexInInternal, hoverIndex);
       } else {
+        // Inter-column drag: Show placeholder
         if (hoverIndex !== placeholderIndex) {
           setPlaceholderIndex(hoverIndex);
         }
@@ -167,77 +153,10 @@ export const Column = memo(({
     }),
   });
 
-  // Auto-scroll handling function
-  const handleAutoScroll = useCallback((monitor: DropTargetMonitor<CardDragItem, void>, scrollElement: HTMLDivElement) => {
-    const clientOffset = monitor.getClientOffset();
-    if (!clientOffset) {
-      stopAutoScroll();
-      return;
-    }
-
-    const elementRect = scrollElement.getBoundingClientRect();
-    const hoverY = clientOffset.y - elementRect.top;
-
-    let scrollDirection = 0;
-    if (hoverY < SCROLL_AREA_HEIGHT) {
-      scrollDirection = -1; // Scroll up
-    } else if (elementRect.height - hoverY < SCROLL_AREA_HEIGHT) {
-      scrollDirection = 1; // Scroll down
-    }
-
-    if (scrollDirection !== 0) {
-      startAutoScroll(scrollElement, scrollDirection);
-    } else {
-      stopAutoScroll();
-    }
-  }, []);
-
-  // Function to start the scrolling interval
-  const startAutoScroll = useCallback((element: HTMLDivElement, direction: number) => {
-    if (scrollIntervalRef.current) return; // Already scrolling
-
-    scrollIntervalRef.current = setInterval(() => {
-      element.scrollTop += direction * SCROLL_SPEED;
-    }, 16); // ~60 FPS
-  }, []);
-
-  // Function to stop the scrolling interval
-  const stopAutoScroll = useCallback(() => {
-    if (scrollIntervalRef.current) {
-      clearInterval(scrollIntervalRef.current);
-      scrollIntervalRef.current = null;
-    }
-  }, []);
-
-  // Cleanup scroll interval on unmount or when dragging stops externally
-  useEffect(() => {
-    return () => stopAutoScroll();
-  }, [stopAutoScroll]);
-
-  // Also stop scroll when the drag ends globally (handled by Board.tsx)
-  useEffect(() => {
-    if (!isDraggingCard) {
-      stopAutoScroll();
-      setPlaceholderIndex(null); // Clear placeholder when drag ends globally
-    }
-  }, [isDraggingCard, stopAutoScroll]);
-
-  const handleAddCardClick = useCallback(() => {
-    setIsCardModalOpen(true);
-  }, []);
-  
-  // Handle card drag started 
-  const handleCardDragStart = useCallback((item: CardDragItem) => {
-    if (onDragStart) {
-      onDragStart(item);
-    }
-  }, [onDragStart]);
-  
   // Callback for visual reordering within the column during hover
   const moveCardInternally = useCallback((dragIndex: number, hoverIndex: number) => {
     setInternalCards((prevCards) => {
       if (!prevCards) return [];
-      // Ensure indices are within bounds
       if (dragIndex < 0 || dragIndex >= prevCards.length || hoverIndex < 0 || hoverIndex >= prevCards.length) {
         console.warn("Attempted to move card with invalid index", { dragIndex, hoverIndex, cardsLength: prevCards.length });
         return prevCards;
@@ -249,64 +168,80 @@ export const Column = memo(({
       }
       return update(prevCards, {
         $splice: [
-          [dragIndex, 1], // Remove card from original position
-          [hoverIndex, 0, cardToMove], // Insert card at new position
+          [dragIndex, 1],
+          [hoverIndex, 0, cardToMove],
         ],
       });
     });
+  }, []); // Dependency array is empty as it only uses setInternalCards
+
+  const handleAddCardClick = useCallback(() => {
+    setIsCardModalOpen(true);
   }, []);
   
-  // Apply the drop ref to the column content area
-  drop(ref);
-  
-  // Determine column appearance during drag operations
-  const getColumnClasses = useCallback(() => {
-    let classes = "flex flex-col h-full glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible"; 
-    
-    if (isDraggingCard) {
-      if (!isSourceColumn && !(isOverCurrent && canDrop)) {
-        classes += " opacity-70";
-      }
-      if (isSourceColumn) {
-        classes += " ring-2 ring-blue-400/50 ring-inset"; 
-      } else if (isOverCurrent && canDrop) {
-        classes += " ring-2 ring-green-400/50 ring-inset";
-      }
+  const handleCardDragStart = useCallback((item: CardDragItem) => {
+    if (onDragStart) {
+      onDragStart(item);
     }
-    
-    return classes;
-  }, [isDraggingCard, isSourceColumn, isOverCurrent, canDrop]);
+  }, [onDragStart]);
   
+  // --- JSX Rendering Starts Here ---
+  
+  const cardElements = [];
+  const cardsToRender = internalCards;
+  
+  let placeholderRendered = false;
+  for (let i = 0; i < cardsToRender.length; i++) {
+    if (placeholderIndex === i && !isSourceColumn) {
+      cardElements.push(<PlaceholderCard key="placeholder-start" layoutId="placeholder" />);
+      placeholderRendered = true;
+    }
+    const card = cardsToRender[i];
+    if (!(isSourceColumn && isDraggingCard && card.id === draggedItem?.id)) {
+      cardElements.push(
+        <motion.div
+          key={card.id}
+          layout
+          className="relative group card-wrapper"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30, duration: 0.15 }}
+        >
+          <Card 
+            card={card} 
+            index={i} 
+            columnId={column.id} 
+            onDragStart={handleCardDragStart}
+            onDragEnd={onDragEnd} 
+            onMoveCard={moveCardInternally} 
+          />
+        </motion.div>
+      );
+    }
+  }
+  if (placeholderIndex === cardsToRender.length && !isSourceColumn && !placeholderRendered) {
+     cardElements.push(<PlaceholderCard key="placeholder-end" layoutId="placeholder" />);
+  }
+
   return (
-    <motion.div 
+    <motion.div
       ref={columnMotionRef}
-      className={getColumnClasses()}
-      style={{ 
-        width: `${column.width}%`,
-        ['--x' as string]: '50%',
-        ['--y' as string]: '50%',
+      layout
+      className={`flex flex-col h-full glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible 
+                 ${isOverCurrent && canDrop ? 'ring-2 ring-accent/50' : ''}`}
+      style={{
+        width: '25%',
         padding: '0.75rem',
         margin: '3px 0.125rem',
-        overflow: 'visible'
-      }}
-      layout="position"
-      animate={{
-        scale: isOverCurrent && canDrop ? 1.01 : 1,
-        boxShadow: isOverCurrent && canDrop ? "0 6px 12px rgba(0,0,0,0.15)" : "none",
-        zIndex: isOverCurrent && canDrop ? 10 : 1
-      }}
-      transition={{ 
-        duration: 0.2,
-        type: "spring",
-        damping: 20,
-        stiffness: 300
+        overflow: 'visible',
       }}
     >
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <h3 className="text-lg font-semibold hover:text-primary-light transition-colors">{column.title}</h3>
         <div className="flex items-center gap-2">
           <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
-            {internalCards.length}
+            {column.cards.length}
           </span>
           <button 
             onClick={handleAddCardClick}
@@ -314,14 +249,14 @@ export const Column = memo(({
             aria-label="Add Card"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14"></path>
+              <path d="M12 5v14M5 12h14"/>
             </svg>
           </button>
         </div>
       </div>
       
       <div 
-        ref={ref}
+        ref={drop(ref)}
         className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent px-0.5 overflow-visible"
         style={{ 
           position: 'relative',
@@ -332,72 +267,38 @@ export const Column = memo(({
           paddingBottom: '4px'
         }}
       >
-        <div className="relative z-0 w-full">
-          <AnimatePresence mode="popLayout">
-            {[...Array(internalCards.length + (placeholderIndex !== null ? 1 : 0))].map((_, index) => {
-              // If this position should show a placeholder
-              if (placeholderIndex !== null && index === placeholderIndex) {
-                return (
-                  <motion.div
-                    key="placeholder"
-                    className="bg-white/10 rounded-lg border-2 border-dashed border-white/30"
-                    style={{ height: PLACEHOLDER_HEIGHT }}
-                    initial={{ opacity: 0.5, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    layout
-                  />
-                );
-              }
-              
-              // Adjust card index if placeholder is rendered before it
-              const cardIndex = placeholderIndex !== null && index > placeholderIndex ? index - 1 : index;
-              const card = internalCards[cardIndex];
-
-              // Don't render anything further if card doesn't exist
-              if (!card) return null;
-
-              // Render the actual card
-              return (
-                <motion.div 
-                  key={card.id} 
-                  className="relative group card-wrapper mb-3"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ 
-                    layout: { duration: 0.15, ease: "easeOut" },
-                    type: "spring", 
-                    stiffness: 400, 
-                    damping: 30
-                  }}
-                  layout
-                  data-card-id={card.id}
-                >
-                  <Card 
-                    card={card}
-                    index={cardIndex}
-                    columnId={column.id}
-                    onDragStart={handleCardDragStart}
-                    onDragEnd={onDragEnd}
-                    onMoveCard={moveCardInternally}
-                  />
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
+        <AnimatePresence initial={false}>
+           <div className="relative z-0 w-full">
+            {cardElements}
+           </div>
+        </AnimatePresence>
       </div>
       
       {/* New Card Modal */}
-      <ExpandedCardModal
-        isOpen={isCardModalOpen}
-        onOpenChange={setIsCardModalOpen}
-        columnId={column.id}
-      />
+      {isCardModalOpen && (
+        <ExpandedCardModal
+          columnId={column.id}
+          isOpen={isCardModalOpen}
+          onClose={() => setIsCardModalOpen(false)}
+        />
+      )}
     </motion.div>
   );
 });
 
 // Add display name for debugging purposes
-Column.displayName = 'Column'; 
+Column.displayName = 'Column';
+
+// --- Placeholder Component ---
+const PlaceholderCard: React.FC<PlaceholderCardProps> = ({ layoutId }) => (
+  <motion.div
+    key={layoutId} // Use layoutId as key for consistency
+    className="bg-white/10 border-2 border-dashed border-gray-400 rounded-lg"
+    style={{ height: `${PLACEHOLDER_HEIGHT}px`, marginBottom: '0.5rem' }} 
+    layoutId={layoutId} // Use the passed layoutId
+    initial={{ opacity: 0.5, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.9 }}
+  />
+);
+// --- End Placeholder Component --- 

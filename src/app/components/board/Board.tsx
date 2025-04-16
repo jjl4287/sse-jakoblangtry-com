@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { Input } from "~/components/ui/input";
 import { Search } from 'lucide-react';
+import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 
 export const Board: React.FC = () => {
   const { board, loading, error, searchQuery, setSearchQuery } = useBoard();
@@ -15,8 +16,9 @@ export const Board: React.FC = () => {
   const [dragSourceColumnId, setDragSourceColumnId] = useState<string | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  // Track mouse position for the header lighting effect
-  const [mousePos, setMousePos] = useState({ x: '50%', y: '50%' });
+
+  // Use the custom hook for the header lighting effect
+  useMousePositionStyle(headerRef);
 
   // Track card drag start
   const handleDragStart = useCallback((item: CardDragItem) => {
@@ -28,34 +30,6 @@ export const Board: React.FC = () => {
   const handleDragEnd = useCallback(() => {
     setDraggedCardId(null);
     setDragSourceColumnId(null);
-  }, []);
-  
-  // Handle mouse movement for the header glow effect
-  useEffect(() => {
-    const headerElement = headerRef.current;
-    if (!headerElement) return;
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = headerElement.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      
-      // Update both the state and the element's CSS variables
-      setMousePos({ x: `${x}%`, y: `${y}%` });
-      headerElement.style.setProperty('--x', `${x}%`);
-      headerElement.style.setProperty('--y', `${y}%`);
-    };
-    
-    // Add mousemove event listener
-    headerElement.addEventListener('mousemove', handleMouseMove);
-    
-    // Initialize position to center
-    headerElement.style.setProperty('--x', '50%');
-    headerElement.style.setProperty('--y', '50%');
-    
-    return () => {
-      headerElement.removeEventListener('mousemove', handleMouseMove);
-    };
   }, []);
 
   // Add keyboard shortcut listener
@@ -151,8 +125,7 @@ export const Board: React.FC = () => {
         ref={headerRef}
         className="glass-column glass-border-animated banner-padding mb-1 mx-2 mt-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 rounded-lg"
         style={{ 
-          ['--x' as string]: mousePos.x, 
-          ['--y' as string]: mousePos.y,
+          // CSS variables --x and --y are now set by the hook
           transformOrigin: "center center" 
         }}
         initial={{ opacity: 0, y: -20 }}

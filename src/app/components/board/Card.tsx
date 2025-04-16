@@ -20,6 +20,8 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { MoreHorizontal, Trash2, Copy, Calendar, User, ArrowUp, ArrowDown, ArrowRight, Paperclip } from 'lucide-react';
 import { format } from 'date-fns';
+import { AttachmentPreview } from './AttachmentPreview';
+import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 
 // Define the drop result type
 interface CardDropResult {
@@ -81,23 +83,8 @@ export const Card = memo(({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
-  // Add mouse position tracking for lighting effect
-  useEffect(() => {
-    const cardElement = ref.current;
-    if (!cardElement) return;
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = cardElement.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      
-      cardElement.style.setProperty('--x', `${x}%`);
-      cardElement.style.setProperty('--y', `${y}%`);
-    };
-    
-    cardElement.addEventListener('mousemove', handleMouseMove);
-    return () => cardElement.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+  // Use the custom hook for the lighting effect
+  useMousePositionStyle(ref);
   
   // Set up drag functionality
   const [{ isDragging }, drag] = useDrag<CardDragItem, void, { isDragging: boolean }>({
@@ -193,8 +180,9 @@ export const Card = memo(({
   drag(drop(ref));
 
   const handleOpenModal = useCallback(() => {
+    if (isDropdownOpen) return;
     setIsModalOpen(true);
-  }, []);
+  }, [isDropdownOpen]);
 
   const handleDropdownTriggerClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -229,202 +217,104 @@ export const Card = memo(({
     }
   };
 
-  // Function to render attachment embed
-  const renderAttachmentEmbed = useCallback((url: string) => {
-    try {
-      const parsedUrl = new URL(url);
-      
-      // YouTube embed
-      if (parsedUrl.hostname.includes('youtube.com') || parsedUrl.hostname.includes('youtu.be')) {
-        const videoId = parsedUrl.hostname.includes('youtube.com') 
-          ? parsedUrl.searchParams.get('v')
-          : parsedUrl.pathname.substring(1);
-          
-        if (videoId) {
-          return (
-            <div className="relative pt-[56.25%] w-full overflow-hidden rounded mb-2">
-              <iframe 
-                className="absolute top-0 left-0 w-full h-full border-0"
-                src={`https://www.youtube.com/embed/${videoId}`}
-                title="YouTube video"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              ></iframe>
-            </div>
-          );
-        }
-      }
-      
-      // Image embed
-      if (url.match(/\.(jpeg|jpg|gif|png)$/) !== null) {
-        return (
-          <img 
-            src={url} 
-            alt="Attachment" 
-            className="mb-2 max-w-full rounded h-auto max-h-28 object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-        );
-      }
-      
-      // Default link preview
-      return (
-        <div className="flex items-center p-2 bg-white/5 rounded mb-2">
-          <img 
-            src={`${parsedUrl.protocol}//${parsedUrl.hostname}/favicon.ico`} 
-            alt=""
-            className="w-4 h-4 mr-2"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-          <span className="text-xs truncate">{parsedUrl.hostname}</span>
-        </div>
-      );
-    } catch (e) {
-      return null;
-    }
-  }, []);
+  const { Icon: PriorityIcon, color: priorityColor } = getPriorityInfo(card.priority ?? 'low');
 
-  // Get the first attachment if there is one
-  const firstAttachment = card.attachments && card.attachments.length > 0 ? card.attachments[0] : null;
+  const cardAnimationState = isDragging ? "dragging" : isDropdownOpen ? "normal" : "normal";
 
   return (
     <>
       <motion.div
         ref={ref}
+        layoutId={`card-${card.id}`}
         className={`relative glass-card p-2 cursor-pointer transition-transform transition-shadow duration-[50ms] group 
                    border rounded-lg shadow-md hover:shadow-lg 
-                   ${isOver && canDrop && 'ring-2 ring-pink-400/50'}`}
-        style={{ 
-          originX: 0.5,
-          originY: 0.5,
-          ['--x' as string]: '50%',
-          ['--y' as string]: '50%',
-          transformOrigin: 'center center',
-          position: 'relative',
-          transform: 'translateZ(0)',
-          isolation: 'isolate',
-          willChange: 'transform, box-shadow, z-index'
-        }}
+                   ${isDragging ? 'opacity-50' : ''}`}
+        data-card-id={card.id}
         variants={cardVariants}
         initial="normal"
-        animate={isDragging ? "dragging" : (isDropdownOpen ? "hover" : "normal")}
-        whileHover="hover"
+        animate={cardAnimationState}
+        whileHover={!isDragging && !isDropdownOpen ? "hover" : "normal"}
+        drag={!isDropdownOpen}
+        dragConstraints={{ top: 0, bottom: 0, left: 0, right: 0 }}
+        dragElastic={0.1}
         data-handler-id={handlerId}
-        data-card-id={card.id}
         onClick={handleOpenModal}
+        style={{
+          transformOrigin: '50% 50%',
+          position: 'relative',
+        }}
       >
-        {/* Dropdown Menu for actions */}
-        <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-[50ms]">
-           <DropdownMenu onOpenChange={handleDropdownOpenChange}>
-             <DropdownMenuTrigger asChild onClick={handleDropdownTriggerClick}>
-               <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
-                 <MoreHorizontal className="h-4 w-4" />
-               </Button>
-             </DropdownMenuTrigger>
-             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-               <DropdownMenuSeparator />
-               <DropdownMenuItem onSelect={handleDuplicate} className="cursor-pointer">
-                 <Copy className="mr-2 h-4 w-4" />
-                 <span>Duplicate</span>
-               </DropdownMenuItem>
-               <DropdownMenuItem onSelect={handleDelete} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-100/50">
-                 <Trash2 className="mr-2 h-4 w-4" />
-                 <span>Delete</span>
-               </DropdownMenuItem>
-             </DropdownMenuContent>
-           </DropdownMenu>
+        <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-[50ms]" onClick={handleDropdownTriggerClick}>
+          <DropdownMenu onOpenChange={handleDropdownOpenChange} open={isDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuLabel>Card Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={handleDuplicate}>
+                <Copy className="mr-2 h-4 w-4" />
+                <span>Duplicate Card</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Delete Card</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {/* Card Content */}
-        <div className="flex-grow">
+        <div className="flex-grow p-1">
+          {card.attachments && card.attachments.length > 0 && (
+            <div className="mb-2">
+              {card.attachments.map((url, idx) => (
+                <AttachmentPreview key={idx} url={url} />
+              ))}
+            </div>
+          )}
+
           <h3 className="font-semibold text-sm mb-1 text-gray-800 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-[50ms]">{card.title}</h3>
-          
-          {/* Attachment Embed (if exists) */}
-          {firstAttachment && renderAttachmentEmbed(firstAttachment.url)}
-          
-          {/* Description */}
           {card.description && (
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 mb-2 whitespace-pre-wrap break-words">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 mb-2 whitespace-pre-wrap break-words truncate max-h-10 overflow-hidden">
               {card.description}
             </p>
           )}
-          
           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
             <div className="flex items-center space-x-2">
-              {card.priority && (() => {
-                const { Icon, color } = getPriorityInfo(card.priority);
-                return (
-                  <span className={`flex items-center ${color}`}>
-                    <Icon className="h-3 w-3 mr-1" />
-                  </span>
-                );
-              })()}
+              <span className={`flex items-center ${priorityColor}`}>
+                <PriorityIcon className="h-3 w-3 mr-1" />
+              </span>
 
-              {/* Due Date */}
               {card.dueDate && (
-                <span className={`flex items-center ${new Date(card.dueDate) < new Date() ? 'text-orange-400' : ''}`}>
+                <span className="flex items-center ">
                   <Calendar className="h-3 w-3 mr-1" />
                   {format(new Date(card.dueDate), 'MMM d')}
                 </span>
               )}
-
-              {/* Assignees */}
-              {card.assignees && card.assignees.length > 0 && (
-                 <div className="flex items-center space-x-1">
-                    <User className="h-3 w-3" />
-                    {/* Display first initial for simplicity, max 2 */}
-                    {card.assignees.slice(0, 2).map((assignee, i) => (
-                      <span key={i} className="bg-gray-600/50 rounded-full px-1.5 py-0.5 text-xs">
-                        {assignee.charAt(0).toUpperCase()}
-                      </span>
-                    ))}
-                    {card.assignees.length > 2 && (
-                       <span className="text-xs">+{card.assignees.length - 2}</span>
-                    )}
-                 </div>
-              )}
               
-              {/* Attachments */}
               {card.attachments && card.attachments.length > 0 && (
-                <span className="flex items-center">
-                  <Paperclip className="h-3 w-3 mr-1" />
-                  {card.attachments.length}
+                 <span className="flex items-center ">
+                  <Paperclip className="h-3 w-3" />
                 </span>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* Labels */}
-        {card.labels && card.labels.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {card.labels.slice(0, 3).map((label) => (
-              <span 
-                key={label.id}
-                className="px-1.5 py-0.5 rounded text-xs font-medium"
-                style={{ backgroundColor: label.color, color: '#ffffff' }}
-              >
-                {label.name}
+            {card.assignedTo && (
+              <span className="flex items-center justify-center h-5 w-5 bg-gray-300 dark:bg-gray-600 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300" title={card.assignedTo}>
+                {card.assignedTo.substring(0, 1).toUpperCase()}
               </span>
-            ))}
-            {card.labels.length > 3 && (
-               <span className="text-xs text-gray-400 mt-1">+{card.labels.length - 3} more</span>
             )}
           </div>
-        )}
+        </div>
       </motion.div>
-
-      {/* Expanded Card Modal */}
       {isModalOpen && (
         <ExpandedCardModal 
           card={card} 
+          columnId={columnId} 
           isOpen={isModalOpen} 
-          onOpenChange={setIsModalOpen}
+          onClose={() => setIsModalOpen(false)} 
         />
       )}
     </>
