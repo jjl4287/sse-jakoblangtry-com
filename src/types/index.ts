@@ -37,6 +37,9 @@ export interface Card {
   order: number; // Position within the column
 }
 
+// Add Priority type alias for Card priority
+export type Priority = Card['priority'];
+
 /**
  * Label interface for card categorization
  */

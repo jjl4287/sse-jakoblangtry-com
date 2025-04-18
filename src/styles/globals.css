@@ -153,11 +153,19 @@
 @layer components {
   /* Column styles to ensure cards aren't clipped */
   .glass-column {
-    overflow: visible !important; /* Override any other overflow settings */
+    overflow: visible !important;
+    z-index: 10;
     contain: none !important; /* Prevent containment that might clip cards */
     isolation: isolate; /* Create new stacking context */
     clip-path: none !important; /* Prevent clipping */
     transform-style: preserve-3d; /* Preserve 3D positioning */
+    /* Core column styling without filter to prevent DnD fixed-preview offset */
+    border-width: var(--glass-border-width);
+    transition: background-color var(--transition-speed) ease-in-out,
+                border-color var(--transition-speed) ease-in-out,
+                box-shadow var(--transition-speed) ease-in-out;
+    background-color: rgba(66, 110, 140, var(--glass-bg-opacity-dark)); 
+    border-color: rgba(255, 255, 255, var(--glass-border-opacity-dark));
   }
 
   /* Make sure the column's children also don't clip content */
@@ -181,22 +189,19 @@
   .card-wrapper {
     position: relative;
     z-index: 1;
-    margin-bottom: 0.5rem; /* Reduced from 0.75rem */
-    margin-top: 0.3rem; /* Reduced from 0.5rem */
-    transition: z-index 0ms; /* Prevent z-index transition */
-    margin-left: 3px; /* Reduced from 6px */
-    margin-right: 3px; /* Reduced from 6px */
-    padding-left: 2px; /* Add padding for hover area */
+    /* Unchanged margins/paddings for normal state */
+    margin-bottom: 0.5rem;
+    margin-top: 0.3rem;
+    margin-left: 3px;
+    margin-right: 3px;
+    padding-left: 2px;
     padding-right: 2px;
-    padding-top: 4px; /* Reduced from 6px */
-    padding-bottom: 4px; /* Reduced from 6px */
-    /* Create space for the card to expand into */
-    transform: translateZ(0); /* Force GPU acceleration for smoother animations */
-    overflow: visible !important; /* Ensure overflow is visible for the wrapper */
-    width: calc(100% - 6px); /* Adjusted for new margins */
-    transform-style: preserve-3d; /* Better 3D positioning */
-    contain: none !important; /* Prevent any form of containment */
-    clip-path: none !important; /* Prevent clipping */
+    padding-top: 4px;
+    padding-bottom: 4px;
+    overflow: visible !important;
+    width: calc(100% - 6px);
+    contain: none !important;
+    clip-path: none !important;
   }
   
   .card-wrapper:hover {
@@ -205,10 +210,8 @@
   
   /* This ensures the card can expand outside its container without being clipped */
   .card-wrapper .glass-card {
-    transform-origin: center center;
     /* Ensures card is not clipped by column's overflow */
     margin: 0;
-    will-change: transform, box-shadow;
     isolation: isolate; /* Create a new stacking context */
   }
   
@@ -231,19 +234,6 @@
     background-color: rgba(82, 137, 175, var(--glass-bg-opacity-light));
     border-color: rgba(210, 220, 230, var(--glass-border-opacity-light));
     color: #ffffff; 
-  }
-
-  /* Define hover styles directly on the card */
-  .dark .glass-card:hover {
-    background-color: rgba(82, 137, 175, var(--glass-hover-bg-opacity-dark));
-    border-color: rgba(255, 255, 255, var(--glass-hover-border-opacity-dark));
-    /* Shadow is handled by hover:shadow-lg utility class */
-  }
-
-  .light .glass-card:hover {
-    background-color: rgba(82, 137, 175, var(--glass-hover-bg-opacity-light));
-    border-color: rgba(210, 220, 230, var(--glass-hover-border-opacity-light));
-    /* Shadow is handled by hover:shadow-lg utility class */
   }
 
   /* Elevated state (e.g., for dragging) - keep this */
@@ -286,13 +276,19 @@
   .dark .glass-column:hover {
     background-color: rgba(66, 110, 140, var(--glass-hover-bg-opacity-dark));
     border-color: rgba(255, 255, 255, var(--glass-hover-border-opacity-dark));
-    /* Shadow is handled by hover:shadow-lg utility class */
+    z-index: 15;
   }
 
   .light .glass-column:hover {
     background-color: rgba(66, 110, 140, var(--glass-hover-bg-opacity-light));
     border-color: rgba(210, 220, 230, var(--glass-hover-border-opacity-light));
-    /* Shadow is handled by hover:shadow-lg utility class */
+    z-index: 15;
+  }
+
+  /* Remove extra spacing during dragging so preview aligns with cursor */
+  .card-wrapper.dragging {
+    margin: 0 !important;
+    padding: 0 !important;
   }
 }
 

@@ -1,11 +1,6 @@
 'use client';
 
-import React, { useRef, memo, useEffect, useState, useCallback } from 'react';
-import { useDrag, useDrop } from 'react-dnd';
-import type { DropTargetMonitor } from 'react-dnd';
-import type { Card as CardType } from '~/types';
-import { ItemTypes } from '~/constants/dnd-types';
-import type { CardDragItem } from '~/constants/dnd-types';
+import React, { useRef, memo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useBoard } from '~/services/board-context';
 import { ExpandedCardModal } from './ExpandedCardModal';
@@ -18,10 +13,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { MoreHorizontal, Trash2, Copy, Calendar, User, ArrowUp, ArrowDown, ArrowRight, Paperclip } from 'lucide-react';
+import { MoreHorizontal, Trash2, Copy, Calendar, ArrowUp, ArrowDown, ArrowRight, Paperclip } from 'lucide-react';
 import { format } from 'date-fns';
 import { AttachmentPreview } from './AttachmentPreview';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
+import type { Card as CardType } from '~/types';
+import type { CardDragItem } from '~/constants/dnd-types';
 
 // Define the drop result type
 interface CardDropResult {
@@ -42,31 +39,28 @@ interface CardProps {
 
 // Card appearance animation variants
 const cardVariants = {
-  dragging: {
-    scale: 1.05,
-    rotate: 2,
-    boxShadow: "0 15px 25px rgba(0,0,0,0.25)",
-    opacity: 0.9,
-    cursor: "grabbing",
-    zIndex: 50,
-  },
   normal: {
     scale: 1,
-    rotate: 0,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-    opacity: 1,
-    cursor: "grab",
+    y: 0,
+    boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
     zIndex: 1,
-    transition: { duration: 0.05 }
+    transition: { duration: 0.15, ease: [0.16, 1, 0.3, 0.55] }
   },
   hover: {
-    scale: 1.05,
-    y: -4,
-    x: 0,
-    boxShadow: "0 20px 25px rgba(0,0,0,0.25)",
-    zIndex: 100,
-    transition: { duration: 0.05 },
-    opacity: 1
+    scale: 1.03,
+    y: -2,
+    boxShadow: "0px 10px 15px rgba(0,0,0,0.1)",
+    zIndex: 50,
+    transition: { duration: 0.15, ease: [0.16, 1, 0.3, 0.55] }
+  },
+  dragging: {
+    scale: 1.08,
+    y: -6,
+    boxShadow: "0px 20px 30px rgba(0,0,0,0.2)",
+    opacity: 0.9,
+    cursor: "grabbing",
+    zIndex: 999,
+    transition: { duration: 0.15 }
   }
 };
 
@@ -86,98 +80,7 @@ export const Card = memo(({
   // Use the custom hook for the lighting effect
   useMousePositionStyle(ref);
   
-  // Set up drag functionality
-  const [{ isDragging }, drag] = useDrag<CardDragItem, void, { isDragging: boolean }>({
-    type: ItemTypes.CARD,
-    item: () => {
-      const item: CardDragItem = { 
-        type: ItemTypes.CARD,
-        id: card.id,
-        columnId,
-        index, 
-        order: card.order, 
-        originalIndex: index,
-        originalColumnId: columnId
-      };
-      
-      if (onDragStart) {
-        setTimeout(() => onDragStart(item), 0);
-      }
-      
-      return item;
-    },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-    end: (item, monitor) => {
-      const didDrop = monitor.didDrop();
-      
-      if (onDragEnd) {
-        onDragEnd();
-      }
-      
-      if (!didDrop) {
-        console.log('Card was dropped outside a valid drop target or drag cancelled');
-      }
-    }
-  });
-
-  // Set up drop functionality for hovering/dropping ON this card
-  const [{ handlerId, isOver, canDrop }, drop] = useDrop<CardDragItem, CardDropResult, { handlerId: string | symbol | null, isOver: boolean, canDrop: boolean }>({
-    accept: ItemTypes.CARD,
-    collect: (monitor) => ({
-        handlerId: monitor.getHandlerId(),
-        isOver: monitor.isOver(),
-        canDrop: monitor.canDrop(),
-    }),
-    hover: (item: CardDragItem, monitor) => {
-      if (!ref.current) return;
-      
-      const dragIndex = item.index ?? -1;
-      const hoverIndex = index;
-      const dragColumnId = item.columnId ?? '';
-      const hoverColumnId = columnId;
-
-      if (dragIndex === -1 || dragColumnId === '') return;
-      if (dragIndex === hoverIndex && dragColumnId === hoverColumnId) return;
-
-      const hoverBoundingRect = ref.current.getBoundingClientRect();
-      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
-      const clientOffset = monitor.getClientOffset();
-      if (!clientOffset) return;
-      
-      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
-
-      // Dragging downwards - only move when cursor is below 50%
-      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
-      // Dragging upwards - only move when cursor is above 50%
-      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
-
-      if (dragColumnId === hoverColumnId && onMoveCard) { 
-        onMoveCard(dragIndex, hoverIndex);
-        item.index = hoverIndex; 
-      }
-    },
-    drop: (item: CardDragItem): CardDropResult => {
-        const dragOriginalIndex = item.originalIndex ?? -1;
-        const hoverIndex = index;
-        const dragOriginalColumnId = item.originalColumnId ?? '';
-        const hoverColumnId = columnId;
-
-        if (dragOriginalColumnId === hoverColumnId && dragOriginalIndex !== hoverIndex) {
-            moveCard(item.id, hoverColumnId, card.order);
-        }
-        return { 
-          droppedOnCard: true, 
-          targetCardId: card.id, 
-          targetColumnId: hoverColumnId, 
-          targetOrder: card.order 
-        };
-    }
-  });
-  
-  // Initialize drag and drop refs
-  drag(drop(ref));
+  // no local drag; uses Hello Pangea DnD wrapper in Column
 
   const handleOpenModal = useCallback(() => {
     if (isDropdownOpen) return;
@@ -217,43 +120,32 @@ export const Card = memo(({
     }
   };
 
-  const { Icon: PriorityIcon, color: priorityColor } = getPriorityInfo(card.priority ?? 'low');
-
-  const cardAnimationState = isDragging ? "dragging" : isDropdownOpen ? "normal" : "normal";
+  const { Icon: PriorityIcon, color: priorityColor } = getPriorityInfo(
+    card.priority ?? 'low'
+  );
 
   return (
     <>
       <motion.div
         ref={ref}
         layoutId={`card-${card.id}`}
-        className={`relative glass-card p-2 cursor-pointer transition-transform transition-shadow duration-[50ms] group 
-                   border rounded-lg shadow-md hover:shadow-lg 
-                   ${isDragging ? 'opacity-50' : ''}`}
+        className="relative glass-card p-2 cursor-pointer group border rounded-lg"
         data-card-id={card.id}
         variants={cardVariants}
         initial="normal"
-        animate={cardAnimationState}
-        whileHover={!isDragging && !isDropdownOpen ? "hover" : "normal"}
-        drag={!isDropdownOpen}
-        dragConstraints={{ top: 0, bottom: 0, left: 0, right: 0 }}
-        dragElastic={0.1}
-        data-handler-id={handlerId}
+        animate="normal"
+        whileHover={!isDropdownOpen ? "hover" : "normal"}
         onClick={handleOpenModal}
-        style={{
-          transformOrigin: '50% 50%',
-          position: 'relative',
-        }}
+        style={{ pointerEvents: 'auto' }}
       >
         <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-[50ms]" onClick={handleDropdownTriggerClick}>
           <DropdownMenu onOpenChange={handleDropdownOpenChange} open={isDropdownOpen}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" className="h-6 w-6 rounded-full">
+              <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuLabel>Card Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={handleDuplicate}>
                 <Copy className="mr-2 h-4 w-4" />
                 <span>Duplicate Card</span>
@@ -269,8 +161,8 @@ export const Card = memo(({
         <div className="flex-grow p-1">
           {card.attachments && card.attachments.length > 0 && (
             <div className="mb-2">
-              {card.attachments.map((url, idx) => (
-                <AttachmentPreview key={idx} url={url} />
+              {card.attachments.map((attachment) => (
+                <AttachmentPreview key={attachment.id} url={attachment.url} />
               ))}
             </div>
           )}
@@ -301,20 +193,21 @@ export const Card = memo(({
               )}
             </div>
 
-            {card.assignedTo && (
-              <span className="flex items-center justify-center h-5 w-5 bg-gray-300 dark:bg-gray-600 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300" title={card.assignedTo}>
-                {card.assignedTo.substring(0, 1).toUpperCase()}
+            {/* Show first assignee's initial */}
+            {card.assignees?.[0] && (
+              <span className="flex items-center justify-center h-5 w-5 bg-gray-300 dark:bg-gray-600 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300" title={card.assignees[0]}>
+                {card.assignees[0].charAt(0).toUpperCase()}
               </span>
             )}
           </div>
         </div>
       </motion.div>
       {isModalOpen && (
-        <ExpandedCardModal 
-          card={card} 
-          columnId={columnId} 
-          isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
+        <ExpandedCardModal
+          card={card}
+          columnId={columnId}
+          isOpen={isModalOpen}
+          onOpenChange={setIsModalOpen}
         />
       )}
     </>

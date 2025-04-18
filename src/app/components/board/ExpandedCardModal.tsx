@@ -13,6 +13,7 @@ import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
 import { Badge } from "~/components/ui/badge";
 import { cn } from "~/lib/utils";
+import Image from 'next/image';
 
 interface ExpandedCardModalProps {
   isOpen: boolean;
@@ -30,31 +31,30 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
   onOpenChange,
   card,
   columnId,
-  children,
 }) => {
   // Determine if this is a new card
   const isNewCard = !card;
   
   const { createCard, updateCard, addAttachment, deleteAttachment } = useBoard();
-  const [title, setTitle] = useState(card?.title || '');
-  const [description, setDescription] = useState(card?.description || '');
-  const [priority, setPriority] = useState<Priority>(card?.priority || 'medium');
-  const [dueDate, setDueDate] = useState<Date | undefined>(card?.dueDate ? new Date(card?.dueDate) : undefined);
-  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [title, setTitle] = useState<string>(card?.title ?? '');
+  const [description, setDescription] = useState<string>(card?.description ?? '');
+  const [priority, setPriority] = useState<Priority>(card?.priority ?? 'medium');
+  const [dueDate, setDueDate] = useState<Date | null>(card?.dueDate ? new Date(card?.dueDate) : null);
+  const [attachmentUrl, setAttachmentUrl] = useState<string>('');
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
   
   // Get attachments - memoize to avoid unnecessary recalculations
-  const attachments = useMemo(() => card?.attachments || [], [card?.attachments]);
+  const attachments = useMemo(() => card?.attachments ?? [], [card?.attachments]);
 
   // Effect to reset form state when the modal opens
   useEffect(() => {
     if (isOpen) {
-      setTitle(card?.title || '');
-      setDescription(card?.description || '');
-      setPriority(card?.priority || 'medium');
-      setDueDate(card?.dueDate ? new Date(card?.dueDate) : undefined);
+      setTitle(card?.title ?? '');
+      setDescription(card?.description ?? '');
+      setPriority(card?.priority ?? 'medium');
+      setDueDate(card?.dueDate ? new Date(card?.dueDate) : null);
       setAttachmentUrl('');
       setHasChanges(false);
       setIsSaving(false);
@@ -102,7 +102,7 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
           title,
           description,
           priority,
-          dueDate: dueDate ? dueDate.toISOString() : null,
+          dueDate: dueDate ?? undefined,
           labels: [],
           assignees: [],
           attachments: [],
@@ -114,7 +114,7 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
           title,
           description,
           priority,
-          dueDate: dueDate ? dueDate.toISOString() : null,
+          dueDate: dueDate ?? undefined,
         });
       }
       
@@ -185,11 +185,14 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
       }
       
       // Image embed
-      if (url.match(/\.(jpeg|jpg|gif|png)$/) !== null) {
+      const imageRegex = /\.(jpeg|jpg|gif|png)$/i;
+      if (imageRegex.exec(url) !== null) {
         return (
-          <img 
-            src={url} 
-            alt="Attachment" 
+          <Image
+            src={url}
+            alt="Attachment"
+            width={400}
+            height={200}
             className="max-w-full rounded h-auto max-h-48 object-contain"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -201,9 +204,11 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
       // Default link preview with favicon
       return (
         <div className="flex items-center p-2 bg-white/5 rounded">
-          <img 
-            src={`${parsedUrl.protocol}//${parsedUrl.hostname}/favicon.ico`} 
+          <Image
+            src={`${parsedUrl.protocol}//${parsedUrl.hostname}/favicon.ico`}
             alt=""
+            width={16}
+            height={16}
             className="w-4 h-4 mr-2"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -294,7 +299,7 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
               {/* Priority Field */}
               <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="card-priority" className="text-xs text-gray-400">Priority</Label>
-                <Select value={priority} onValueChange={handlePriorityChange}>
+                <Select value={priority} onValueChange={handlePriorityChange as (value: string) => void}>
                   <SelectTrigger id="card-priority" className="w-full bg-white/5 border-white/20 focus:ring-offset-0 focus:ring-white/50">
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
@@ -328,8 +333,8 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
                   <PopoverContent className="w-auto p-0 bg-gray-800/80 backdrop-blur border-white/20 text-white" align="start">
                     <Calendar
                       mode="single"
-                      selected={dueDate}
-                      onSelect={setDueDate}
+                      selected={dueDate ?? undefined}
+                      onSelect={(date) => setDueDate(date)}
                       initialFocus
                       className="[&>div]:bg-transparent [&_button]:bg-transparent [&_button]:border-0"
                     />
@@ -471,18 +476,3 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
     </Dialog.Root>
   );
 };
-
-// Note: Tailwind animation keyframes (overlayShow, contentShow) need to be defined
-// in tailwind.config.ts for the animations to work.
-// Example:
-// keyframes: {
-//   overlayShow: { from: { opacity: '0' }, to: { opacity: '1' } },
-//   contentShow: {
-//     from: { opacity: '0', transform: 'translate(-50%, -48%) scale(0.96)' },
-//     to: { opacity: '1', transform: 'translate(-50%, -50%) scale(1)' },
-//   },
-// },
-// animation: {
-//   overlayShow: 'overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1)',
-//   contentShow: 'contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1)',
-// }, 

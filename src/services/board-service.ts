@@ -124,7 +124,7 @@ const loadBoardWithFallback = async (): Promise<Board> => {
     localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(loadedBoard));
   }
 
-  console.log(`Board loaded from: ${source}`);
+  // Debug logging of source removed for production
   return loadedBoard;
 };
 
@@ -548,20 +548,17 @@ export class BoardService {
 
     const targetColumn = board.columns[targetColumnIndex];
     
-    // Determine the order for the new card (place after original or at end of target)
-    let newOrder: number;
-    if (finalTargetColumnId === originalColumn.id) {
-        newOrder = originalCard.order + 1;
-    } else {
-        newOrder = targetColumn.cards.length; // Add to end of different column
-    }
+    // Determine the insert index for the new card: after the original card in the same column or at the end of target
+    const insertIndex = finalTargetColumnId === originalColumn.id
+      ? originalCardIndex + 1
+      : targetColumn.cards.length;
 
     const duplicatedCard: Card = {
         ...originalCard,
         id: uuidv4(), // Generate a new unique ID
         title: `(Copy) ${originalCard.title}`, // Prefix title with (Copy)
         columnId: finalTargetColumnId,
-        order: newOrder,
+        order: insertIndex,
         // Deep copy arrays/objects to avoid reference issues if needed (optional)
         labels: originalCard.labels.map(label => ({ ...label, id: uuidv4() })), // New IDs for labels if needed
         attachments: originalCard.attachments.map(att => ({ ...att, id: uuidv4() })), // New IDs
@@ -572,9 +569,9 @@ export class BoardService {
 
     // Insert the duplicated card into the target column
     const updatedTargetCards = [
-        ...targetColumn.cards.slice(0, newOrder),
+        ...targetColumn.cards.slice(0, insertIndex),
         duplicatedCard,
-        ...targetColumn.cards.slice(newOrder)
+        ...targetColumn.cards.slice(insertIndex)
     ].map((card, index) => ({ // Re-order cards in the target column
         ...card,
         order: index

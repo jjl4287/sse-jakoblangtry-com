@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { Board, Card } from '~/types';
 import { BoardService } from './board-service';
@@ -251,7 +251,7 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <BoardContext.Provider
-      value={{
+      value={useMemo(() => ({
         board,
         loading,
         error,
@@ -273,7 +273,28 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
         deleteAttachment,
         searchQuery,
         setSearchQuery,
-      }}
+      }), [
+        board,
+        loading,
+        error,
+        refreshBoard,
+        updateTheme,
+        createColumn,
+        updateColumn,
+        deleteColumn,
+        createCard,
+        updateCard,
+        moveCard,
+        deleteCard,
+        duplicateCard,
+        addLabel,
+        removeLabel,
+        addComment,
+        addAttachment,
+        deleteComment,
+        deleteAttachment,
+        searchQuery,
+      ])}
     >
       {children}
     </BoardContext.Provider>

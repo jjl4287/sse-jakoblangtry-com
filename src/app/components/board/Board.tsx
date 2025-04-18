@@ -1,36 +1,45 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
+import { DragDropContext } from '@hello-pangea/dnd';
+import type { DropResult } from '@hello-pangea/dnd';
 import { Column } from './Column';
 import { useBoard } from '~/services/board-context';
-import type { CardDragItem } from '~/constants/dnd-types';
 import { motion } from 'framer-motion';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { Input } from "~/components/ui/input";
 import { Search } from 'lucide-react';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
+import Image from 'next/image';
 
 export const Board: React.FC = () => {
-  const { board, loading, error, searchQuery, setSearchQuery } = useBoard();
-  const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
-  const [dragSourceColumnId, setDragSourceColumnId] = useState<string | null>(null);
+  const { board, loading, error, searchQuery, setSearchQuery, moveCard } = useBoard();
   const headerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Use the custom hook for the header lighting effect
   useMousePositionStyle(headerRef);
 
-  // Track card drag start
-  const handleDragStart = useCallback((item: CardDragItem) => {
-    setDraggedCardId(item.id);
-    setDragSourceColumnId(item.columnId);
-  }, []);
-
-  // Reset drag state when drag ends
-  const handleDragEnd = useCallback(() => {
-    setDraggedCardId(null);
-    setDragSourceColumnId(null);
-  }, []);
+  // Handle DnD end for both intra- and inter-column moves
+  const onDragEnd = useCallback((result: DropResult) => {
+    const { source, destination, draggableId } = result;
+    if (!destination || !board) return;
+    const { index: srcIdx, droppableId: srcCol } = source;
+    const { index: destIdx, droppableId: destCol } = destination;
+    if (srcCol === destCol && srcIdx === destIdx) return;
+    const col = board.columns.find(c => c.id === destCol);
+    if (!col) return;
+    const sorted = [...col.cards].sort((a, b) => a.order - b.order);
+    const before = sorted[destIdx - 1];
+    const after = sorted[destIdx];
+    const prevOrder = before?.order ?? 0;
+    const nextOrder = after?.order;
+    let newOrder: number;
+    if (destIdx === 0) newOrder = (nextOrder ?? 1) / 2;
+    else if (nextOrder === undefined) newOrder = prevOrder + 1;
+    else newOrder = (prevOrder + nextOrder) / 2;
+    void moveCard(draggableId, destCol, newOrder);
+  }, [board, moveCard]);
 
   // Add keyboard shortcut listener
   useEffect(() => {
@@ -129,10 +138,13 @@ export const Board: React.FC = () => {
         transition={{ duration: 0.3 }}
       >
         <div className="flex items-center flex-grow mr-4 min-w-0">
-          <img 
+          <Image
             src="/BigLogo_WhiteText.png"
-            alt="Society of Software Engineers" 
-            className="mr-2 h-8 min-w-[2rem]"
+            alt="Society of Software Engineers"
+            width={32}
+            height={32}
+            className="mr-2 h-8 w-auto"
+            priority
           />
           <h2 className="text-lg font-semibold opacity-80 whitespace-nowrap truncate">Goals for 25/26</h2>
         </div>
@@ -160,21 +172,16 @@ export const Board: React.FC = () => {
       
       {/* Board Content */}
       <motion.div 
-        className="flex-1 overflow-hidden px-1 sm:px-2 pb-2 backdrop-blur-[2px]"
+        className="flex-1 overflow-hidden px-1 sm:px-2 pb-2"
         layout={false}
       >
-        <div className="flex h-full gap-2 sm:gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-          {filteredBoard?.columns?.map((column) => (
-            <Column 
-              key={column.id} 
-              column={column}
-              isDraggingCard={draggedCardId !== null}
-              isSourceColumn={column.id === dragSourceColumnId}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            />
-          ))}
-        </div>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="flex h-full gap-2 sm:gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+            {filteredBoard?.columns.map(column => (
+              <Column key={column.id} column={column} />
+            ))}
+          </div>
+        </DragDropContext>
       </motion.div>
     </div>
   );

@@ -72,13 +72,10 @@ export default {
           to: { height: "0" },
         },
         // Added for Radix Dialog
-        overlayShow: { 
-          from: { opacity: '0' }, 
-          to: { opacity: '1' } 
-        },
+        overlayShow: { from: { opacity: '0' }, to: { opacity: '1' } },
         contentShow: { 
           from: { opacity: '0', transform: 'translate(-50%, -48%) scale(0.96)' },
-          to: { opacity: '1', transform: 'translate(-50%, -50%) scale(1)' }
+          to: { opacity: '1', transform: 'translate(-50%, -50%) scale(1)' },
         },
       },
       animation: {

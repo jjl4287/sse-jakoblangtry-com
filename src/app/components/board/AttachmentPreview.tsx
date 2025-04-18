@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Paperclip } from 'lucide-react';
+import Image from 'next/image';
 
 interface AttachmentPreviewProps {
   url: string;
@@ -35,14 +36,17 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url }) => 
     }
 
     // Image embed (common extensions)
-    if (pathname.match(/\.(jpeg|jpg|gif|png|webp|svg)$/)) {
+    if (/\.(jpeg|jpg|gif|png|webp|svg)$/.exec(pathname)) {
       return (
-        <img 
-          src={url} 
-          alt="Attachment preview" 
-          className="w-full h-auto object-cover rounded mb-2 max-h-40"
-          loading="lazy"
-        />
+        <div className="relative w-full h-40 mb-2 overflow-hidden rounded">
+          <Image 
+            src={url} 
+            alt="Attachment preview" 
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover"
+          />
+        </div>
       );
     }
 
