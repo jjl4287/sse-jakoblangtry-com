@@ -408,75 +408,37 @@ export class BoardService {
     newOrder: number
   ): Promise<Board> {
     const board = await this.getBoard();
-    
+
     try {
       // Find the card to move
-      const { card, column: sourceColumn, columnIndex: sourceColumnIndex, cardIndex } = 
+      const { card, column: sourceColumn, columnIndex: sourceColumnIndex, cardIndex } =
         this.findCard(board, cardId);
-      
-      // Handle in-column reordering vs. cross-column move
+      // Clone all columns with their cards
+      const updatedColumns = board.columns.map(col => ({ ...col, cards: [...col.cards] }));
+
       if (sourceColumn.id === targetColumnId) {
-        // Same column - just update the order
-        const updatedCards = [...sourceColumn.cards];
-        updatedCards[cardIndex] = {
-          ...card,
-          order: newOrder,
-        };
-        
-        // Sort the cards by order
-        updatedCards.sort((a, b) => a.order - b.order);
-        
-        // Create a new columns array with the updated column
-        const updatedColumns = [...board.columns];
-        updatedColumns[sourceColumnIndex] = {
-          ...sourceColumn,
-          cards: updatedCards,
-        };
-        
-        const updatedBoard = {
-          ...board,
-          columns: updatedColumns,
-        };
-        
-        await saveBoardWithFallback(updatedBoard);
-        return updatedBoard;
+        // Intra-column move: remove and reinsert at new index
+        const cards = updatedColumns[sourceColumnIndex].cards;
+        cards.splice(cardIndex, 1);
+        cards.splice(newOrder, 0, { ...card, columnId: targetColumnId });
+        // Renumber orders
+        updatedColumns[sourceColumnIndex].cards = cards.map((c, idx) => ({ ...c, order: idx }));
       } else {
-        // Different column - remove from source, add to target
-        const { column: targetColumn, index: targetColumnIndex } = 
-          this.findColumn(board, targetColumnId);
-        
-        // Remove card from source column
-        const updatedSourceCards = sourceColumn.cards.filter(c => c.id !== cardId);
-        
-        // Add card to target column with new properties
-        const updatedCard: Card = {
-          ...card,
-          columnId: targetColumnId,
-          order: newOrder,
-        };
-        
-        const updatedTargetCards = [...targetColumn.cards, updatedCard];
-        updatedTargetCards.sort((a, b) => a.order - b.order);
-        
-        // Create a new columns array with both updated columns
-        const updatedColumns = [...board.columns];
-        updatedColumns[sourceColumnIndex] = {
-          ...sourceColumn,
-          cards: updatedSourceCards,
-        };
-        updatedColumns[targetColumnIndex] = {
-          ...targetColumn,
-          cards: updatedTargetCards,
-        };
-        
-        const updatedBoard = {
-          ...board,
-          columns: updatedColumns,
-        };
-        
-        await saveBoardWithFallback(updatedBoard);
-        return updatedBoard;
+        // Cross-column move: remove from source
+        const sourceCards = updatedColumns[sourceColumnIndex].cards.filter(c => c.id !== cardId);
+        // Renumber source column
+        updatedColumns[sourceColumnIndex].cards = sourceCards.map((c, idx) => ({ ...c, order: idx }));
+        // Insert into target column
+        const { column: targetColumn, index: targetColumnIndex } = this.findColumn(board, targetColumnId);
+        const targetCards = [...targetColumn.cards];
+        targetCards.splice(newOrder, 0, { ...card, columnId: targetColumnId });
+        // Renumber target column
+        updatedColumns[targetColumnIndex].cards = targetCards.map((c, idx) => ({ ...c, order: idx }));
       }
+
+      const updatedBoard = { ...board, columns: updatedColumns };
+      await saveBoardWithFallback(updatedBoard);
+      return updatedBoard;
     } catch (error) {
       if (error instanceof ItemNotFoundError) {
         console.error(error.message);

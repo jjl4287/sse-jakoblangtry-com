@@ -29,18 +29,8 @@ export const Board: React.FC = () => {
     const { index: srcIdx, droppableId: srcCol } = source;
     const { index: destIdx, droppableId: destCol } = destination;
     if (srcCol === destCol && srcIdx === destIdx) return;
-    const col = board.columns.find(c => c.id === destCol);
-    if (!col) return;
-    const sorted = [...col.cards].sort((a, b) => a.order - b.order);
-    const before = sorted[destIdx - 1];
-    const after = sorted[destIdx];
-    const prevOrder = before?.order ?? 0;
-    const nextOrder = after?.order;
-    let newOrder: number;
-    if (destIdx === 0) newOrder = (nextOrder ?? 1) / 2;
-    else if (nextOrder === undefined) newOrder = prevOrder + 1;
-    else newOrder = (prevOrder + nextOrder) / 2;
-    void moveCard(draggableId, destCol, newOrder);
+    // Use index directly for both order and position
+    void moveCard(draggableId, destCol, destIdx, destIdx);
   }, [board, moveCard]);
 
   // Add keyboard shortcut listener

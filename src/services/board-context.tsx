@@ -28,7 +28,8 @@ type BoardContextType = {
   moveCard: (
     cardId: string,
     targetColumnId: string,
-    newOrder: number
+    newOrder: number,
+    destinationIndex: number
   ) => Promise<void>;
   deleteCard: (cardId: string) => Promise<void>;
   duplicateCard: (cardId: string, targetColumnId?: string) => Promise<void>;
@@ -155,18 +156,61 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
     );
   }, []);
 
-  // Move a card to a different column or position
-  const moveCard = useCallback(async (
-    cardId: string,
-    targetColumnId: string,
-    newOrder: number
-  ) => {
-    await handleServiceCall(
-      () => BoardService.moveCard(cardId, targetColumnId, newOrder),
-      false,
-      'Error moving card'
-    );
-  }, []);
+  // Move a card to a different column or position (optimistic index-based update)
+  const moveCard = useCallback(
+    async (
+      cardId: string,
+      targetColumnId: string,
+      newOrder: number,
+      destinationIndex: number
+    ) => {
+      // Optimistically reorder locally using array indices
+      setBoard(prev => {
+        if (!prev) return prev;
+        // clone columns and cards
+        const columns = prev.columns.map(col => ({ ...col, cards: [...col.cards] }));
+        let movedCard: Card | undefined;
+        let sourceColIdx: number | undefined;
+        let sourceCardIdx: number | undefined;
+        // locate and remove from source
+        columns.forEach((col, cIdx) => {
+          const idx = col.cards.findIndex(c => c.id === cardId);
+          if (idx !== -1) {
+            movedCard = col.cards[idx];
+            sourceColIdx = cIdx;
+            sourceCardIdx = idx;
+          }
+        });
+        if (
+          movedCard !== undefined &&
+          sourceColIdx !== undefined &&
+          sourceCardIdx !== undefined
+        ) {
+          // remove
+          columns[sourceColIdx].cards.splice(sourceCardIdx, 1);
+          // set its new order value
+          movedCard.order = newOrder;
+          // insert into target at given index
+          const destColIdx = columns.findIndex(c => c.id === targetColumnId);
+          if (destColIdx !== -1) {
+            columns[destColIdx].cards.splice(destinationIndex, 0, movedCard);
+          }
+        }
+        return { ...prev, columns };
+      });
+
+      // Persist & sync with server state
+      const result = await handleServiceCall(
+        () => BoardService.moveCard(cardId, targetColumnId, newOrder),
+        false,
+        'Error moving card'
+      );
+      if (!result) {
+        await refreshBoard();
+      }
+    },
+    [handleServiceCall, refreshBoard]
+  );
 
   // Delete a card
   const deleteCard = useCallback(async (cardId: string) => {
