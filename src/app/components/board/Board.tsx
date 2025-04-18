@@ -6,7 +6,8 @@ import type { DropResult } from '@hello-pangea/dnd';
 import { Column } from './Column';
 import { useBoard } from '~/services/board-context';
 import { motion } from 'framer-motion';
-import { ThemeToggle } from '../ui/ThemeToggle';
+import { useTheme } from '~/app/contexts/ThemeContext';
+import { Sun, Moon } from 'lucide-react';
 import { Input } from "~/components/ui/input";
 import { Search } from 'lucide-react';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
@@ -14,6 +15,7 @@ import Image from 'next/image';
 
 export const Board: React.FC = () => {
   const { board, loading, error, searchQuery, setSearchQuery, moveCard } = useBoard();
+  const { theme, toggleTheme } = useTheme();
   const headerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -124,7 +126,7 @@ export const Board: React.FC = () => {
   const columnCount = filteredBoard?.columns?.length ?? 0;
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="relative flex flex-col h-full w-full">
       {/* Board Header */}
       <motion.div 
         ref={headerRef}
@@ -166,7 +168,6 @@ export const Board: React.FC = () => {
           <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm w-full sm:w-auto text-center">
             {cardCount} Cards
           </div>
-          <ThemeToggle />
         </div>
       </motion.div>
       
@@ -183,6 +184,19 @@ export const Board: React.FC = () => {
           </div>
         </DragDropContext>
       </motion.div>
+      
+      {/* Theme Toggle Button in bottom-left */}
+      <button
+        onClick={toggleTheme}
+        aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        className="glass-morph-light shadow-sm p-2 rounded-full fixed bottom-4 left-4 z-50"
+      >
+        {theme === 'dark' ? (
+          <Sun className="h-4 w-4 text-yellow-400" />
+        ) : (
+          <Moon className="h-4 w-4 text-blue-200" />
+        )}
+      </button>
     </div>
   );
 }; 

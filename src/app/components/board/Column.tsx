@@ -57,39 +57,51 @@ export const Column = memo(({
         </div>
       </div>
       
-      <Droppable droppableId={column.id} type="CARD">
+      <Droppable
+        droppableId={column.id}
+        type="CARD"
+        renderClone={(providedClone, snapshotClone, rubric) => {
+          const cloneCard = sortedCards[rubric.source.index]!;
+          return (
+            <div
+              ref={providedClone.innerRef}
+              {...providedClone.draggableProps}
+              {...providedClone.dragHandleProps}
+              style={{ ...providedClone.draggableProps.style, zIndex: 9999, position: 'fixed', margin: 0, padding: 0 }}
+              className="card-wrapper"
+            >
+              <Card card={cloneCard} index={rubric.source.index} columnId={column.id} />
+            </div>
+          );
+        }}
+      >
         {(provided) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
             className="flex-1 overflow-y-auto overflow-x-visible px-0.5"
-            style={{ position: 'relative', marginLeft: '-2px', marginRight: '-2px', paddingTop: '4px', paddingBottom: '4px' }}
+            style={{
+              position: 'relative',
+              marginLeft: '-2px',
+              marginRight: '-2px',
+              paddingTop: '4px',
+              paddingBottom: '4px',
+            }}
           >
             {sortedCards.map((card, index) => (
               <Draggable key={card.id} draggableId={card.id} index={index}>
                 {(provided, snapshot) => {
-                  // This approach gives us more control over the drag preview and cursor offset
                   const style: React.CSSProperties = {
                     ...provided.draggableProps.style,
-                    zIndex: snapshot.isDragging ? 9999 : undefined,
+                    opacity: snapshot.isDragging ? 0 : 1,
                   };
-                  
-                  // Remove margins/padding and reset transformOrigin when dragging so the card sits under the pointer
-                  if (snapshot.isDragging) {
-                    style.margin = 0;
-                    style.padding = 0;
-                    style.position = 'fixed';
-                    style.top = 0;
-                    style.left = 0;
-                  }
-                  
                   return (
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
                       {...provided.dragHandleProps}
                       style={style}
-                      className={`card-wrapper${snapshot.isDragging ? ' dragging' : ''}`}
+                      className="card-wrapper"
                     >
                       <Card card={card} index={index} columnId={column.id} />
                     </div>
