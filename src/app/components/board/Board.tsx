@@ -116,11 +116,11 @@ export const Board: React.FC = () => {
   const columnCount = filteredBoard?.columns?.length ?? 0;
 
   return (
-    <div className="relative flex flex-col h-full w-full">
+    <div className="relative flex flex-col h-full w-full p-2">
       {/* Board Header */}
       <motion.div 
         ref={headerRef}
-        className="glass-column glass-border-animated banner-padding mb-1 mx-2 mt-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 rounded-lg"
+        className="glass-column glass-border-animated p-2 mb-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 rounded-lg"
         style={{ 
           // CSS variables --x and --y are now set by the hook
           transformOrigin: "center center" 
@@ -138,7 +138,7 @@ export const Board: React.FC = () => {
             className="mr-2 h-8 w-auto"
             priority
           />
-          <h2 className="text-lg font-semibold opacity-80 whitespace-nowrap truncate">Goals for 25/26</h2>
+          <h2 className="text-lg font-semibold opacity-80 whitespace-nowrap truncate">SSE for 25/26</h2>
         </div>
         <div className="flex flex-wrap items-center space-x-0 space-y-2 sm:space-y-0 sm:space-x-3 flex-shrink-0">
           <div className="relative w-full sm:w-auto">
@@ -146,7 +146,7 @@ export const Board: React.FC = () => {
             <Input
               ref={searchInputRef}
               type="search"
-              placeholder="Search (⌘K)"
+              placeholder="Search..."
               value={searchQuery}
               onChange={handleSearchChange}
               className="pl-9 pr-3 py-1 h-8 w-full sm:w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
@@ -163,11 +163,11 @@ export const Board: React.FC = () => {
       
       {/* Board Content */}
       <motion.div 
-        className="flex-1 overflow-hidden px-1 sm:px-2 pb-2"
+        className="flex-1 overflow-hidden py-4"
         layout={false}
       >
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex h-full gap-2 sm:gap-2 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+          <div className="flex h-full gap-6 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
             {filteredBoard?.columns.map(column => (
               <Column key={column.id} column={column} />
             ))}

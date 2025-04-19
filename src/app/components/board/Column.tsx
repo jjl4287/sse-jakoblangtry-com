@@ -31,15 +31,10 @@ export const Column = memo(({
   
   return (
     <div
-      className="flex flex-col h-full glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible"
-      style={{
-        width: `${column.width}%`,
-        padding: '0.75rem',
-        margin: '3px 0.25rem',
-        overflow: 'visible',
-      }}
+      className="flex flex-col h-full min-h-0 glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2"
+      style={{ width: `${column.width}%` }}
     >
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full">
         <h3 className="text-lg font-semibold hover:text-primary-light transition-colors">{column.title}</h3>
         <div className="flex items-center gap-2">
           <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
@@ -79,13 +74,11 @@ export const Column = memo(({
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className="flex-1 overflow-y-auto overflow-x-visible px-0.5"
+            className="flex-1 overflow-y-auto overflow-x-visible min-h-0 p-2"
             style={{
               position: 'relative',
-              marginLeft: '-2px',
-              marginRight: '-2px',
-              paddingTop: '4px',
-              paddingBottom: '4px',
+              margin: 0,
+              minHeight: 0,
             }}
           >
             {sortedCards.map((card, index) => (
@@ -128,5 +121,3 @@ export const Column = memo(({
 
 // Add display name for debugging purposes
 Column.displayName = 'Column';
-
-// Placeholder component removed; DnD placeholder handles spacing 
