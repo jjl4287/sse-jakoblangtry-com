@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useEffect, useMemo, useCallback } from 'react';
-import { DragDropContext } from '@hello-pangea/dnd';
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { Column } from './Column';
 import { useBoard } from '~/services/board-context';
@@ -12,9 +12,11 @@ import { Input } from "~/components/ui/input";
 import { Search } from 'lucide-react';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import Image from 'next/image';
+import { ColumnAddForm } from './ColumnAddForm';
 
 export const Board: React.FC = () => {
-  const { board, loading, error, searchQuery, setSearchQuery, moveCard } = useBoard();
+  const { board, loading, error, searchQuery, setSearchQuery, moveCard, moveColumn } = useBoard();
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const headerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -24,14 +26,20 @@ export const Board: React.FC = () => {
 
   // Handle DnD end for both intra- and inter-column moves
   const onDragEnd = useCallback((result: DropResult) => {
-    const { source, destination, draggableId } = result;
+    const { source, destination, draggableId, type } = result;
     if (!destination || !board) return;
-    const { index: srcIdx, droppableId: srcCol } = source;
-    const { index: destIdx, droppableId: destCol } = destination;
-    if (srcCol === destCol && srcIdx === destIdx) return;
-    // Use index directly for both order and position
-    void moveCard(draggableId, destCol, destIdx, destIdx);
-  }, [board, moveCard]);
+    if (type === 'COLUMN') {
+      const { index: srcIdx } = source;
+      const { index: destIdx } = destination;
+      if (srcIdx === destIdx) return;
+      void moveColumn(draggableId, destIdx);
+    } else {
+      const { index: srcIdx, droppableId: srcCol } = source;
+      const { index: destIdx, droppableId: destCol } = destination;
+      if (srcCol === destCol && srcIdx === destIdx) return;
+      void moveCard(draggableId, destCol, destIdx, destIdx);
+    }
+  }, [board, moveCard, moveColumn]);
 
   // Add keyboard shortcut listener
   useEffect(() => {
@@ -158,20 +166,49 @@ export const Board: React.FC = () => {
           <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm w-full sm:w-auto text-center">
             {cardCount} Cards
           </div>
+          <button
+            onClick={() => setIsAddingColumn(true)}
+            className="glass-button px-3 py-1 rounded-full text-sm shadow-sm w-full sm:w-auto text-center"
+          >
+            + Add Column
+          </button>
         </div>
       </motion.div>
       
       {/* Board Content */}
-      <motion.div 
-        className="flex-1 overflow-hidden pt-2 pb-4"
-        layout={false}
-      >
+      <motion.div className="flex-1 overflow-hidden pt-2 pb-4" layout={false}>
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex h-full gap-4 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-            {filteredBoard?.columns.map(column => (
-              <Column key={column.id} column={column} />
-            ))}
-          </div>
+          <Droppable droppableId="board" type="COLUMN" direction="horizontal">
+            {(prov) => (
+              <div
+                ref={prov.innerRef}
+                {...prov.droppableProps}
+                className="flex h-full gap-6 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
+              >
+                {filteredBoard?.columns.map((column, index) => (
+                  <Draggable key={column.id} draggableId={column.id} index={index}>
+                    {(provD) => (
+                      <div
+                        ref={provD.innerRef}
+                        {...provD.draggableProps}
+                        {...provD.dragHandleProps}
+                        className="flex-none"
+                      >
+                        <Column column={column} />
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {prov.placeholder}
+                {/* Inline Add Column Form as a new column slot */}
+                {isAddingColumn && (
+                  <div className="flex-shrink-0 w-56">
+                    <ColumnAddForm onCancel={() => setIsAddingColumn(false)} />
+                  </div>
+                )}
+              </div>
+            )}
+          </Droppable>
         </DragDropContext>
       </motion.div>
       

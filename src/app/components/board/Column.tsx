@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useCallback, memo, useMemo } from 'react';
+import React, { useState, useRef, useCallback, memo, useMemo, useEffect } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import type { Column as ColumnType, Card as CardType } from '~/types';
 import { Card } from './Card';
 import { ExpandedCardModal } from './ExpandedCardModal';
+import { CardAddForm } from './CardAddForm';
+import { useBoard } from '~/services/board-context';
 
 interface ColumnProps {
   column: ColumnType;
@@ -14,12 +16,27 @@ interface ColumnProps {
 export const Column = memo(({ 
   column
 }: ColumnProps) => {
-  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [isAddingCard, setIsAddingCard] = useState(false);
+  const { updateColumn } = useBoard();
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState(column.title);
+  useEffect(() => {
+    setTitleInput(column.title);
+  }, [column.title]);
   // No container transforms to keep DnD preview aligned
 
   const handleAddCardClick = useCallback(() => {
-    setIsCardModalOpen(true);
+    setIsAddingCard(true);
   }, []);
+  
+  const handleTitleBlur = useCallback(() => {
+    setIsEditingTitle(false);
+    if (titleInput.trim() && titleInput !== column.title) {
+      void updateColumn(column.id, { title: titleInput });
+    } else {
+      setTitleInput(column.title);
+    }
+  }, [titleInput, column.id, column.title, updateColumn]);
   
   // Memoize sorted cards to avoid re-sorting on each render
   const sortedCards = useMemo(
@@ -35,7 +52,30 @@ export const Column = memo(({
       style={{ width: `${column.width}%` }}
     >
       <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full">
-        <h3 className="text-lg font-semibold hover:text-primary-light transition-colors">{column.title}</h3>
+        {isEditingTitle ? (
+          <input
+            type="text"
+            value={titleInput}
+            onChange={e => setTitleInput(e.target.value)}
+            onBlur={handleTitleBlur}
+            onKeyDown={e => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Escape') {
+                setIsEditingTitle(false);
+                setTitleInput(column.title);
+              }
+            }}
+            className="text-lg font-semibold px-2 py-1 rounded border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/20"
+            autoFocus
+          />
+        ) : (
+          <h3
+            className="text-lg font-semibold hover:text-primary-light transition-colors cursor-text"
+            onDoubleClick={() => setIsEditingTitle(true)}
+          >
+            {column.title}
+          </h3>
+        )}
         <div className="flex items-center gap-2">
           <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
             {column.cards.length}
@@ -102,19 +142,13 @@ export const Column = memo(({
                 }}
               </Draggable>
             ))}
+            {isAddingCard && (
+              <CardAddForm columnId={column.id} onCancel={() => setIsAddingCard(false)} />
+            )}
             {provided.placeholder}
           </div>
         )}
       </Droppable>
-      
-      {/* New Card Modal */}
-      {isCardModalOpen && (
-        <ExpandedCardModal
-          columnId={column.id}
-          isOpen={isCardModalOpen}
-          onOpenChange={setIsCardModalOpen}
-        />
-      )}
     </div>
   );
 });

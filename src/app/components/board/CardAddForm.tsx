@@ -13,6 +13,8 @@ export const CardAddForm: React.FC<CardAddFormProps> = ({ columnId, onCancel }) 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [dueDate, setDueDate] = useState<string>('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,12 +27,15 @@ export const CardAddForm: React.FC<CardAddFormProps> = ({ columnId, onCancel }) 
       await createCard(columnId, {
         title,
         description,
+        priority,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
         labels: [],
         assignees: [],
-        priority: 'medium',
         attachments: [],
         comments: [],
       });
+      setPriority('medium');
+      setDueDate('');
       setTitle('');
       setDescription('');
       onCancel();
@@ -62,6 +67,30 @@ export const CardAddForm: React.FC<CardAddFormProps> = ({ columnId, onCancel }) 
           rows={3}
           className="w-full glass-depth-1 px-3 py-2 rounded-md placeholder-opacity-50 border border-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-transparent resize-none"
         />
+      </div>
+      
+      <div className="mb-3 flex gap-2">
+        <div className="flex flex-col w-1/2">
+          <label className="text-sm font-medium mb-1">Priority</label>
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as 'low' | 'medium' | 'high')}
+            className="w-full glass-depth-1 px-3 py-2 rounded-md border border-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-transparent"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div className="flex flex-col w-1/2">
+          <label className="text-sm font-medium mb-1">Due Date</label>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="w-full glass-depth-1 px-3 py-2 rounded-md border border-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-transparent"
+          />
+        </div>
       </div>
       
       <div className="flex justify-end gap-2">

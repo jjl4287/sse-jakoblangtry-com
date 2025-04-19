@@ -273,6 +273,24 @@ export class BoardService {
   }
 
   /**
+   * Moves a column to a new position
+   * @param columnId ID of the column to move
+   * @param newIndex Target index for the column
+   * @returns The updated board with columns reordered
+   */
+  static async moveColumn(columnId: string, newIndex: number): Promise<Board> {
+    const board = await this.getBoard();
+    const columns = [...board.columns];
+    const oldIndex = columns.findIndex(col => col.id === columnId);
+    if (oldIndex === -1) throw new ItemNotFoundError('Column', columnId);
+    const [moved] = columns.splice(oldIndex, 1);
+    columns.splice(newIndex, 0, moved);
+    const updatedBoard = { ...board, columns };
+    await saveBoardWithFallback(updatedBoard);
+    return updatedBoard;
+  }
+
+  /**
    * Deletes a column
    * @param columnId The column ID
    * @returns The updated board
