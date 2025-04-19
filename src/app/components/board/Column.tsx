@@ -32,7 +32,10 @@ export const Column = memo(({
   const handleTitleBlur = useCallback(() => {
     setIsEditingTitle(false);
     if (titleInput.trim() && titleInput !== column.title) {
-      void updateColumn(column.id, { title: titleInput });
+      updateColumn(column.id, { title: titleInput.trim() }).catch(err => {
+        console.error('Failed to update column title:', err);
+        setTitleInput(column.title); // Reset to original title if update fails
+      });
     } else {
       setTitleInput(column.title);
     }
@@ -48,7 +51,7 @@ export const Column = memo(({
   
   return (
     <div
-      className="flex flex-col h-full min-h-0 glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2"
+      className="flex flex-col h-full min-h-0 glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2 min-w-[250px]"
       style={{ width: `${column.width}%` }}
     >
       <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full">

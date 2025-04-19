@@ -183,7 +183,7 @@ export const Board: React.FC = () => {
               <div
                 ref={prov.innerRef}
                 {...prov.droppableProps}
-                className="flex h-full gap-6 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
+                className="flex h-full gap-4 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
               >
                 {filteredBoard?.columns.map((column, index) => (
                   <Draggable key={column.id} draggableId={column.id} index={index}>
