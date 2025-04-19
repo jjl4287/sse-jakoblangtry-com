@@ -183,7 +183,7 @@ export const Board: React.FC = () => {
               <div
                 ref={prov.innerRef}
                 {...prov.droppableProps}
-                className="flex h-full gap-4 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
+                className="flex h-full overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent gap-x-4"
               >
                 {filteredBoard?.columns.map((column, index) => (
                   <Draggable key={column.id} draggableId={column.id} index={index}>
@@ -192,7 +192,8 @@ export const Board: React.FC = () => {
                         ref={provD.innerRef}
                         {...provD.draggableProps}
                         {...provD.dragHandleProps}
-                        className="flex-none"
+                        style={{ ...provD.draggableProps.style }}
+                        className="flex flex-col h-full flex-1 min-w-[250px]"
                       >
                         <Column column={column} />
                       </div>
@@ -202,7 +203,7 @@ export const Board: React.FC = () => {
                 {prov.placeholder}
                 {/* Inline Add Column Form as a new column slot */}
                 {isAddingColumn && (
-                  <div className="flex-shrink-0 w-56">
+                  <div className="flex flex-col h-full flex-1 min-w-[250px]">
                     <ColumnAddForm onCancel={() => setIsAddingColumn(false)} />
                   </div>
                 )}

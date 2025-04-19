@@ -7,6 +7,7 @@ import { Card } from './Card';
 import { ExpandedCardModal } from './ExpandedCardModal';
 import { CardAddForm } from './CardAddForm';
 import { useBoard } from '~/services/board-context';
+import { Trash2 } from 'lucide-react';
 
 interface ColumnProps {
   column: ColumnType;
@@ -17,7 +18,7 @@ export const Column = memo(({
   column
 }: ColumnProps) => {
   const [isAddingCard, setIsAddingCard] = useState(false);
-  const { updateColumn } = useBoard();
+  const { updateColumn, deleteColumn } = useBoard();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(column.title);
   useEffect(() => {
@@ -40,6 +41,12 @@ export const Column = memo(({
       setTitleInput(column.title);
     }
   }, [titleInput, column.id, column.title, updateColumn]);
+  
+  const handleDeleteColumn = useCallback(() => {
+    if (window.confirm('Are you sure you want to delete this column and all its cards?')) {
+      deleteColumn(column.id).catch(err => console.error('Failed to delete column:', err));
+    }
+  }, [deleteColumn, column.id]);
   
   // Memoize sorted cards to avoid re-sorting on each render
   const sortedCards = useMemo(
@@ -90,6 +97,13 @@ export const Column = memo(({
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14"/>
             </svg>
+          </button>
+          <button
+            onClick={handleDeleteColumn}
+            className="glass-morph-light text-xs p-1 rounded-full hover:bg-red-600/10 transition-colors hover-lift"
+            aria-label="Delete Column"
+          >
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </div>
