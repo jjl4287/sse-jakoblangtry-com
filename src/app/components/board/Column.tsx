@@ -52,7 +52,6 @@ export const Column = memo(({
   return (
     <div
       className="flex flex-col h-full min-h-0 glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2 min-w-[250px]"
-      style={{ width: `${column.width}%` }}
     >
       <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full">
         {isEditingTitle ? (
