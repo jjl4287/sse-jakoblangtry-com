@@ -120,7 +120,7 @@ export const Board: React.FC = () => {
       {/* Board Header */}
       <motion.div 
         ref={headerRef}
-        className="glass-column glass-border-animated p-2 mb-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 rounded-lg"
+        className="glass-column glass-border-animated p-2 mb-1 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 rounded-lg"
         style={{ 
           // CSS variables --x and --y are now set by the hook
           transformOrigin: "center center" 
@@ -163,11 +163,11 @@ export const Board: React.FC = () => {
       
       {/* Board Content */}
       <motion.div 
-        className="flex-1 overflow-hidden py-4"
+        className="flex-1 overflow-hidden pt-2 pb-4"
         layout={false}
       >
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex h-full gap-6 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+          <div className="flex h-full gap-4 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
             {filteredBoard?.columns.map(column => (
               <Column key={column.id} column={column} />
             ))}
