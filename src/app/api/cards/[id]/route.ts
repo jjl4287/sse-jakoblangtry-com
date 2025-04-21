@@ -4,9 +4,9 @@ import prisma from '~/lib/prisma';
 // PATCH /api/cards/[id]
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   try {
     const updates = await request.json();
     // Convert ISO date strings back to Date where needed
@@ -27,9 +27,9 @@ export async function PATCH(
 // DELETE /api/cards/[id]
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   try {
     await prisma.card.delete({ where: { id } });
     return NextResponse.json({ success: true });

@@ -4,60 +4,68 @@ import prisma from '~/lib/prisma';
 // POST /api/cards/[id]/move
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   try {
-    const { targetColumnId, order: newOrder } = (await request.json()) as {
+    const { targetColumnId, order: newOrder } = await request.json() as {
       targetColumnId: string;
       order: number;
     };
 
     await prisma.$transaction(async (tx) => {
-      const card = await tx.card.findUnique({ where: { id } });
-      if (!card) throw new Error('Card not found');
-      const oldColumnId = card.columnId;
-      const oldOrder = card.order;
-
-      if (oldColumnId === targetColumnId) {
-        if (newOrder !== oldOrder) {
-          if (newOrder < oldOrder) {
-            // Shift cards down between newOrder and oldOrder - 1
-            await tx.card.updateMany({
-              where: { columnId: oldColumnId, order: { gte: newOrder, lt: oldOrder } },
-              data: { order: { increment: 1 } },
-            });
-          } else {
-            // Shift cards up between oldOrder + 1 and newOrder
-            await tx.card.updateMany({
-              where: { columnId: oldColumnId, order: { gt: oldOrder, lte: newOrder } },
-              data: { order: { decrement: 1 } },
-            });
-          }
-        }
-      } else {
-        // Remove gap in old column
-        await tx.card.updateMany({
-          where: { columnId: oldColumnId, order: { gt: oldOrder } },
-          data: { order: { decrement: 1 } },
-        });
-        // Make space in new column
-        await tx.card.updateMany({
-          where: { columnId: targetColumnId, order: { gte: newOrder } },
-          data: { order: { increment: 1 } },
-        });
+      // Fetch original card and its column
+      const original = await tx.card.findUnique({ where: { id } });
+      if (!original) {
+        throw new Error('Card not found');
       }
-
-      // Update the card's column and order
-      await tx.card.update({
-        where: { id },
-        data: { column: { connect: { id: targetColumnId } }, order: newOrder },
-      });
+      const oldColumnId = original.columnId;
+      // Same-column reorder
+      if (oldColumnId === targetColumnId) {
+        const cards = await tx.card.findMany({
+          where: { columnId: oldColumnId },
+          orderBy: { order: 'asc' }
+        });
+        const ids = cards.map(c => c.id);
+        const fromIdx = ids.indexOf(id);
+        ids.splice(fromIdx, 1);
+        ids.splice(newOrder, 0, id);
+        // Persist new orders
+        await Promise.all(ids.map((cardId, idx) =>
+          tx.card.update({ where: { id: cardId }, data: { order: idx } })
+        ));
+      } else {
+        // Cross-column move: fetch both lists
+        const srcCards = await tx.card.findMany({
+          where: { columnId: oldColumnId },
+          orderBy: { order: 'asc' }
+        });
+        const destCards = await tx.card.findMany({
+          where: { columnId: targetColumnId },
+          orderBy: { order: 'asc' }
+        });
+        const srcIds = srcCards.map(c => c.id).filter(cardId => cardId !== id);
+        const destIds = destCards.map(c => c.id);
+        destIds.splice(newOrder, 0, id);
+        // Move the card
+        await tx.card.update({
+          where: { id },
+          data: { column: { connect: { id: targetColumnId } }, order: newOrder }
+        });
+        // Persist destination orders
+        await Promise.all(destIds.map((cardId, idx) =>
+          tx.card.update({ where: { id: cardId }, data: { order: idx } })
+        ));
+        // Persist source orders
+        await Promise.all(srcIds.map((cardId, idx) =>
+          tx.card.update({ where: { id: cardId }, data: { order: idx } })
+        ));
+      }
     });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error(`[API POST /api/cards/${params.id}/move] Error:`, error);
+    console.error(`[API POST /api/cards/${id}/move] Error:`, error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 } 

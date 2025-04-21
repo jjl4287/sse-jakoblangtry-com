@@ -26,8 +26,8 @@ const mapToBoard = (project: any): Board => ({
   }))
 });
 
-// Cache the board data for 60 seconds before revalidating
-export const revalidate = 60;
+// Force this API route to always be dynamic (no caching)
+export const dynamic = 'force-dynamic';
 
 /**
  * GET handler to retrieve the board data.
