@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, CalendarIcon, Paperclip, Link, Trash2, Save } from 'lucide-react';
 import { format } from 'date-fns';
@@ -15,18 +15,36 @@ import { Badge } from "~/components/ui/badge";
 import { cn } from "~/lib/utils";
 import Image from 'next/image';
 
+/**
+ * @brief Props for the ExpandedCardModal component.
+ *
+ * @param isOpen       Whether the modal is open.
+ * @param onOpenChange Handler called when the open state changes.
+ * @param card         Optional existing card data for editing.
+ * @param columnId     Column ID for new card creation when `card` is undefined.
+ */
 interface ExpandedCardModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  card?: CardType; // Make card optional for new card creation
-  columnId?: string; // Required for new card creation
-  children?: React.ReactNode;
+  card?: CardType;
+  columnId?: string;
 }
 
 // Define priority options
 const priorityOptions: Priority[] = ['low', 'medium', 'high'];
 
-export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
+/**
+ * @brief Renders a modal for creating or editing a board card.
+ *
+ * Displays and manages the form fields for title, description, priority, due date,
+ * labels, assignees, and attachments. Handles create and update operations.
+ *
+ * @param isOpen       Whether the modal is currently visible.
+ * @param onOpenChange Callback invoked when the modal's open state changes.
+ * @param card         Optional existing card data for editing.
+ * @param columnId     Column ID used when creating a new card.
+ */
+const ExpandedCardModalComponent: React.FC<ExpandedCardModalProps> = ({
   isOpen,
   onOpenChange,
   card,
@@ -476,3 +494,6 @@ export const ExpandedCardModal: React.FC<ExpandedCardModalProps> = ({
     </Dialog.Root>
   );
 };
+
+// Export the memoized component to avoid unnecessary re-renders.
+export const ExpandedCardModal = memo(ExpandedCardModalComponent);
