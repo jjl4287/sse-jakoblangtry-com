@@ -106,11 +106,15 @@ export class BoardService {
    * Creates a new column
    */
   static async createColumn(title: string, width: number): Promise<Board> {
-    const board = await this.getBoard();
-    const newColumn: Column = { id: uuidv4(), title, width, order: board.columns.length, cards: [] };
-    const updatedBoard = { ...board, columns: [...board.columns, newColumn] };
-    await saveBoard(updatedBoard);
-    return updatedBoard;
+    const res = await fetch('/api/columns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, width }),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to create column: ${res.statusText}`);
+    }
+    return await this.getBoard();
   }
 
   /**
@@ -118,23 +122,17 @@ export class BoardService {
    */
   static async updateColumn(
     columnId: string,
-    updates: Partial<Pick<Column, 'title' | 'width'>>
+    updates: Partial<Pick<Column, 'title' | 'width' | 'order'>>
   ): Promise<Board> {
-    const board = await this.getBoard();
-    try {
-      const { index } = this.findColumn(board, columnId);
-      const updatedColumns = [...board.columns];
-      updatedColumns[index] = { ...updatedColumns[index], ...updates };
-      const updatedBoard = { ...board, columns: updatedColumns };
-      await saveBoard(updatedBoard);
-      return updatedBoard;
-    } catch (error) {
-      if (error instanceof ItemNotFoundError) {
-        console.error(error.message);
-        return board;
-      }
-      throw error;
+    const res = await fetch(`/api/columns/${columnId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) {
+      console.error(`Failed to update column ${columnId}:`, res.statusText);
     }
+    return await this.getBoard();
   }
 
   /**
@@ -147,21 +145,28 @@ export class BoardService {
     if (oldIndex === -1) throw new ItemNotFoundError('Column', columnId);
     const [moved] = columns.splice(oldIndex, 1);
     columns.splice(newIndex, 0, moved);
-    // Update order property on each column
-    const orderedColumns = columns.map((col, idx) => ({ ...col, order: idx }));
-    const updatedBoard = { ...board, columns: orderedColumns };
-    await saveBoard(updatedBoard);
-    return updatedBoard;
+    // Persist new orders
+    await Promise.all(columns.map((col, idx) =>
+      fetch(`/api/columns/${col.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: idx }),
+      })
+    ));
+    return await this.getBoard();
   }
 
   /**
    * Deletes a column
    */
   static async deleteColumn(columnId: string): Promise<Board> {
-    const board = await this.getBoard();
-    const updatedBoard = { ...board, columns: board.columns.filter((col) => col.id !== columnId) };
-    await saveBoard(updatedBoard);
-    return updatedBoard;
+    const res = await fetch(`/api/columns/${columnId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to delete column: ${res.statusText}`);
+    }
+    return await this.getBoard();
   }
 
   /**
@@ -177,25 +182,17 @@ export class BoardService {
    */
   static async createCard(
     columnId: string,
-    cardData: Omit<Card, 'id' | 'columnId' | 'order'>
+    cardData: Omit<Card, 'id' | 'columnId' | 'order' | 'labels' | 'assignees'>
   ): Promise<Board> {
-    const board = await this.getBoard();
-    try {
-      const { column, index: columnIndex } = this.findColumn(board, columnId);
-      const order = column.cards.length > 0 ? Math.max(...column.cards.map(c => c.order)) + 1 : 0;
-      const newCard: Card = { id: uuidv4(), columnId, order, ...cardData };
-      const updatedColumns = [...board.columns];
-      updatedColumns[columnIndex] = { ...column, cards: [...column.cards, newCard] };
-      const updatedBoard = { ...board, columns: updatedColumns };
-      await saveBoard(updatedBoard);
-      return updatedBoard;
-    } catch (error) {
-      if (error instanceof ItemNotFoundError) {
-        console.error(error.message);
-        return board;
-      }
-      throw error;
+    const res = await fetch('/api/cards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ columnId, ...cardData }),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to create card: ${res.statusText}`);
     }
+    return await this.getBoard();
   }
 
   /**
@@ -203,94 +200,47 @@ export class BoardService {
    */
   static async updateCard(
     cardId: string,
-    updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'>>
+    updates: Partial<Omit<Card, 'id' | 'columnId' | 'order' | 'labels' | 'assignees'>> & { labels?: Label[]; assignees?: string[] }
   ): Promise<Board> {
-    const board = await this.getBoard();
-    try {
-      const { card, column, columnIndex, cardIndex } = this.findCard(board, cardId);
-      const updatedCards = [...column.cards];
-      updatedCards[cardIndex] = { ...card, ...updates };
-      const updatedBoard = { ...board, columns: board.columns.map((col, idx) => idx === columnIndex ? { ...column, cards: updatedCards } : col) };
-      await saveBoard(updatedBoard);
-      return updatedBoard;
-    } catch (error) {
-      if (error instanceof ItemNotFoundError) {
-        console.error(error.message);
-        return board;
-      }
-      throw error;
+    const res = await fetch(`/api/cards/${cardId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) {
+      console.error(`Failed to update card ${cardId}:`, res.statusText);
     }
+    return await this.getBoard();
   }
 
   /**
-   * Moves a card to a different column or position
+   * Moves a card to a new column/order
    */
   static async moveCard(
     cardId: string,
     targetColumnId: string,
     newOrder: number
   ): Promise<Board> {
-    const board = await this.getBoard();
-
-    try {
-      // Find the card to move
-      const { card, column: sourceColumn, columnIndex: sourceColumnIndex, cardIndex } =
-        this.findCard(board, cardId);
-      // Clone all columns with their cards
-      const updatedColumns = board.columns.map(col => ({ ...col, cards: [...col.cards] }));
-
-      if (sourceColumn.id === targetColumnId) {
-        // Intra-column move: remove and reinsert at new index
-        const cards = updatedColumns[sourceColumnIndex].cards;
-        cards.splice(cardIndex, 1);
-        cards.splice(newOrder, 0, { ...card, columnId: targetColumnId });
-        // Renumber orders
-        updatedColumns[sourceColumnIndex].cards = cards.map((c, idx) => ({ ...c, order: idx }));
-      } else {
-        // Cross-column move: remove from source
-        const sourceCards = updatedColumns[sourceColumnIndex].cards.filter(c => c.id !== cardId);
-        // Renumber source column
-        updatedColumns[sourceColumnIndex].cards = sourceCards.map((c, idx) => ({ ...c, order: idx }));
-        // Insert into target column
-        const { column: targetColumn, index: targetColumnIndex } = this.findColumn(board, targetColumnId);
-        const targetCards = [...targetColumn.cards];
-        targetCards.splice(newOrder, 0, { ...card, columnId: targetColumnId });
-        // Renumber target column
-        updatedColumns[targetColumnIndex].cards = targetCards.map((c, idx) => ({ ...c, order: idx }));
-      }
-
-      const updatedBoard = { ...board, columns: updatedColumns };
-      await saveBoard(updatedBoard);
-      return updatedBoard;
-    } catch (error) {
-      if (error instanceof ItemNotFoundError) {
-        console.error(error.message);
-        return board; // Return unchanged board if items not found
-      }
-      throw error;
+    const res = await fetch(`/api/cards/${cardId}/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetColumnId, order: newOrder }),
+    });
+    if (!res.ok) {
+      console.error(`Failed to move card ${cardId}:`, res.statusText);
     }
+    return await this.getBoard();
   }
 
   /**
    * Deletes a card
    */
   static async deleteCard(cardId: string): Promise<Board> {
-    const board = await this.getBoard();
-    
-    const updatedColumns = board.columns.map((column) => {
-      return {
-        ...column,
-        cards: column.cards.filter((card) => card.id !== cardId),
-      };
-    });
-    
-    const updatedBoard = {
-      ...board,
-      columns: updatedColumns,
-    };
-    
-    await saveBoard(updatedBoard);
-    return updatedBoard;
+    const res = await fetch(`/api/cards/${cardId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      throw new Error(`Failed to delete card: ${res.statusText}`);
+    }
+    return await this.getBoard();
   }
 
   /**

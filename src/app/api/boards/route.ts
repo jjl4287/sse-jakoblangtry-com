@@ -26,6 +26,9 @@ const mapToBoard = (project: any): Board => ({
   }))
 });
 
+// Cache the board data for 60 seconds before revalidating
+export const revalidate = 60;
+
 /**
  * GET handler to retrieve the board data.
  */
@@ -35,7 +38,12 @@ export async function GET() {
       include: {
         columns: {
           orderBy: { order: 'asc' },
-          include: { cards: { include: { labels: true, attachments: true, comments: true, assignees: true } } }
+          include: {
+            cards: {
+              orderBy: { order: 'asc' },
+              include: { labels: true, attachments: true, comments: true, assignees: true }
+            }
+          }
         }
       }
     });
@@ -57,40 +65,94 @@ export async function POST(request: Request) {
   const board: Board = await request.json();
   console.log('[API POST /api/boards] syncing columns:', board.columns.map(c => c.id));
   try {
-    // Get or create the default project
-    let project = await prisma.project.findFirst();
+    // Ensure Label models exist
+    const allLabels = board.columns.flatMap(col => col.cards.flatMap(card => card.labels));
+    const uniqueLabels = Array.from(new Map(allLabels.map(l => [l.id, l])).values());
+    await Promise.all(uniqueLabels.map(label =>
+      prisma.label.upsert({
+        where: { id: label.id },
+        update: { name: label.name, color: label.color },
+        create: { id: label.id, name: label.name, color: label.color }
+      })
+    ));
+    // Ensure User models exist for assignees
+    const allAssignees = board.columns.flatMap(col => col.cards.flatMap(card => card.assignees));
+    const uniqueAssignees = Array.from(new Set(allAssignees));
+    await Promise.all(uniqueAssignees.map(id =>
+      prisma.user.upsert({
+        where: { id },
+        update: {},
+        create: { id, name: id }
+      })
+    ));
+    // Perform diff-based nested upserts for columns and cards
+    const project = await prisma.project.findFirst({ include: { columns: { include: { cards: true } } } });
     if (!project) {
-      project = await prisma.project.create({ data: { title: 'Default Project', theme: board.theme } });
-    } else {
-      await prisma.project.update({ where: { id: project.id }, data: { theme: board.theme } });
+      return NextResponse.json({ error: 'No project found' }, { status: 404 });
     }
-    // Remove existing columns (and cascade deletes cards)
-    await prisma.column.deleteMany({ where: { projectId: project.id } });
-    // Recreate columns and cards
-    for (const col of board.columns) {
-      const createdColumn = await prisma.column.create({
-        data: {
-          id: col.id,
-          title: col.title,
-          width: col.width,
-          order: col.order,
-          projectId: project.id,
-          cards: {
-            create: col.cards.map(card => ({
-              id: card.id,
-              title: card.title,
-              description: card.description || '',
-              dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
-              priority: card.priority as any,
-              order: card.order,
-              attachments: { create: card.attachments.map(a => ({ name: a.name, url: a.url, type: a.type })) },
-              comments: { create: card.comments.map(c => ({ author: c.author, content: c.content })) }
-            }))
-          }
+    await prisma.project.update({
+      where: { id: project.id },
+      data: {
+        theme: board.theme,
+        columns: {
+          deleteMany: { id: { notIn: board.columns.map(col => col.id) } },
+          upsert: board.columns.map(col => ({
+            where: { id: col.id },
+            update: {
+              title: col.title,
+              width: col.width,
+              order: col.order,
+              cards: {
+                deleteMany: { id: { notIn: col.cards.map(card => card.id) } },
+                upsert: col.cards.map(card => ({
+                  where: { id: card.id },
+                  update: {
+                    title: card.title,
+                    description: card.description || '',
+                    dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
+                    priority: card.priority as any,
+                    order: card.order,
+                    // Sync labels and assignees relations
+                    labels: { set: card.labels.map(l => ({ id: l.id })) },
+                    assignees: { set: card.assignees.map(uId => ({ id: uId })) }
+                  },
+                  create: {
+                    id: card.id,
+                    title: card.title,
+                    description: card.description || '',
+                    dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
+                    priority: card.priority as any,
+                    order: card.order,
+                    column: { connect: { id: col.id } },
+                    labels: { connect: card.labels.map(l => ({ id: l.id })) },
+                    assignees: { connect: card.assignees.map(uId => ({ id: uId })) }
+                  }
+                }))
+              }
+            },
+            create: {
+              id: col.id,
+              title: col.title,
+              width: col.width,
+              order: col.order,
+              project: { connect: { id: project.id } },
+              cards: {
+                create: col.cards.map(card => ({
+                  id: card.id,
+                  title: card.title,
+                  description: card.description || '',
+                  dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
+                  priority: card.priority as any,
+                  order: card.order,
+                  labels: { connect: card.labels.map(l => ({ id: l.id })) },
+                  assignees: { connect: card.assignees.map(uId => ({ id: uId })) }
+                }))
+              }
+            }
+          }))
         }
-      });
-      // Note: labels and assignees mapping omitted for now
-    }
+      }
+    });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('[API POST /api/boards] Sync error:', error);
