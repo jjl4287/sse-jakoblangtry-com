@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState, useRef, useCallback, memo, useMemo } from 'react';
+import React, { useState, useRef, useCallback, memo, useMemo, useEffect } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import type { Column as ColumnType, Card as CardType } from '~/types';
 import { Card } from './Card';
 import { ExpandedCardModal } from './ExpandedCardModal';
+import { CardAddForm } from './CardAddForm';
+import { useBoard } from '~/services/board-context';
+import { Trash2 } from 'lucide-react';
 
 interface ColumnProps {
   column: ColumnType;
@@ -14,12 +17,36 @@ interface ColumnProps {
 export const Column = memo(({ 
   column
 }: ColumnProps) => {
-  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [isAddingCard, setIsAddingCard] = useState(false);
+  const { updateColumn, deleteColumn } = useBoard();
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState(column.title);
+  useEffect(() => {
+    setTitleInput(column.title);
+  }, [column.title]);
   // No container transforms to keep DnD preview aligned
 
   const handleAddCardClick = useCallback(() => {
-    setIsCardModalOpen(true);
+    setIsAddingCard(true);
   }, []);
+  
+  const handleTitleBlur = useCallback(() => {
+    setIsEditingTitle(false);
+    if (titleInput.trim() && titleInput !== column.title) {
+      updateColumn(column.id, { title: titleInput.trim() }).catch(err => {
+        console.error('Failed to update column title:', err);
+        setTitleInput(column.title); // Reset to original title if update fails
+      });
+    } else {
+      setTitleInput(column.title);
+    }
+  }, [titleInput, column.id, column.title, updateColumn]);
+  
+  const handleDeleteColumn = useCallback(() => {
+    if (window.confirm('Are you sure you want to delete this column and all its cards?')) {
+      deleteColumn(column.id).catch(err => console.error('Failed to delete column:', err));
+    }
+  }, [deleteColumn, column.id]);
   
   // Memoize sorted cards to avoid re-sorting on each render
   const sortedCards = useMemo(
@@ -31,11 +58,36 @@ export const Column = memo(({
   
   return (
     <div
-      className="flex flex-col h-full min-h-0 glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2"
-      style={{ width: `${column.width}%` }}
+      className="flex flex-col h-full min-h-0 glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2 min-w-[250px]"
     >
       <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full">
-        <h3 className="text-lg font-semibold hover:text-primary-light transition-colors">{column.title}</h3>
+        {isEditingTitle ? (
+          <input
+            type="text"
+            value={titleInput}
+            onChange={e => setTitleInput(e.target.value)}
+            onBlur={handleTitleBlur}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
+              if (e.key === 'Escape') {
+                setIsEditingTitle(false);
+                setTitleInput(column.title);
+              }
+            }}
+            className="text-lg font-semibold px-2 py-1 rounded border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/20"
+            autoFocus
+          />
+        ) : (
+          <h3
+            className="text-lg font-semibold hover:text-primary-light transition-colors cursor-text"
+            onDoubleClick={() => setIsEditingTitle(true)}
+          >
+            {column.title}
+          </h3>
+        )}
         <div className="flex items-center gap-2">
           <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
             {column.cards.length}
@@ -48,6 +100,13 @@ export const Column = memo(({
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14"/>
             </svg>
+          </button>
+          <button
+            onClick={handleDeleteColumn}
+            className="glass-morph-light text-xs p-1 rounded-full hover:bg-red-600/10 transition-colors hover-lift"
+            aria-label="Delete Column"
+          >
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -102,19 +161,13 @@ export const Column = memo(({
                 }}
               </Draggable>
             ))}
+            {isAddingCard && (
+              <CardAddForm columnId={column.id} onCancel={() => setIsAddingCard(false)} />
+            )}
             {provided.placeholder}
           </div>
         )}
       </Droppable>
-      
-      {/* New Card Modal */}
-      {isCardModalOpen && (
-        <ExpandedCardModal
-          columnId={column.id}
-          isOpen={isCardModalOpen}
-          onOpenChange={setIsCardModalOpen}
-        />
-      )}
     </div>
   );
 });

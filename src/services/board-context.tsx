@@ -17,6 +17,7 @@ type BoardContextType = {
     updates: { title?: string; width?: number }
   ) => Promise<void>;
   deleteColumn: (columnId: string) => Promise<void>;
+  moveColumn: (columnId: string, newIndex: number) => Promise<void>;
   createCard: (
     columnId: string,
     cardData: Omit<Card, 'id' | 'columnId' | 'order'>
@@ -131,6 +132,29 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
       'Error deleting column'
     );
   }, []);
+
+  // Move a column to a different position (optimistic reorder)
+  const moveColumn = useCallback(async (columnId: string, newIndex: number) => {
+    // Optimistically reorder columns locally
+    setBoard(prev => {
+      if (!prev) return prev;
+      const cols = [...prev.columns];
+      const oldIndex = cols.findIndex(c => c.id === columnId);
+      if (oldIndex === -1) return prev;
+      const [moved] = cols.splice(oldIndex, 1);
+      cols.splice(newIndex, 0, moved);
+      return { ...prev, columns: cols };
+    });
+    // Persist and sync with server
+    const result = await handleServiceCall(
+      () => BoardService.moveColumn(columnId, newIndex),
+      false,
+      'Error moving column'
+    );
+    if (!result) {
+      await refreshBoard();
+    }
+  }, [handleServiceCall, refreshBoard]);
 
   // Create a new card
   const createCard = useCallback(async (
@@ -304,6 +328,7 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
         createColumn,
         updateColumn,
         deleteColumn,
+        moveColumn,
         createCard,
         updateCard,
         moveCard,
@@ -326,6 +351,7 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
         createColumn,
         updateColumn,
         deleteColumn,
+        moveColumn,
         createCard,
         updateCard,
         moveCard,
