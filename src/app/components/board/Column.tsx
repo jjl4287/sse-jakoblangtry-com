@@ -68,7 +68,10 @@ export const Column = memo(({
             onChange={e => setTitleInput(e.target.value)}
             onBlur={handleTitleBlur}
             onKeyDown={e => {
-              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
               if (e.key === 'Escape') {
                 setIsEditingTitle(false);
                 setTitleInput(column.title);
