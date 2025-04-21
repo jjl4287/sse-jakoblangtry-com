@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DB_URL")
+}
+
+model Project {
+  id        String    @id @default(cuid())
+  title     String
+  theme     String?
+  columns   Column[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Column {
+  id        String    @id @default(cuid())
+  title     String
+  width     Int
+  order     Int       @default(0)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  cards     Card[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Card {
+  id          String       @id @default(cuid())
+  title       String
+  description String
+  labels      Label[]      @relation("CardLabels")
+  dueDate     DateTime?
+  assignees   User[]       @relation("CardAssignees")
+  priority    Priority
+  attachments Attachment[]
+  comments    Comment[]
+  column      Column       @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  columnId    String
+  order       Float
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Label {
+  id    String  @id @default(cuid())
+  name  String
+  color String
+  cards Card[]  @relation("CardLabels")
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  type      String
+  createdAt DateTime @default(now())
+  card      Card     @relation(fields: [cardId], references: [id])
+  cardId    String
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  author    String
+  content   String
+  createdAt DateTime @default(now())
+  card      Card     @relation(fields: [cardId], references: [id])
+  cardId    String
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  assignedCards Card[]   @relation("CardAssignees")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum Priority {
+  low
+  medium
+  high
+} 

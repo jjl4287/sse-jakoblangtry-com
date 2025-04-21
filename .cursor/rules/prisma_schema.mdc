@@ -1,0 +1,53 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+- **Models in `schema.prisma`**
+  - **Column**
+    - `id`: `String` @id @default(cuid())
+    - `title`: `String`
+    - `width`: `Int`
+    - `cards`: `Card[]` (relation)
+    - `createdAt`, `updatedAt`: timestamps
+  - **Card**
+    - `id`: `String` @id @default(cuid())
+    - `title`: `String`
+    - `description`: `String`
+    - `labels`: `Label[]` (@relation("CardLabels"))
+    - `dueDate`: `DateTime?`
+    - `assignees`: `Json` (array of user IDs or emails; temporary until `User` model is introduced)
+    - `priority`: `Priority` enum
+    - `attachments`: `Attachment[]`
+    - `comments`: `Comment[]`
+    - `column`: `Column` (@relation)
+    - `columnId`: `String`
+    - `order`: `Int`
+    - `createdAt`, `updatedAt`: timestamps
+  - **Label**
+    - `id`: `String` @id @default(cuid())
+    - `name`: `String`
+    - `color`: `String`
+    - `cards`: `Card[]` (@relation("CardLabels"))
+  - **Attachment**
+    - `id`, `name`, `url`, `type`, `createdAt`
+    - relation to `Card` via `cardId`
+  - **Comment**
+    - `id`, `author`, `content`, `createdAt`
+    - relation to `Card` via `cardId`
+  - **Priority**
+    - enum values: `low`, `medium`, `high`
+
+- **Environment Variables**
+  - `DB_URL`: connection string for Sevalla MySQL proxy
+    - `mysql://jjalangtry:…@northamerica-northeast1-001.proxy.kinsta.app:30744/jello-database`
+  - Loaded via `.env`
+
+- **Next Steps**
+  - Decide on implementing a `User` model for true relations with `assignees`
+  - Update `assignees` field to `User[]` once `User` model is defined
+  - Migrate existing JSON arrays into relational tables
+
+# References
+
+Schema file: [schema.prisma](mdc:prisma/schema.prisma)

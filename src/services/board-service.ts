@@ -1,11 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Board, Card, Column, Label, Attachment, Comment } from '~/types';
-import { createDefaultBoard } from '~/types/defaults';
 
 // Constants
-const BOARD_STORAGE_KEY = 'kanban_board_data';
-const API_ENDPOINT = '/api/boards'; // Standardized API endpoint
-const STATIC_BOARD_PATH = '/data/board.json'; // Path to static JSON
+const API_ENDPOINT = '/api/boards';
 
 // --- Error types ---
 class BoardServiceError extends Error {
@@ -22,142 +19,52 @@ class ItemNotFoundError extends BoardServiceError {
   }
 }
 
-// --- Robust Save/Load Helpers --- 
-
-/**
- * Saves the board data, trying API first and falling back to localStorage.
- * @param boardData The board data to save.
- * @returns boolean indicating if server save was successful.
- */
-const saveBoardWithFallback = async (boardData: Board): Promise<boolean> => {
-  try {
-    // 1. Try saving to server API
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      credentials: 'omit',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(boardData),
-    });
-
-    if (response.ok) {
-      // 2. If server save successful, also update localStorage
-      localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(boardData));
-      return true; // Server save succeeded
-    } else {
-      console.warn(`Server save failed with status ${response.status}. Falling back to localStorage only.`);
-      response.text().then(body => console.warn("Server response body:", body)).catch(() => {});
-      // 3. If server save failed, save only to localStorage
-      localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(boardData));
-      return false; // Server save failed
-    }
-  } catch (error) {
-    console.error('Error saving board (API or network issue). Falling back to localStorage only:', error);
-    // 4. On network error or other issues, save only to localStorage
-    localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(boardData));
-    return false; // Server save failed
-  }
-};
-
-/**
- * Loads the board data, trying API first, then localStorage, then static JSON, then default.
- * @returns The loaded board data.
- */
-const loadBoardWithFallback = async (): Promise<Board> => {
-  let loadedBoard: Board | null = null;
-  let source: string = 'unknown';
-
-  try {
-    // 1. Try loading from server API
-    const apiResponse = await fetch(API_ENDPOINT, { method: 'GET', credentials: 'omit' });
-    if (apiResponse.ok) {
-      loadedBoard = await apiResponse.json();
-      source = 'API';
-      // Update localStorage with the latest data from the server
-      if (loadedBoard) {
-         localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(loadedBoard));
-      }
-    } else {
-      console.warn(`Failed to load from API (status ${apiResponse.status}). Trying localStorage.`);
-    }
-  } catch (error) {
-    console.warn('Error loading from API. Trying localStorage:', error);
-  }
-
-  // 2. If API failed or returned no data, try loading from localStorage
-  if (!loadedBoard) {
-    const localData = localStorage.getItem(BOARD_STORAGE_KEY);
-    if (localData) {
-      try {
-        loadedBoard = JSON.parse(localData);
-        source = 'localStorage';
-      } catch (e) {
-        console.error('Error parsing localStorage data. Trying static JSON:', e);
-      }
-    }
-  }
-
-  // 3. If localStorage failed or was empty, try loading from static JSON
-  if (!loadedBoard) {
+// --- API Helpers ---
+async function saveBoard(boardData: Board): Promise<void> {
+  const res = await fetch(API_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(boardData),
+  });
+  if (!res.ok) {
+    let errMsg = `HTTP ${res.status}`;
     try {
-      const staticResponse = await fetch(STATIC_BOARD_PATH);
-      if (staticResponse.ok) {
-        loadedBoard = await staticResponse.json();
-        source = 'static JSON';
-        // Save the initial static data to localStorage
-        if (loadedBoard) {
-          localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(loadedBoard));
-        }
-      } else {
-         console.warn(`Failed to load static JSON (status ${staticResponse.status}). Using default board.`);
-      }
-    } catch (e) {
-      console.error('Error fetching static JSON. Using default board:', e);
-    }
+      const body = await res.json();
+      if (body.error) errMsg = body.error;
+    } catch {}
+    throw new Error(errMsg);
   }
+}
 
-  // 4. If all else fails, create a default board
-  if (!loadedBoard) {
-    console.warn('All loading methods failed. Creating default board.');
-    loadedBoard = createDefaultBoard();
-    source = 'default';
-    // Save the default board to localStorage
-    localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(loadedBoard));
+async function fetchBoard(): Promise<Board> {
+  const res = await fetch(API_ENDPOINT);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch board: ${res.status}`);
   }
+  return res.json();
+}
 
-  // Debug logging of source removed for production
-  return loadedBoard;
-};
-
-/**
- * Service for managing the kanban board data
- */
+// BoardService for managing the kanban board data
 export class BoardService {
   /**
    * Gets the current board data
-   * @returns The board data
    */
   static async getBoard(): Promise<Board> {
-    // Always use the fallback logic for consistency
-    return await loadBoardWithFallback();
+    return await fetchBoard();
   }
 
   /**
    * Updates the board theme
-   * @param theme The new theme value
-   * @returns The updated board
    */
   static async updateTheme(theme: 'light' | 'dark'): Promise<Board> {
     const board = await this.getBoard();
     const updatedBoard = { ...board, theme };
-    await saveBoardWithFallback(updatedBoard);
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Finds a column by ID (internal helper method)
-   * @param board The board containing columns
-   * @param columnId The column ID to find
-   * @returns The column and its index or throws if not found
    */
   private static findColumn(board: Board, columnId: string): { column: Column; index: number } {
     const index = board.columns.findIndex((col) => col.id === columnId);
@@ -171,9 +78,6 @@ export class BoardService {
   
   /**
    * Finds a card by ID (internal helper method)
-   * @param board The board containing columns and cards
-   * @param cardId The card ID to find
-   * @returns The card, its column, and indices or throws if not found
    */
   private static findCard(board: Board, cardId: string): { 
     card: Card; 
@@ -199,74 +103,35 @@ export class BoardService {
   }
 
   /**
-   * Gets a column by ID
-   * @param columnId The column ID
-   * @returns The column or undefined if not found
-   */
-  static async getColumn(columnId: string): Promise<Column> {
-    const board = await this.getBoard();
-    const { column } = this.findColumn(board, columnId);
-    return column;
-  }
-
-  /**
    * Creates a new column
-   * @param title The column title
-   * @param width The column width (percentage or pixels)
-   * @returns The updated board
    */
   static async createColumn(title: string, width: number): Promise<Board> {
     const board = await this.getBoard();
-    
-    const newColumn: Column = {
-      id: uuidv4(),
-      title,
-      width,
-      cards: [],
-    };
-    
-    const updatedBoard = {
-      ...board,
-      columns: [...board.columns, newColumn],
-    };
-    
-    await saveBoardWithFallback(updatedBoard);
+    const newColumn: Column = { id: uuidv4(), title, width, order: board.columns.length, cards: [] };
+    const updatedBoard = { ...board, columns: [...board.columns, newColumn] };
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Updates a column
-   * @param columnId The column ID
-   * @param updates The column updates
-   * @returns The updated board
    */
   static async updateColumn(
     columnId: string,
     updates: Partial<Pick<Column, 'title' | 'width'>>
   ): Promise<Board> {
     const board = await this.getBoard();
-    
     try {
       const { index } = this.findColumn(board, columnId);
-      
-      // Create a new columns array with the updated column
       const updatedColumns = [...board.columns];
-      updatedColumns[index] = {
-        ...updatedColumns[index],
-        ...updates
-      };
-      
-      const updatedBoard = {
-        ...board,
-        columns: updatedColumns,
-      };
-      
-      await saveBoardWithFallback(updatedBoard);
+      updatedColumns[index] = { ...updatedColumns[index], ...updates };
+      const updatedBoard = { ...board, columns: updatedColumns };
+      await saveBoard(updatedBoard);
       return updatedBoard;
     } catch (error) {
       if (error instanceof ItemNotFoundError) {
         console.error(error.message);
-        return board; // Return unchanged board if column not found
+        return board;
       }
       throw error;
     }
@@ -274,9 +139,6 @@ export class BoardService {
 
   /**
    * Moves a column to a new position
-   * @param columnId ID of the column to move
-   * @param newIndex Target index for the column
-   * @returns The updated board with columns reordered
    */
   static async moveColumn(columnId: string, newIndex: number): Promise<Board> {
     const board = await this.getBoard();
@@ -285,84 +147,52 @@ export class BoardService {
     if (oldIndex === -1) throw new ItemNotFoundError('Column', columnId);
     const [moved] = columns.splice(oldIndex, 1);
     columns.splice(newIndex, 0, moved);
-    const updatedBoard = { ...board, columns };
-    await saveBoardWithFallback(updatedBoard);
+    // Update order property on each column
+    const orderedColumns = columns.map((col, idx) => ({ ...col, order: idx }));
+    const updatedBoard = { ...board, columns: orderedColumns };
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Deletes a column
-   * @param columnId The column ID
-   * @returns The updated board
    */
   static async deleteColumn(columnId: string): Promise<Board> {
     const board = await this.getBoard();
-    
-    const updatedBoard = {
-      ...board,
-      columns: board.columns.filter((col) => col.id !== columnId),
-    };
-    
-    await saveBoardWithFallback(updatedBoard);
+    const updatedBoard = { ...board, columns: board.columns.filter((col) => col.id !== columnId) };
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Gets a card by ID
-   * @param cardId The card ID
-   * @returns The card and its column
    */
   static async getCard(cardId: string): Promise<{ card: Card; column: Column }> {
     const board = await this.getBoard();
-    const { card, column } = this.findCard(board, cardId);
-    return { card, column };
+    return this.findCard(board, cardId);
   }
 
   /**
    * Creates a new card
-   * @param columnId The column ID
-   * @param cardData The card data
-   * @returns The updated board
    */
   static async createCard(
     columnId: string,
     cardData: Omit<Card, 'id' | 'columnId' | 'order'>
   ): Promise<Board> {
     const board = await this.getBoard();
-    
     try {
       const { column, index: columnIndex } = this.findColumn(board, columnId);
-      
-      // Get the highest order value and add 1
-      const order = column.cards.length > 0
-        ? Math.max(...column.cards.map((card) => card.order)) + 1
-        : 0;
-      
-      const newCard: Card = {
-        id: uuidv4(),
-        columnId,
-        order,
-        ...cardData,
-      };
-      
-      // Create a new columns array with the updated column
+      const order = column.cards.length > 0 ? Math.max(...column.cards.map(c => c.order)) + 1 : 0;
+      const newCard: Card = { id: uuidv4(), columnId, order, ...cardData };
       const updatedColumns = [...board.columns];
-      updatedColumns[columnIndex] = {
-        ...column,
-        cards: [...column.cards, newCard],
-      };
-      
-      const updatedBoard = {
-        ...board,
-        columns: updatedColumns,
-      };
-      
-      await saveBoardWithFallback(updatedBoard);
+      updatedColumns[columnIndex] = { ...column, cards: [...column.cards, newCard] };
+      const updatedBoard = { ...board, columns: updatedColumns };
+      await saveBoard(updatedBoard);
       return updatedBoard;
     } catch (error) {
       if (error instanceof ItemNotFoundError) {
         console.error(error.message);
-        return board; // Return unchanged board if column not found
+        return board;
       }
       throw error;
     }
@@ -370,44 +200,23 @@ export class BoardService {
 
   /**
    * Updates a card
-   * @param cardId The card ID
-   * @param updates The card updates
-   * @returns The updated board
    */
   static async updateCard(
     cardId: string,
     updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'>>
   ): Promise<Board> {
     const board = await this.getBoard();
-    
     try {
       const { card, column, columnIndex, cardIndex } = this.findCard(board, cardId);
-      
-      // Create a new cards array with the updated card
       const updatedCards = [...column.cards];
-      updatedCards[cardIndex] = {
-        ...card,
-        ...updates,
-      };
-      
-      // Create a new columns array with the updated column
-      const updatedColumns = [...board.columns];
-      updatedColumns[columnIndex] = {
-        ...column,
-        cards: updatedCards,
-      };
-      
-      const updatedBoard = {
-        ...board,
-        columns: updatedColumns,
-      };
-      
-      await saveBoardWithFallback(updatedBoard);
+      updatedCards[cardIndex] = { ...card, ...updates };
+      const updatedBoard = { ...board, columns: board.columns.map((col, idx) => idx === columnIndex ? { ...column, cards: updatedCards } : col) };
+      await saveBoard(updatedBoard);
       return updatedBoard;
     } catch (error) {
       if (error instanceof ItemNotFoundError) {
         console.error(error.message);
-        return board; // Return unchanged board if card not found
+        return board;
       }
       throw error;
     }
@@ -415,10 +224,6 @@ export class BoardService {
 
   /**
    * Moves a card to a different column or position
-   * @param cardId The card ID
-   * @param targetColumnId The target column ID
-   * @param newOrder The new order value in the target column
-   * @returns The updated board
    */
   static async moveCard(
     cardId: string,
@@ -455,7 +260,7 @@ export class BoardService {
       }
 
       const updatedBoard = { ...board, columns: updatedColumns };
-      await saveBoardWithFallback(updatedBoard);
+      await saveBoard(updatedBoard);
       return updatedBoard;
     } catch (error) {
       if (error instanceof ItemNotFoundError) {
@@ -468,8 +273,6 @@ export class BoardService {
 
   /**
    * Deletes a card
-   * @param cardId The card ID
-   * @returns The updated board
    */
   static async deleteCard(cardId: string): Promise<Board> {
     const board = await this.getBoard();
@@ -486,15 +289,12 @@ export class BoardService {
       columns: updatedColumns,
     };
     
-    await saveBoardWithFallback(updatedBoard);
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Duplicates a card
-   * @param cardId The ID of the card to duplicate
-   * @param targetColumnId Optional ID of the column to place the duplicate in (defaults to original column)
-   * @returns The updated board
    */
   static async duplicateCard(cardId: string, targetColumnId?: string): Promise<Board> {
     const board = await this.getBoard();
@@ -568,16 +368,12 @@ export class BoardService {
     }
 
     // Persist changes
-    await saveBoardWithFallback(updatedBoard);
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Adds a label to a card
-   * @param cardId The card ID
-   * @param name The label name
-   * @param color The label color
-   * @returns The updated board
    */
   static async addLabel(
     cardId: string,
@@ -624,15 +420,12 @@ export class BoardService {
       columns: updatedColumns,
     };
     
-    await saveBoardWithFallback(updatedBoard);
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Removes a label from a card
-   * @param cardId The card ID
-   * @param labelId The label ID
-   * @returns The updated board
    */
   static async removeLabel(cardId: string, labelId: string): Promise<Board> {
     const board = await this.getBoard();
@@ -669,16 +462,12 @@ export class BoardService {
       columns: updatedColumns,
     };
     
-    await saveBoardWithFallback(updatedBoard);
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Adds a comment to a card
-   * @param cardId The card ID
-   * @param author The comment author
-   * @param content The comment content
-   * @returns The updated board
    */
   static async addComment(
     cardId: string,
@@ -712,15 +501,12 @@ export class BoardService {
     const updatedBoard = { ...board, columns: updatedColumns };
     
     // Persist changes using the fallback mechanism
-    await saveBoardWithFallback(updatedBoard);
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Deletes a comment from a card
-   * @param cardId The card ID
-   * @param commentId The comment ID
-   * @returns The updated board
    */
   static async deleteComment(cardId: string, commentId: string): Promise<Board> {
     // Update the board state locally first
@@ -740,17 +526,12 @@ export class BoardService {
     const updatedBoard = { ...board, columns: updatedColumns };
 
     // Persist changes using the fallback mechanism
-    await saveBoardWithFallback(updatedBoard);
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Adds an attachment to a card
-   * @param cardId The card ID
-   * @param name The attachment name
-   * @param url The attachment URL
-   * @param type The attachment type
-   * @returns The updated board
    */
   static async addAttachment(
     cardId: string,
@@ -786,15 +567,12 @@ export class BoardService {
     const updatedBoard = { ...board, columns: updatedColumns };
 
     // Persist changes using the fallback mechanism
-    await saveBoardWithFallback(updatedBoard);
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 
   /**
    * Deletes an attachment from a card
-   * @param cardId The card ID
-   * @param attachmentId The attachment ID
-   * @returns The updated board
    */
   static async deleteAttachment(cardId: string, attachmentId: string): Promise<Board> {
     // Update the board state locally first
@@ -814,7 +592,7 @@ export class BoardService {
     const updatedBoard = { ...board, columns: updatedColumns };
 
     // Persist changes using the fallback mechanism
-    await saveBoardWithFallback(updatedBoard);
+    await saveBoard(updatedBoard);
     return updatedBoard;
   }
 } 

@@ -1,73 +1,52 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { createDefaultBoard } from '~/types/defaults';
+import prisma from '~/lib/prisma';
 import type { Board } from '~/types';
 
-// Path to the data file relative to the project root
-// Ensure this path is correct for your deployment environment
-const DATA_DIR = path.join(process.cwd(), 'public', 'data');
-const BOARD_FILE_PATH = path.join(DATA_DIR, 'board.json');
-
-// Ensure the data directory exists
-const ensureDataDir = async () => {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch (err: any) {
-    // Ignore EEXIST error (directory already exists)
-    if (err.code !== 'EEXIST') {
-      console.error('Failed to create data directory:', err);
-      throw err; // Re-throw other errors
-    }
-  }
-};
-
-// Helper to read the board data
-const readBoardData = async (): Promise<Board> => {
-  try {
-    await ensureDataDir();
-    const fileContent = await fs.readFile(BOARD_FILE_PATH, 'utf8');
-    return JSON.parse(fileContent) as Board;
-  } catch (error: any) {
-    // If file doesn't exist (ENOENT) or is empty/invalid JSON, return default
-    if (error.code === 'ENOENT' || error instanceof SyntaxError) {
-      console.warn(`board.json not found or invalid. Creating default board.`);
-      const defaultBoard = createDefaultBoard();
-      // Attempt to write the default board back
-      try {
-        await fs.writeFile(BOARD_FILE_PATH, JSON.stringify(defaultBoard, null, 2), 'utf8');
-      } catch (writeError) {
-         console.error('Failed to write default board.json:', writeError);
-      }
-      return defaultBoard;
-    }
-    // Re-throw other errors
-    console.error('Failed to read board.json:', error);
-    throw error;
-  }
-};
-
-// Helper to write the board data
-const writeBoardData = async (data: Board): Promise<void> => {
-  try {
-    await ensureDataDir();
-    await fs.writeFile(BOARD_FILE_PATH, JSON.stringify(data, null, 2), 'utf8');
-  } catch (error) {
-    console.error('Failed to write board.json:', error);
-    throw error; // Re-throw error to indicate failure
-  }
-};
+// Helper to convert DB models into Board JSON shape
+const mapToBoard = (project: any): Board => ({
+  theme: (project.theme as 'light' | 'dark') || 'dark',
+  columns: project.columns.map((col: any) => ({
+    id: col.id,
+    title: col.title,
+    width: col.width,
+    order: col.order,
+    cards: col.cards.map((card: any) => ({
+      id: card.id,
+      columnId: col.id,
+      order: card.order,
+      title: card.title,
+      description: card.description,
+      labels: card.labels.map((l: any) => ({ id: l.id, name: l.name, color: l.color })),
+      assignees: card.assignees.map((u: any) => u.id),
+      priority: card.priority,
+      attachments: card.attachments.map((a: any) => ({ id: a.id, name: a.name, url: a.url, type: a.type })),
+      comments: card.comments.map((c: any) => ({ id: c.id, author: c.author, content: c.content })),
+      dueDate: card.dueDate ? card.dueDate.toISOString() : null
+    }))
+  }))
+});
 
 /**
  * GET handler to retrieve the board data.
  */
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const boardData = await readBoardData();
-    return NextResponse.json(boardData);
-  } catch (error) {
+    const project = await prisma.project.findFirst({
+      include: {
+        columns: {
+          orderBy: { order: 'asc' },
+          include: { cards: { include: { labels: true, attachments: true, comments: true, assignees: true } } }
+        }
+      }
+    });
+    if (!project) {
+      return NextResponse.json({ error: 'No project found' }, { status: 404 });
+    }
+    const board = mapToBoard(project);
+    return NextResponse.json(board);
+  } catch (error: any) {
     console.error('[API GET /api/boards] Error:', error);
-    return NextResponse.json({ error: 'Failed to load board data' }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
@@ -75,17 +54,46 @@ export async function GET(request: Request) {
  * POST handler to update the board data.
  */
 export async function POST(request: Request) {
+  const board: Board = await request.json();
+  console.log('[API POST /api/boards] syncing columns:', board.columns.map(c => c.id));
   try {
-    const boardData = await request.json();
-    // Optional: Add validation logic here to ensure boardData conforms to Board type
-    await writeBoardData(boardData);
+    // Get or create the default project
+    let project = await prisma.project.findFirst();
+    if (!project) {
+      project = await prisma.project.create({ data: { title: 'Default Project', theme: board.theme } });
+    } else {
+      await prisma.project.update({ where: { id: project.id }, data: { theme: board.theme } });
+    }
+    // Remove existing columns (and cascade deletes cards)
+    await prisma.column.deleteMany({ where: { projectId: project.id } });
+    // Recreate columns and cards
+    for (const col of board.columns) {
+      const createdColumn = await prisma.column.create({
+        data: {
+          id: col.id,
+          title: col.title,
+          width: col.width,
+          order: col.order,
+          projectId: project.id,
+          cards: {
+            create: col.cards.map(card => ({
+              id: card.id,
+              title: card.title,
+              description: card.description || '',
+              dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
+              priority: card.priority as any,
+              order: card.order,
+              attachments: { create: card.attachments.map(a => ({ name: a.name, url: a.url, type: a.type })) },
+              comments: { create: card.comments.map(c => ({ author: c.author, content: c.content })) }
+            }))
+          }
+        }
+      });
+      // Note: labels and assignees mapping omitted for now
+    }
     return NextResponse.json({ success: true });
-  } catch (error) {
-     console.error('[API POST /api/boards] Error:', error);
-     // Differentiate between bad request (invalid JSON) and server error
-     if (error instanceof SyntaxError) {
-         return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
-     }
-     return NextResponse.json({ error: 'Failed to save board data' }, { status: 500 });
+  } catch (error: any) {
+    console.error('[API POST /api/boards] Sync error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 } 
