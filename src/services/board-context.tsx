@@ -196,7 +196,7 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
         let movedCard: Card | undefined;
         let sourceColIdx: number | undefined;
         let sourceCardIdx: number | undefined;
-        // locate and remove from source
+        // locate card and its index
         columns.forEach((col, cIdx) => {
           const idx = col.cards.findIndex(c => c.id === cardId);
           if (idx !== -1) {
@@ -205,20 +205,20 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
             sourceCardIdx = idx;
           }
         });
-        if (
-          movedCard !== undefined &&
-          sourceColIdx !== undefined &&
-          sourceCardIdx !== undefined
-        ) {
-          // remove
+        if (movedCard !== undefined && sourceColIdx !== undefined && sourceCardIdx !== undefined) {
+          // remove from source
           columns[sourceColIdx].cards.splice(sourceCardIdx, 1);
-          // set its new order value
-          movedCard.order = newOrder;
           // insert into target at given index
           const destColIdx = columns.findIndex(c => c.id === targetColumnId);
           if (destColIdx !== -1) {
             columns[destColIdx].cards.splice(destinationIndex, 0, movedCard);
           }
+          // reassign order values for both source and destination columns
+          [sourceColIdx, destColIdx].forEach(colIdx => {
+            columns[colIdx].cards.forEach((card, idx) => {
+              card.order = idx;
+            });
+          });
         }
         return { ...prev, columns };
       });

@@ -17,6 +17,7 @@ export interface Column {
   id: string;
   title: string;
   width: number; // Percentage or pixel value
+  order: number; // Position of column in board
   cards: Card[];
 }
 

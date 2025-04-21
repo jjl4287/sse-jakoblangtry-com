@@ -37,6 +37,7 @@ export const Board: React.FC = () => {
       const { index: srcIdx, droppableId: srcCol } = source;
       const { index: destIdx, droppableId: destCol } = destination;
       if (srcCol === destCol && srcIdx === destIdx) return;
+      // Use the UI drop index directly for DB order
       void moveCard(draggableId, destCol, destIdx, destIdx);
     }
   }, [board, moveCard, moveColumn]);
