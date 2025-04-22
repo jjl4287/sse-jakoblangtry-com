@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { clsx } from 'clsx';
 import { Board } from '../board/Board';
 import { BoardProvider, useBoard } from '~/services/board-context';
 import { ThemeProvider } from '~/app/contexts/ThemeContext';
-import { Plus, Pin, Trash2 } from 'lucide-react';
+import { SidebarOpen, SidebarClose, Plus, Pin, Trash2 } from 'lucide-react';
 
 export default function BoardLayout() {
   return (
@@ -19,7 +20,7 @@ export default function BoardLayout() {
 const InnerBoardLayout: React.FC = () => {
   const { refreshBoard } = useBoard();
   const [projects, setProjects] = useState<{ id: string; title: string; pinned: boolean }[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Select a board by ID: update URL, refresh board, close sidebar
   const handleSelectBoard = (id: string) => {
@@ -29,6 +30,21 @@ const InnerBoardLayout: React.FC = () => {
     // Trigger board refresh (ignore promise)
     void refreshBoard();
     setSidebarOpen(false);
+  };
+
+  const handlePinBoard = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    console.log("Pin board:", id); // Placeholder action
+    // Add pin logic here
+  };
+
+  const handleDeleteBoard = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    console.log("Delete board:", id); // Placeholder action
+    // Add delete logic here
+    // Might need confirmation dialog
+    // Refresh project list after deletion
+    setProjects(prev => prev.filter(p => p.id !== id));
   };
 
   useEffect(() => {
@@ -87,44 +103,73 @@ const InnerBoardLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar column pushes content */}
-      {sidebarOpen && (
-        <aside className="w-64 bg-white dark:bg-gray-900 shadow-lg p-4 flex flex-col justify-between">
-          <div>
-            {/* New Board button */}
-            <button onClick={createNewBoard} className="flex items-center mb-4 px-2 py-1 bg-blue-500 text-white rounded">
-              <Plus className="w-4 h-4 mr-2" /> New Board
-            </button>
-            {/* List of projects */}
-            <div className="space-y-2">
-              {projects.map((proj) => (
-                <div
-                  key={proj.id}
-                  onClick={() => handleSelectBoard(proj.id)}
-                  className="flex justify-between items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded group cursor-pointer"
-                >
-                  <span className="text-gray-800 dark:text-gray-200">{proj.title}</span>
-                  <div className="opacity-0 group-hover:opacity-100 flex space-x-2">
+    <div className="flex h-screen relative">
+      <aside
+        className={clsx(
+          'fixed left-0 z-50 w-64 flex flex-col justify-between',
+          'top-2 bottom-2 h-[calc(100vh-1rem)]',
+          'bg-background/80 dark:bg-gray-900/90 backdrop-blur-md border border-border/20 rounded-xl',
+          'transition-transform duration-300 ease-in-out',
+          {
+            '-translate-x-full': !sidebarOpen,
+            'translate-x-0': sidebarOpen,
+          }
+        )}
+      >
+        <div className="p-4 pt-12 overflow-y-auto">
+          <button onClick={createNewBoard} className="mb-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg px-4 py-2 transition-colors duration-200 font-medium flex items-center justify-center">
+            <Plus className="w-4 h-4 mr-2" /> New Board
+          </button>
+          <div className="space-y-2">
+            {projects.map((proj) => (
+              <div
+                key={proj.id}
+                onClick={() => handleSelectBoard(proj.id)}
+                className="flex justify-between items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg group cursor-pointer"
+              >
+                <span className="text-gray-800 dark:text-gray-200 truncate pr-2">{proj.title}</span>
+                <div className="opacity-0 group-hover:opacity-100 flex space-x-2 flex-shrink-0">
+                  <button onClick={(e) => handlePinBoard(e, proj.id)} className="p-1 hover:bg-muted rounded-md">
                     <Pin size={16} className="cursor-pointer text-gray-600 dark:text-gray-400" />
+                  </button>
+                  <button onClick={(e) => handleDeleteBoard(e, proj.id)} className="p-1 hover:bg-muted rounded-md">
                     <Trash2 size={16} className="cursor-pointer text-red-600 dark:text-red-400" />
-                  </div>
+                  </button>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-          {/* Current user info */}
-          <div className="mt-4 flex items-center">
+        </div>
+        <div className="p-4 pt-0">
+          <div className="mt-4 flex items-center border-t border-border/20 pt-4">
             <div className="w-8 h-8 bg-gray-300 rounded-full mr-2"></div>
             <span className="text-gray-800 dark:text-gray-200">Admin User</span>
           </div>
-        </aside>
-      )}
+        </div>
+      </aside>
 
-      {/* Main board content */}
-      <div className="flex-1 flex flex-col">
-        {/* Pass setSidebarOpen down so header can toggle */}
-        <Board setSidebarOpen={setSidebarOpen} />
+      <div
+        className={clsx(
+          'flex-1 flex flex-col relative',
+          'transition-all duration-300 ease-in-out',
+          { 'pl-64': sidebarOpen }
+        )}
+      >
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className={clsx(
+            'p-2 rounded-md text-foreground/70 hover:text-foreground hover:bg-muted transition-all duration-300 ease-in-out',
+            {
+              'fixed top-[0.9rem] left-4 z-[60]': sidebarOpen,
+              'absolute top-[0.9rem] left-4 z-[60]': !sidebarOpen
+            }
+          )}
+          aria-label="Toggle sidebar"
+        >
+          {sidebarOpen ? <SidebarClose className="h-5 w-5" /> : <SidebarOpen className="h-5 w-5" />}
+        </button>
+        
+        <Board sidebarOpen={sidebarOpen} />
       </div>
     </div>
   );

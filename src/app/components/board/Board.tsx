@@ -1,21 +1,24 @@
 'use client';
 
-import React, { useRef, useEffect, useMemo, useCallback, useState, Dispatch, SetStateAction } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { Column } from './Column';
 import { useBoard } from '~/services/board-context';
 import { motion } from 'framer-motion';
 import { useTheme } from '~/app/contexts/ThemeContext';
-import { Sun, Moon, Menu } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { Input } from "~/components/ui/input";
 import { Search } from 'lucide-react';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import { ColumnAddForm } from './ColumnAddForm';
+import { clsx } from 'clsx';
 
-export type BoardProps = { setSidebarOpen: Dispatch<SetStateAction<boolean>> };
+export type BoardProps = {
+  sidebarOpen: boolean;
+};
 
-export const Board: React.FC<BoardProps> = ({ setSidebarOpen }) => {
+export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
   const { board, loading, error, searchQuery, setSearchQuery, moveCard, moveColumn } = useBoard();
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -140,25 +143,14 @@ export const Board: React.FC<BoardProps> = ({ setSidebarOpen }) => {
         transition={{ duration: 0.3 }}
       >
         <div className="flex items-center flex-grow mr-4 min-w-0">
-          <button onClick={() => setSidebarOpen((o) => !o)} className="p-1 mr-2">
-            <Menu className="h-6 w-6 text-current" />
-          </button>
-          <h2 className="text-lg font-semibold whitespace-nowrap truncate" style={{ color: 'var(--sidebar-primary-foreground)' }}>
+          <h2 className={clsx(
+            "text-lg font-semibold whitespace-nowrap truncate transition-all duration-300 ease-in-out",
+            { 'pl-10': !sidebarOpen } // Add padding only when sidebar is closed
+          )} style={{ color: 'var(--sidebar-primary-foreground)' }}>
             {board.title}
           </h2>
         </div>
         <div className="flex flex-wrap items-center space-x-0 space-y-2 sm:space-y-0 sm:space-x-3 flex-shrink-0">
-          <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              ref={searchInputRef}
-              type="search"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="pl-9 pr-3 py-1 h-8 w-full sm:w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
-            />
-          </div>
           <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm w-full sm:w-auto text-center">
             {columnCount} Columns
           </div>
@@ -171,6 +163,17 @@ export const Board: React.FC<BoardProps> = ({ setSidebarOpen }) => {
           >
             + Add Column
           </button>
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              ref={searchInputRef}
+              type="search"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="pl-9 pr-3 py-1 h-8 w-full sm:w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
+            />
+          </div>
           <button onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} className="p-1 ml-2">
             {theme === 'dark' ? (
               <Sun className="h-5 w-5 text-yellow-400" />
@@ -182,7 +185,7 @@ export const Board: React.FC<BoardProps> = ({ setSidebarOpen }) => {
       </motion.div>
       
       {/* Board Content */}
-      <motion.div className="flex-1 overflow-hidden pt-2 pb-4" layout={false}>
+      <motion.div className="flex-1 overflow-hidden pt-2 pb-0" layout={false}>
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="board" type="COLUMN" direction="horizontal">
             {(prov) => (
