@@ -10,10 +10,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function main() {
-  // Clear existing columns (which will cascade delete cards) and projects to avoid duplicate-ID errors
+  // Clear existing columns, projects, and users to avoid duplicate-ID errors
   console.log('Clearing existing seeded data...');
   await prisma.column.deleteMany();
-  await prisma.project.deleteMany();
+  await prisma.board.deleteMany();
+  await prisma.user.deleteMany();
   
   const boardPath = path.join(__dirname, '..', 'data', 'board.json');
   const raw = fs.readFileSync(boardPath, 'utf-8');
@@ -21,11 +22,20 @@ async function main() {
 
   console.log('Seeding database from board.json');
 
-  // Create a default project
-  const project = await prisma.project.create({
+  // Create an admin user
+  const admin = await prisma.user.create({
+    data: {
+      id: 'admin', // fixed ID for admin user
+      name: 'Admin User',
+    },
+  });
+
+  // Create a default board for admin
+  const boardEntry = await prisma.board.create({
     data: {
       title: 'Default Project',
       theme: board.theme || 'dark',
+      user: { connect: { id: admin.id } }
     },
   });
 
@@ -37,7 +47,7 @@ async function main() {
         title: col.title,
         width: col.width,
         order: index,
-        projectId: project.id,
+        projectId: boardEntry.id,
       },
     });
 

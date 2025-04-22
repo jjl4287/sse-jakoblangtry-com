@@ -1,20 +1,21 @@
 'use client';
 
-import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, useState, Dispatch, SetStateAction } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { Column } from './Column';
 import { useBoard } from '~/services/board-context';
 import { motion } from 'framer-motion';
 import { useTheme } from '~/app/contexts/ThemeContext';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Menu } from 'lucide-react';
 import { Input } from "~/components/ui/input";
 import { Search } from 'lucide-react';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
-import Image from 'next/image';
 import { ColumnAddForm } from './ColumnAddForm';
 
-export const Board: React.FC = () => {
+export type BoardProps = { setSidebarOpen: Dispatch<SetStateAction<boolean>> };
+
+export const Board: React.FC<BoardProps> = ({ setSidebarOpen }) => {
   const { board, loading, error, searchQuery, setSearchQuery, moveCard, moveColumn } = useBoard();
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -139,15 +140,12 @@ export const Board: React.FC = () => {
         transition={{ duration: 0.3 }}
       >
         <div className="flex items-center flex-grow mr-4 min-w-0">
-          <Image
-            src="/BigLogo_WhiteText.png"
-            alt="Society of Software Engineers"
-            width={32}
-            height={32}
-            className="mr-2 h-8 w-auto"
-            priority
-          />
-          <h2 className="text-lg font-semibold opacity-80 whitespace-nowrap truncate">SSE for 25/26</h2>
+          <button onClick={() => setSidebarOpen((o) => !o)} className="p-1 mr-2">
+            <Menu className="h-6 w-6 text-current" />
+          </button>
+          <h2 className="text-lg font-semibold whitespace-nowrap truncate" style={{ color: 'var(--sidebar-primary-foreground)' }}>
+            {board.title}
+          </h2>
         </div>
         <div className="flex flex-wrap items-center space-x-0 space-y-2 sm:space-y-0 sm:space-x-3 flex-shrink-0">
           <div className="relative w-full sm:w-auto">
@@ -173,6 +171,13 @@ export const Board: React.FC = () => {
           >
             + Add Column
           </button>
+          <button onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} className="p-1 ml-2">
+            {theme === 'dark' ? (
+              <Sun className="h-5 w-5 text-yellow-400" />
+            ) : (
+              <Moon className="h-5 w-5 text-blue-200" />
+            )}
+          </button>
         </div>
       </motion.div>
       
@@ -186,7 +191,7 @@ export const Board: React.FC = () => {
                 {...prov.droppableProps}
                 className="flex h-full overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent gap-x-4"
               >
-                {filteredBoard?.columns.map((column, index) => (
+                {(filteredBoard?.columns ?? []).map((column, index) => (
                   <Draggable key={column.id} draggableId={column.id} index={index}>
                     {(provD) => (
                       <div
@@ -213,19 +218,6 @@ export const Board: React.FC = () => {
           </Droppable>
         </DragDropContext>
       </motion.div>
-      
-      {/* Theme Toggle Button in bottom-left */}
-      <button
-        onClick={toggleTheme}
-        aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-        className="glass-morph-light shadow-sm p-2 rounded-full fixed bottom-4 left-4 z-50"
-      >
-        {theme === 'dark' ? (
-          <Sun className="h-4 w-4 text-yellow-400" />
-        ) : (
-          <Moon className="h-4 w-4 text-blue-200" />
-        )}
-      </button>
     </div>
   );
 }; 
