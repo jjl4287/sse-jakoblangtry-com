@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo } 
 import type { ReactNode } from 'react';
 import type { Board, Card } from '~/types';
 import { BoardService } from './board-service';
+import { useSession } from 'next-auth/react';
+import defaultBoardJson from '../../data/board.json';
 
 type BoardContextType = {
   board: Board | null;
@@ -57,6 +59,8 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  const { data: session, status } = useSession();
+
   // Generic error handler for service calls
   const handleServiceCall = async <T extends Board>(
     serviceCall: () => Promise<T>,
@@ -80,10 +84,22 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Load the board data on initial render
+  // Load the board data based on authentication status
   useEffect(() => {
-    refreshBoard();
-  }, []);
+    if (status === 'loading') return;
+    if (session) {
+      void refreshBoard();
+    } else {
+      const defaultBoard = {
+        id: 'default',
+        title: 'Example Board',
+        theme: 'light',
+        columns: defaultBoardJson.columns,
+      };
+      setBoard(defaultBoard);
+      setLoading(false);
+    }
+  }, [session, status]);
 
   // Refresh the board data
   const refreshBoard = useCallback(async () => {

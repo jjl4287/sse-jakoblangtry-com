@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 import { clsx } from 'clsx';
 import { Board } from '../board/Board';
 import { BoardProvider, useBoard } from '~/services/board-context';
@@ -19,6 +20,7 @@ export default function BoardLayout() {
 
 const InnerBoardLayout: React.FC = () => {
   const { refreshBoard } = useBoard();
+  const { data: session } = useSession();
   const [projects, setProjects] = useState<{ id: string; title: string; pinned: boolean }[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -141,9 +143,16 @@ const InnerBoardLayout: React.FC = () => {
           </div>
         </div>
         <div className="p-4 pt-0">
-          <div className="mt-4 flex items-center border-t border-border/20 pt-4">
-            <div className="w-8 h-8 bg-gray-300 rounded-full mr-2"></div>
-            <span className="text-gray-800 dark:text-gray-200">Admin User</span>
+          <div className="mt-4 flex items-center border-t border-border/20 pt-4 space-x-2">
+            <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+            {session ? (
+              <>
+                <span className="text-gray-800 dark:text-gray-200 truncate">{session.user?.name}</span>
+                <button className="ml-auto text-sm text-primary" onClick={() => signOut()}>Sign out</button>
+              </>
+            ) : (
+              <button className="text-sm text-primary" onClick={() => signIn()}>Sign in</button>
+            )}
           </div>
         </div>
       </aside>

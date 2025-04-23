@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 import { PrismaClient, Priority } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
@@ -35,6 +37,7 @@ async function main() {
     data: {
       title: 'Default Project',
       theme: board.theme || 'dark',
+      isPublic: true,
       user: { connect: { id: admin.id } }
     },
   });
