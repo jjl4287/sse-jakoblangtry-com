@@ -1,14 +1,42 @@
 import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
 import type { Board } from '~/types';
+import { z } from 'zod';
+
+// Schema for validating incoming Board data on PATCH
+const BoardInputSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  theme: z.enum(['light','dark']),
+  columns: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    width: z.number(),
+    order: z.number(),
+    cards: z.array(z.object({
+      id: z.string(),
+      title: z.string(),
+      description: z.string().optional(),
+      dueDate: z.string().optional(),
+      priority: z.enum(['low','medium','high']),
+      order: z.number(),
+      labels: z.array(z.object({ id: z.string(), name: z.string(), color: z.string() })),
+      assignees: z.array(z.string())
+    }))
+  }))
+});
+
+export { BoardInputSchema };
 
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   const boardId = params.id;
-  const boardData: Board = await request.json();
-  console.log('[API PATCH /api/boards/' + boardId + '] syncing columns:', boardData.columns.map(c => c.id));
+  // Validate request body
+  const rawBody = await request.json();
+  const boardData = BoardInputSchema.parse(rawBody);
+  console.debug(`[API PATCH /api/boards/${boardId}] syncing columns:`, boardData.columns.map(c => c.id));
   try {
     // Ensure labels exist
     const allLabels = boardData.columns.flatMap(col => col.cards.flatMap(card => card.labels));
@@ -48,7 +76,7 @@ export async function PATCH(
                     title: card.title,
                     description: card.description || '',
                     dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
-                    priority: card.priority as any,
+                    priority: card.priority,
                     order: card.order,
                     labels: { set: card.labels.map(l => ({ id: l.id })) },
                     assignees: { set: card.assignees.map(uId => ({ id: uId })) }
@@ -58,7 +86,7 @@ export async function PATCH(
                     title: card.title,
                     description: card.description || '',
                     dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
-                    priority: card.priority as any,
+                    priority: card.priority,
                     order: card.order,
                     labels: { connect: card.labels.map(l => ({ id: l.id })) },
                     assignees: { connect: card.assignees.map(uId => ({ id: uId })) }
@@ -77,7 +105,7 @@ export async function PATCH(
                   title: card.title,
                   description: card.description || '',
                   dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
-                  priority: card.priority as any,
+                  priority: card.priority,
                   order: card.order,
                   labels: { connect: card.labels.map(l => ({ id: l.id })) },
                   assignees: { connect: card.assignees.map(uId => ({ id: uId })) }

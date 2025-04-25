@@ -11,7 +11,18 @@ export function useMousePositionStyle(ref: RefObject<HTMLElement | null>) { // A
 
   useEffect(() => {
     const element = ref.current;
-    // ... (rest of hook is the same)
+    if (!element) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = element.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      element.style.setProperty('--mouse-x', `${x}px`);
+      element.style.setProperty('--mouse-y', `${y}px`);
+    };
+    element.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      element.removeEventListener('mousemove', handleMouseMove);
+    };
   }, [ref]); // Dependency array includes the ref
 
   // This hook doesn't need to return anything as it works via side effects

@@ -28,14 +28,14 @@ async function main() {
   const admin = await prisma.user.create({
     data: {
       id: 'admin', // fixed ID for admin user
-      name: 'Admin User',
+      name: 'admin', // login username
     },
   });
 
   // Create a default board for admin
   const boardEntry = await prisma.board.create({
     data: {
-      title: 'Default Project',
+      title: 'Admin Board',
       theme: board.theme || 'dark',
       isPublic: true,
       user: { connect: { id: admin.id } }

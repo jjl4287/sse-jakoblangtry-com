@@ -74,6 +74,41 @@ export class BoardService {
   }
 
   /**
+   * Lists all boards (id, title, pinned)
+   */
+  static async listBoards(): Promise<{ id: string; title: string; pinned: boolean }[]> {
+    const res = await fetch(API_ENDPOINT);
+    if (!res.ok) {
+      throw new Error(`Failed to list boards: ${res.status}`);
+    }
+    // Cast the JSON to the expected type
+    const data = (await res.json()) as { id: string; title: string; pinned: boolean }[];
+    return data;
+  }
+
+  /**
+   * Creates a new board
+   */
+  static async createBoard(title: string): Promise<{ id: string; title: string; pinned: boolean }> {
+    const res = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    if (!res.ok) {
+      let msg = `Failed to create board: ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new Error(msg);
+    }
+    // Cast the JSON to the expected type
+    const newBoard = (await res.json()) as { id: string; title: string; pinned: boolean };
+    return newBoard;
+  }
+
+  /**
    * Updates the board theme
    */
   static async updateTheme(theme: 'light' | 'dark'): Promise<Board> {
@@ -566,5 +601,20 @@ export class BoardService {
     // Persist changes using the fallback mechanism
     await saveBoard(updatedBoard);
     return updatedBoard;
+  }
+
+  /**
+   * Deletes a board by ID
+   */
+  static async deleteBoard(id: string): Promise<void> {
+    const res = await fetch(`${API_ENDPOINT}/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      let msg = `Delete board failed: ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new Error(msg);
+    }
   }
 } 

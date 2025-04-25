@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-argument,@typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -7,6 +8,8 @@ import { Board } from '../board/Board';
 import { BoardProvider, useBoard } from '~/services/board-context';
 import { ThemeProvider } from '~/app/contexts/ThemeContext';
 import { SidebarOpen, SidebarClose, Plus, Pin, Trash2 } from 'lucide-react';
+import { BoardService } from '~/services/board-service';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function BoardLayout() {
   return (
@@ -23,84 +26,71 @@ const InnerBoardLayout: React.FC = () => {
   const { data: session } = useSession();
   const [projects, setProjects] = useState<{ id: string; title: string; pinned: boolean }[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newBoardTitle, setNewBoardTitle] = useState('');
+  const [showSignInBanner, setShowSignInBanner] = useState(false);
 
-  // Select a board by ID: update URL, refresh board, close sidebar
-  const handleSelectBoard = (id: string) => {
+  // Select a board by ID: update URL, optionally skip API refresh (for local-only boards)
+  const handleSelectBoard = (id: string, skipRefresh = false) => {
     const params = new URLSearchParams(window.location.search);
     params.set('boardId', id);
     window.history.pushState({}, '', `?${params.toString()}`);
-    // Trigger board refresh (ignore promise)
-    void refreshBoard();
+    // Trigger board refresh if not skipped
+    if (!skipRefresh) {
+      void refreshBoard();
+    }
     setSidebarOpen(false);
   };
 
   const handlePinBoard = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    console.log("Pin board:", id); // Placeholder action
-    // Add pin logic here
+    // TODO: Implement pin/unpin via BoardService.updateTheme or a dedicated endpoint
   };
 
-  const handleDeleteBoard = (e: React.MouseEvent, id: string) => {
+  const handleDeleteBoard = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    console.log("Delete board:", id); // Placeholder action
-    // Add delete logic here
-    // Might need confirmation dialog
-    // Refresh project list after deletion
-    setProjects(prev => prev.filter(p => p.id !== id));
+    try {
+      await BoardService.deleteBoard(id);
+      setProjects(prev => prev.filter(p => p.id !== id));
+    } catch (error: unknown) {
+      console.error('Error deleting board:', String(error));
+    }
   };
 
   useEffect(() => {
-    fetch('/api/boards')
-      .then(async (res): Promise<{ id: string; title: string; pinned: boolean }[]> => {
-        if (!res.ok) {
-          console.error('[projects fetch error] status', res.status);
-          return [];
-        }
-        // Safely parse JSON
-        let parsed: unknown;
-        try {
-          parsed = await res.json();
-        } catch (err) {
-          console.error('[projects fetch error] parse error', err);
-          return [];
-        }
-        if (!Array.isArray(parsed)) {
-          return [];
-        }
-        // Cast to correct shape
-        return parsed as { id: string; title: string; pinned: boolean }[];
-      })
-      .then((data) => {
-        if (data.length === 0) return;
-        setProjects(data);
-        // If no boardId param, select first board by default
+    // Kick off board list fetch
+    const fetchBoards = async () => {
+      try {
+        const boards = await BoardService.listBoards();
+        if (boards.length === 0) return;
+        setProjects(boards);
         const params = new URLSearchParams(window.location.search);
         if (!params.get('boardId')) {
-          void handleSelectBoard(data[0]!.id);
+          handleSelectBoard(boards[0]!.id);
         }
-      })
-      .catch((err) => console.error('[projects fetch error]', err));
+      } catch (error: unknown) {
+        console.error('Error listing boards:', String(error));
+      }
+    };
+    void fetchBoards();
   }, []);
 
-  const createNewBoard = async () => {
-    const title = window.prompt('Enter board name');
-    if (!title) return;
+  // Create a new board using BoardService
+  const createBoard = async (title: string) => {
+    // Fallback for unauthenticated users: create local board only
+    if (!session) {
+      const localBoard = { id: uuidv4(), title, pinned: false };
+      setProjects(prev => [localBoard, ...prev]);
+      handleSelectBoard(localBoard.id, true);
+      setShowSignInBanner(true);
+      return;
+    }
     try {
-      const res = await fetch('/api/boards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
-      });
-      if (!res.ok) {
-        console.error('Failed to create board:', await res.text());
-        return;
-      }
-      const newBoard = await res.json() as { id: string; title: string; pinned: boolean };
-      // Prepend to list and select it
+      const newBoard = await BoardService.createBoard(title);
       setProjects(prev => [newBoard, ...prev]);
       handleSelectBoard(newBoard.id);
-    } catch (error) {
-      console.error('[create new board error]', error);
+    } catch (error: unknown) {
+      console.error('Error creating board:', String(error));
     }
   };
 
@@ -110,7 +100,7 @@ const InnerBoardLayout: React.FC = () => {
         className={clsx(
           'fixed left-0 z-50 w-64 flex flex-col justify-between',
           'top-2 bottom-2 h-[calc(100vh-1rem)]',
-          'bg-background/80 dark:bg-gray-900/90 backdrop-blur-md border border-border/20 rounded-xl',
+          'glass-column glass-border-animated bg-[#A7F3D0]/15 dark:bg-[#A7F3D0]/25 backdrop-blur-md border border-[#A7F3D0]/30 rounded-xl shadow-md hover:shadow-lg',
           'transition-transform duration-300 ease-in-out',
           {
             '-translate-x-full': !sidebarOpen,
@@ -118,10 +108,18 @@ const InnerBoardLayout: React.FC = () => {
           }
         )}
       >
-        <div className="p-4 pt-12 overflow-y-auto">
-          <button onClick={createNewBoard} className="mb-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg px-4 py-2 transition-colors duration-200 font-medium flex items-center justify-center">
-            <Plus className="w-4 h-4 mr-2" /> New Board
-          </button>
+        <div className="p-4 px-6 pt-12 overflow-y-auto">
+          {!isCreating ? (
+            <button onClick={() => { setIsCreating(true); setNewBoardTitle(''); }} className="mb-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg px-4 py-2 transition-colors duration-200 font-medium flex items-center justify-center">
+              <Plus className="w-4 h-4 mr-2" /> New Board
+            </button>
+          ) : (
+            <div className="mb-4 flex space-x-2">
+              <input type="text" value={newBoardTitle} onChange={(e) => setNewBoardTitle(e.target.value)} placeholder="Board name" className="flex-1 px-2 py-1 border rounded" />
+              <button disabled={!newBoardTitle.trim()} onClick={async () => { await createBoard(newBoardTitle.trim()); setIsCreating(false); }} className="px-2 py-1 bg-primary text-primary-foreground rounded">Save</button>
+              <button onClick={() => setIsCreating(false)} className="px-2 py-1 border rounded">Cancel</button>
+            </div>
+          )}
           <div className="space-y-2">
             {projects.map((proj) => (
               <div
@@ -142,7 +140,7 @@ const InnerBoardLayout: React.FC = () => {
             ))}
           </div>
         </div>
-        <div className="p-4 pt-0">
+        <div className="p-4 px-6 pt-0">
           <div className="mt-4 flex items-center border-t border-border/20 pt-4 space-x-2">
             <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
             {session ? (
@@ -156,6 +154,20 @@ const InnerBoardLayout: React.FC = () => {
           </div>
         </div>
       </aside>
+
+      {/* Banner reminding unauthenticated users to sign in for persistence */}
+      {showSignInBanner && !session && (
+        <div className="fixed top-0 left-0 right-0 bg-yellow-100 text-yellow-900 p-2 text-center z-50">
+          You&apos;re creating boards locally.{' '}
+          <button onClick={() => signIn()} className="underline font-bold">
+            Sign in
+          </button>{' '}
+          to save your boards.
+          <button onClick={() => setShowSignInBanner(false)} className="absolute top-1 right-2">
+            ✕
+          </button>
+        </div>
+      )}
 
       <div
         className={clsx(
