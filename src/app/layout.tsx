@@ -4,6 +4,7 @@ import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 
 import CursorLightEffect from '~/components/effects/CursorLightEffect';
+import Providers from './providers';
 
 export const metadata: Metadata = {
   title: "SSE Goals for 25/26",
@@ -22,7 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={geist.variable} suppressHydrationWarning>
       <body>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <CursorLightEffect />
       </body>
     </html>
