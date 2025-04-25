@@ -7,11 +7,15 @@ datasource db {
   url      = env("DB_URL")
 }
 
-model Project {
+model Board {
   id        String    @id @default(cuid())
   title     String
   theme     String?
   columns   Column[]
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  pinned    Boolean   @default(false)
+  isPublic  Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -21,7 +25,7 @@ model Column {
   title     String
   width     Int
   order     Int       @default(0)
-  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  board     Board     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String
   cards     Card[]
   createdAt DateTime  @default(now())
@@ -75,6 +79,7 @@ model User {
   id            String   @id @default(cuid())
   name          String
   assignedCards Card[]   @relation("CardAssignees")
+  boards        Board[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

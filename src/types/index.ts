@@ -6,6 +6,8 @@
  * Board interface representing the entire kanban board
  */
 export interface Board {
+  id: string;
+  title: string;
   columns: Column[];
   theme: 'light' | 'dark';
 }

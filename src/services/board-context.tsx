@@ -4,6 +4,9 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo } 
 import type { ReactNode } from 'react';
 import type { Board, Card } from '~/types';
 import { BoardService } from './board-service';
+import { useSession } from 'next-auth/react';
+import defaultBoardJson from '../../data/board.json';
+import { v4 as uuidv4 } from 'uuid';
 
 type BoardContextType = {
   board: Board | null;
@@ -57,6 +60,8 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  const { data: session, status } = useSession();
+
   // Generic error handler for service calls
   const handleServiceCall = async <T extends Board>(
     serviceCall: () => Promise<T>,
@@ -80,10 +85,22 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Load the board data on initial render
+  // Load the board data based on authentication status
   useEffect(() => {
-    refreshBoard();
-  }, []);
+    if (status === 'loading') return;
+    if (session) {
+      void refreshBoard();
+    } else {
+      const defaultBoard = {
+        id: 'default',
+        title: 'Example Board',
+        theme: 'light',
+        columns: defaultBoardJson.columns,
+      };
+      setBoard(defaultBoard);
+      setLoading(false);
+    }
+  }, [session, status]);
 
   // Refresh the board data
   const refreshBoard = useCallback(async () => {
@@ -105,12 +122,26 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
 
   // Create a new column
   const createColumn = useCallback(async (title: string, width: number) => {
+    // Fallback for unauthenticated users: update board locally
+    if (!session) {
+      setBoard(prev => {
+        if (!prev) return prev;
+        const newColumn = {
+          id: uuidv4(),
+          title,
+          width,
+          cards: [],
+        };
+        return { ...prev, columns: [...prev.columns, newColumn] };
+      });
+      return;
+    }
     await handleServiceCall(
       () => BoardService.createColumn(title, width),
       true,
       'Error creating column'
     );
-  }, []);
+  }, [session, handleServiceCall]);
 
   // Update a column
   const updateColumn = useCallback(async (
@@ -161,12 +192,30 @@ export const BoardProvider = ({ children }: { children: ReactNode }) => {
     columnId: string,
     cardData: Omit<Card, 'id' | 'columnId' | 'order'>
   ) => {
+    // Fallback for unauthenticated users: update card locally
+    if (!session) {
+      setBoard(prev => {
+        if (!prev) return prev;
+        const columns = prev.columns.map(col => ({ ...col, cards: [...col.cards] }));
+        const targetCol = columns.find(c => c.id === columnId);
+        if (!targetCol) return prev;
+        const newCard = {
+          id: uuidv4(),
+          columnId,
+          order: targetCol.cards.length,
+          ...cardData,
+        };
+        targetCol.cards.push(newCard as any);
+        return { ...prev, columns };
+      });
+      return;
+    }
     await handleServiceCall(
       () => BoardService.createCard(columnId, cardData),
       true,
       'Error creating card'
     );
-  }, []);
+  }, [session, handleServiceCall]);
 
   // Update a card
   const updateCard = useCallback(async (

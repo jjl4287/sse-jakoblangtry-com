@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
+import { z } from 'zod';
+
+// Schema for validating incoming card update data
+const CardUpdateSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional(),
+  dueDate: z.string().optional(),
+  priority: z.enum(['low', 'medium', 'high']).optional(),
+  order: z.number().optional(),
+  labels: z.array(z.object({ id: z.string(), name: z.string(), color: z.string() })).optional(),
+  assignees: z.array(z.string()).optional(),
+});
 
 // PATCH /api/cards/[id]
 export async function PATCH(
@@ -8,14 +20,15 @@ export async function PATCH(
 ) {
   const { id } = await params;
   try {
-    const updates = await request.json();
+    const rawUpdates = await request.json();
+    const updates = CardUpdateSchema.parse(rawUpdates);
     // Convert ISO date strings back to Date where needed
     if (updates.dueDate) {
-      updates.dueDate = new Date(updates.dueDate as string);
+      updates.dueDate = new Date(updates.dueDate);
     }
     const card = await prisma.card.update({
       where: { id },
-      data: updates as any,
+      data: updates,
     });
     return NextResponse.json(card);
   } catch (error: any) {

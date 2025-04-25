@@ -21,8 +21,9 @@ class ItemNotFoundError extends BoardServiceError {
 
 // --- API Helpers ---
 async function saveBoard(boardData: Board): Promise<void> {
-  const res = await fetch(API_ENDPOINT, {
-    method: 'POST',
+  // Use PATCH to update an existing board
+  const res = await fetch(`${API_ENDPOINT}/${boardData.id}`, {
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(boardData),
   });
@@ -36,12 +37,31 @@ async function saveBoard(boardData: Board): Promise<void> {
   }
 }
 
+// Fetch a single board by ID, or default to first board if no ID provided
 async function fetchBoard(): Promise<Board> {
-  const res = await fetch(API_ENDPOINT);
+  const rawParams = typeof window !== 'undefined' ? window.location.search : '';
+  const params = rawParams.replace('projectId', 'boardId');
+  const url = `${API_ENDPOINT}${params}`;
+  let res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Failed to fetch board: ${res.status}`);
+    throw new Error(`Failed to fetch boards list: ${res.status}`);
   }
-  return res.json();
+  const data = await res.json();
+  // If server returned a list, pick the first and re-fetch
+  if (Array.isArray(data)) {
+    if (data.length === 0) throw new Error('No boards available');
+    const firstId = data[0].id;
+    // Replace URL param for consistency
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      sp.set('boardId', firstId);
+      window.history.replaceState({}, '', `?${sp.toString()}`);
+    }
+    res = await fetch(`${API_ENDPOINT}?boardId=${firstId}`);
+    if (!res.ok) throw new Error(`Failed to fetch board: ${res.status}`);
+    return res.json();
+  }
+  return data as Board;
 }
 
 // BoardService for managing the kanban board data
@@ -51,6 +71,41 @@ export class BoardService {
    */
   static async getBoard(): Promise<Board> {
     return await fetchBoard();
+  }
+
+  /**
+   * Lists all boards (id, title, pinned)
+   */
+  static async listBoards(): Promise<{ id: string; title: string; pinned: boolean }[]> {
+    const res = await fetch(API_ENDPOINT);
+    if (!res.ok) {
+      throw new Error(`Failed to list boards: ${res.status}`);
+    }
+    // Cast the JSON to the expected type
+    const data = (await res.json()) as { id: string; title: string; pinned: boolean }[];
+    return data;
+  }
+
+  /**
+   * Creates a new board
+   */
+  static async createBoard(title: string): Promise<{ id: string; title: string; pinned: boolean }> {
+    const res = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    if (!res.ok) {
+      let msg = `Failed to create board: ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new Error(msg);
+    }
+    // Cast the JSON to the expected type
+    const newBoard = (await res.json()) as { id: string; title: string; pinned: boolean };
+    return newBoard;
   }
 
   /**
@@ -106,7 +161,9 @@ export class BoardService {
    * Creates a new column
    */
   static async createColumn(title: string, width: number): Promise<Board> {
-    const res = await fetch('/api/columns', {
+    // include projectId from URL so column is created in the correct project
+    const params = typeof window !== 'undefined' ? window.location.search : '';
+    const res = await fetch(`/api/columns${params}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, width }),
@@ -544,5 +601,20 @@ export class BoardService {
     // Persist changes using the fallback mechanism
     await saveBoard(updatedBoard);
     return updatedBoard;
+  }
+
+  /**
+   * Deletes a board by ID
+   */
+  static async deleteBoard(id: string): Promise<void> {
+    const res = await fetch(`${API_ENDPOINT}/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      let msg = `Delete board failed: ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new Error(msg);
+    }
   }
 } 

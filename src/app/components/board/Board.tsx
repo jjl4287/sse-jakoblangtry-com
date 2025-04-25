@@ -11,10 +11,14 @@ import { Sun, Moon } from 'lucide-react';
 import { Input } from "~/components/ui/input";
 import { Search } from 'lucide-react';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
-import Image from 'next/image';
 import { ColumnAddForm } from './ColumnAddForm';
+import { clsx } from 'clsx';
 
-export const Board: React.FC = () => {
+export type BoardProps = {
+  sidebarOpen: boolean;
+};
+
+export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
   const { board, loading, error, searchQuery, setSearchQuery, moveCard, moveColumn } = useBoard();
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -139,28 +143,14 @@ export const Board: React.FC = () => {
         transition={{ duration: 0.3 }}
       >
         <div className="flex items-center flex-grow mr-4 min-w-0">
-          <Image
-            src="/BigLogo_WhiteText.png"
-            alt="Society of Software Engineers"
-            width={32}
-            height={32}
-            className="mr-2 h-8 w-auto"
-            priority
-          />
-          <h2 className="text-lg font-semibold opacity-80 whitespace-nowrap truncate">SSE for 25/26</h2>
+          <h2 className={clsx(
+            "text-lg font-semibold whitespace-nowrap truncate transition-all duration-300 ease-in-out",
+            { 'pl-10': !sidebarOpen } // Add padding only when sidebar is closed
+          )} style={{ color: 'var(--sidebar-primary-foreground)' }}>
+            {board.title}
+          </h2>
         </div>
         <div className="flex flex-wrap items-center space-x-0 space-y-2 sm:space-y-0 sm:space-x-3 flex-shrink-0">
-          <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              ref={searchInputRef}
-              type="search"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="pl-9 pr-3 py-1 h-8 w-full sm:w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
-            />
-          </div>
           <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm w-full sm:w-auto text-center">
             {columnCount} Columns
           </div>
@@ -173,11 +163,29 @@ export const Board: React.FC = () => {
           >
             + Add Column
           </button>
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              ref={searchInputRef}
+              type="search"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="pl-9 pr-3 py-1 h-8 w-full sm:w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
+            />
+          </div>
+          <button onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} className="p-1 ml-2">
+            {theme === 'dark' ? (
+              <Sun className="h-5 w-5 text-yellow-400" />
+            ) : (
+              <Moon className="h-5 w-5 text-blue-200" />
+            )}
+          </button>
         </div>
       </motion.div>
       
       {/* Board Content */}
-      <motion.div className="flex-1 overflow-hidden pt-2 pb-4" layout={false}>
+      <motion.div className="flex-1 overflow-hidden pt-2 pb-0" layout={false}>
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="board" type="COLUMN" direction="horizontal">
             {(prov) => (
@@ -186,7 +194,7 @@ export const Board: React.FC = () => {
                 {...prov.droppableProps}
                 className="flex h-full overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent gap-x-4"
               >
-                {filteredBoard?.columns.map((column, index) => (
+                {(filteredBoard?.columns ?? []).map((column, index) => (
                   <Draggable key={column.id} draggableId={column.id} index={index}>
                     {(provD) => (
                       <div
@@ -213,19 +221,6 @@ export const Board: React.FC = () => {
           </Droppable>
         </DragDropContext>
       </motion.div>
-      
-      {/* Theme Toggle Button in bottom-left */}
-      <button
-        onClick={toggleTheme}
-        aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-        className="glass-morph-light shadow-sm p-2 rounded-full fixed bottom-4 left-4 z-50"
-      >
-        {theme === 'dark' ? (
-          <Sun className="h-4 w-4 text-yellow-400" />
-        ) : (
-          <Moon className="h-4 w-4 text-blue-200" />
-        )}
-      </button>
     </div>
   );
 }; 
