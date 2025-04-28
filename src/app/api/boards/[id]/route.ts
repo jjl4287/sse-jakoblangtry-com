@@ -125,6 +125,9 @@ export async function PATCH(
     const plainDoc = JSON.parse(JSON.stringify(boardState)) as unknown;
     // Apply JSON Patch operations to the cloned state
     const patchResult = applyPatch<unknown>(plainDoc, patchOps);
+    if (patchResult.errors && patchResult.errors.length > 0) {
+      return NextResponse.json({ error: 'Failed to apply JSON Patch', details: patchResult.errors }, { status: 400 });
+    }
     const { newDocument } = patchResult;
     mergeObj = newDocument;
   } else if (typeof rawBody === 'object' && rawBody !== null) {
