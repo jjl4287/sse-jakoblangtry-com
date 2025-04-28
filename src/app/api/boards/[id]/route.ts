@@ -130,6 +130,7 @@ export async function PATCH(
       }
       const plainDoc = JSON.parse(JSON.stringify(boardState)) as unknown;
       const patchResult = applyPatch<unknown>(plainDoc, patchOps);
+
       mergeObj = patchResult.newDocument;
     } else if (typeof rawBody === 'object' && rawBody !== null) {
       // JSON Merge Patch object
