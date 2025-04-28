@@ -93,143 +93,156 @@ export async function PATCH(
   if (!existingBoard) {
     return NextResponse.json({ error: 'Board not found' }, { status: 404 });
   }
-  // Read and parse the raw request body
-  const rawBody: unknown = await request.json();
-  let mergeObj: unknown;
 
-  if (Array.isArray(rawBody)) {
-    // Received JSON Patch array
-    const patchOps = rawBody as Operation[];
-    // Fetch full board state with nested relations for diff application
-    const boardState = await prisma.board.findUnique({
-      where: { id: boardId },
-      include: {
-        columns: {
-          include: {
-            cards: {
-              include: {
-                labels: true,
-                assignees: true,
-                attachments: true,
-                comments: true,
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid request body: Expected JSON' }, { status: 400 });
+  }
+
+  try {
+    let mergeObj: unknown;
+
+    // Handle JSON Patch application inside the main try block
+    if (Array.isArray(rawBody)) {
+      const patchOps = rawBody as Operation[];
+      // Fetch full board state - Note: this happens before transaction start
+      const boardState = await prisma.board.findUnique({
+        where: { id: boardId },
+        include: {
+          columns: {
+            include: {
+              cards: {
+                include: {
+                  labels: true,
+                  assignees: true,
+                  attachments: true,
+                  comments: true,
+                },
               },
             },
           },
         },
-      },
+      });
+      if (!boardState) {
+        throw new Error('Board state not found during patch application');
+      }
+      const plainDoc = JSON.parse(JSON.stringify(boardState)) as unknown;
+      const patchResult = applyPatch<unknown>(plainDoc, patchOps);
+      mergeObj = patchResult.newDocument;
+    } else if (typeof rawBody === 'object' && rawBody !== null) {
+      // JSON Merge Patch object
+      mergeObj = rawBody;
+    } else {
+      // Should be caught earlier, but handle defensively
+      return NextResponse.json({ error: 'Invalid patch format' }, { status: 400 });
+    }
+
+    // Validate the resulting object (from merge or patch application)
+    const patch = BoardPatchSchema.parse(mergeObj);
+
+    // --- Start Transaction --- 
+    await prisma.$transaction(async (tx) => {
+      // Board fields
+      const boardData: Record<string, unknown> = {};
+      if (patch.title !== undefined) boardData.title = patch.title;
+      if (patch.theme !== undefined) boardData.theme = patch.theme;
+      if (Object.keys(boardData).length) {
+        await tx.board.update({ where: { id: boardId }, data: boardData });
+      }
+      // Columns
+      if (patch.columns) {
+        for (const col of patch.columns) {
+          if (col._delete) {
+            await tx.column.delete({ where: { id: col.id } });
+          } else {
+            const cdata: Record<string, unknown> = {};
+            if (col.title !== undefined) cdata.title = col.title;
+            if (col.width !== undefined) cdata.width = col.width;
+            if (col.order !== undefined) cdata.order = col.order;
+            if (Object.keys(cdata).length) {
+              await tx.column.update({ where: { id: col.id }, data: cdata });
+            }
+          }
+        }
+      }
+      // Cards
+      if (patch.cards) {
+        for (const card of patch.cards) {
+          if (card._delete) {
+            await tx.card.delete({ where: { id: card.id } });
+          } else {
+            const cdata: Record<string, unknown> = {};
+            if (card.columnId !== undefined) cdata.columnId = card.columnId;
+            if (card.order !== undefined) cdata.order = card.order;
+            if (card.title !== undefined) cdata.title = card.title;
+            if (card.description !== undefined) cdata.description = card.description;
+            if (card.dueDate !== undefined) cdata.dueDate = new Date(card.dueDate);
+            if (card.priority !== undefined) cdata.priority = card.priority;
+            if (card.labels !== undefined) cdata.labels = { set: card.labels.map(id => ({ id })) };
+            if (card.assignees !== undefined) cdata.assignees = { set: card.assignees.map(id => ({ id })) };
+            if (Object.keys(cdata).length) {
+              await tx.card.update({ where: { id: card.id }, data: cdata });
+            }
+          }
+        }
+      }
+      // Labels
+      if (patch.labels) {
+        for (const label of patch.labels) {
+          if (label._delete) {
+            await tx.label.delete({ where: { id: label.id } });
+          } else {
+            const ldata: Record<string, unknown> = {};
+            if (label.name !== undefined) ldata.name = label.name;
+            if (label.color !== undefined) ldata.color = label.color;
+            await tx.label.upsert({
+              where: { id: label.id },
+              update: ldata,
+              create: { id: label.id, name: label.name ?? '', color: label.color ?? '' }
+            });
+          }
+        }
+      }
+      // Comments
+      if (patch.comments) {
+        for (const cm of patch.comments) {
+          if (cm._delete) {
+            await tx.comment.delete({ where: { id: cm.id } });
+          } else if (cm.content !== undefined) {
+            await tx.comment.update({ where: { id: cm.id }, data: { content: cm.content } });
+          }
+        }
+      }
+      // Attachments
+      if (patch.attachments) {
+        for (const att of patch.attachments) {
+          if (att._delete) {
+            await tx.attachment.delete({ where: { id: att.id } });
+          } else {
+            const adata: Record<string, unknown> = {};
+            if (att.name !== undefined) adata.name = att.name;
+            if (att.url !== undefined) adata.url = att.url;
+            if (att.type !== undefined) adata.type = att.type;
+            await tx.attachment.upsert({
+              where: { id: att.id },
+              update: adata,
+              create: { id: att.id, name: att.name ?? '', url: att.url ?? '', type: att.type ?? '', card: { connect: { id: att.cardId } } }
+            });
+          }
+        }
+      }
     });
-    if (!boardState) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 });
-    }
-    // Deep clone board state
-    const plainDoc = JSON.parse(JSON.stringify(boardState)) as unknown;
-    // Apply JSON Patch operations to the cloned state
-    const patchResult = applyPatch<unknown>(plainDoc, patchOps);
-    const { newDocument } = patchResult;
-    mergeObj = newDocument;
-  } else if (typeof rawBody === 'object' && rawBody !== null) {
-    // Received JSON Merge Patch object
-    mergeObj = rawBody;
-  } else {
-    return NextResponse.json({ error: 'Invalid patch format' }, { status: 400 });
-  }
-  // Validate against merged patch schema
-  const patch = BoardPatchSchema.parse(mergeObj);
-  try {
-    const tx = prisma;
-    // Board fields
-    const boardData: Record<string, unknown> = {};
-    if (patch.title !== undefined) boardData.title = patch.title;
-    if (patch.theme !== undefined) boardData.theme = patch.theme;
-    if (Object.keys(boardData).length) {
-      await tx.board.update({ where: { id: boardId }, data: boardData });
-    }
-    // Columns
-    if (patch.columns) {
-      for (const col of patch.columns) {
-        if (col._delete) {
-          await tx.column.delete({ where: { id: col.id } });
-        } else {
-          const cdata: Record<string, unknown> = {};
-          if (col.title !== undefined) cdata.title = col.title;
-          if (col.width !== undefined) cdata.width = col.width;
-          if (col.order !== undefined) cdata.order = col.order;
-          if (Object.keys(cdata).length) {
-            await tx.column.update({ where: { id: col.id }, data: cdata });
-          }
-        }
-      }
-    }
-    // Cards
-    if (patch.cards) {
-      for (const card of patch.cards) {
-        if (card._delete) {
-          await tx.card.delete({ where: { id: card.id } });
-        } else {
-          const cdata: Record<string, unknown> = {};
-          if (card.columnId !== undefined) cdata.columnId = card.columnId;
-          if (card.order !== undefined) cdata.order = card.order;
-          if (card.title !== undefined) cdata.title = card.title;
-          if (card.description !== undefined) cdata.description = card.description;
-          if (card.dueDate !== undefined) cdata.dueDate = new Date(card.dueDate);
-          if (card.priority !== undefined) cdata.priority = card.priority;
-          if (card.labels !== undefined) cdata.labels = { set: card.labels.map(id => ({ id })) };
-          if (card.assignees !== undefined) cdata.assignees = { set: card.assignees.map(id => ({ id })) };
-          if (Object.keys(cdata).length) {
-            await tx.card.update({ where: { id: card.id }, data: cdata });
-          }
-        }
-      }
-    }
-    // Labels
-    if (patch.labels) {
-      for (const label of patch.labels) {
-        if (label._delete) {
-          await tx.label.delete({ where: { id: label.id } });
-        } else {
-          const ldata: Record<string, unknown> = {};
-          if (label.name !== undefined) ldata.name = label.name;
-          if (label.color !== undefined) ldata.color = label.color;
-          await tx.label.upsert({
-            where: { id: label.id },
-            update: ldata,
-            create: { id: label.id, name: label.name ?? '', color: label.color ?? '' }
-          });
-        }
-      }
-    }
-    // Comments
-    if (patch.comments) {
-      for (const cm of patch.comments) {
-        if (cm._delete) {
-          await tx.comment.delete({ where: { id: cm.id } });
-        } else if (cm.content !== undefined) {
-          await tx.comment.update({ where: { id: cm.id }, data: { content: cm.content } });
-        }
-      }
-    }
-    // Attachments
-    if (patch.attachments) {
-      for (const att of patch.attachments) {
-        if (att._delete) {
-          await tx.attachment.delete({ where: { id: att.id } });
-        } else {
-          const adata: Record<string, unknown> = {};
-          if (att.name !== undefined) adata.name = att.name;
-          if (att.url !== undefined) adata.url = att.url;
-          if (att.type !== undefined) adata.type = att.type;
-          await tx.attachment.upsert({
-            where: { id: att.id },
-            update: adata,
-            create: { id: att.id, name: att.name ?? '', url: att.url ?? '', type: att.type ?? '', card: { connect: { id: att.cardId } } }
-          });
-        }
-      }
-    }
+
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
-    console.error(`[API PATCH /api/boards/${boardId}] Merge patch error:`, e);
+    console.error(`[API PATCH /api/boards/${boardId}] Patch error:`, e);
     const msg = e instanceof Error ? e.message : String(e);
+    // Distinguish between Zod validation errors and other errors if needed
+    if (e instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Patch validation failed', issues: e.errors }, { status: 400 });
+    }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

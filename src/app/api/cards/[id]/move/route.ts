@@ -15,7 +15,7 @@ export async function POST(
     };
 
     // Retry on transaction conflicts
-    const MAX_RETRIES = 3;
+    const MAX_RETRIES = 5;
     let attempt = 0;
     while (true) {
       try {
@@ -78,7 +78,7 @@ export async function POST(
         // Retry on write conflicts
         if (txError?.code === 'P2034' && attempt < MAX_RETRIES - 1) {
           // Exponential backoff before retrying
-          const backoffMs = 100 * (2 ** attempt);
+          const backoffMs = 200 * (2 ** attempt);
           await new Promise((res) => setTimeout(res, backoffMs));
           attempt++;
           continue;
