@@ -77,10 +77,10 @@ export async function POST(
       } catch (txError: any) {
         // Retry on write conflicts
         if (txError?.code === 'P2034' && attempt < MAX_RETRIES - 1) {
-          // Exponential backoff before retrying
-          const backoffMs = 200 * (2 ** attempt);
-          await new Promise((res) => setTimeout(res, backoffMs));
           attempt++;
+          const backoffMs = 200 * (2 ** (attempt - 1));
+          console.log(`[API POST /api/cards/${id}/move] Retrying P2034. Attempt ${attempt}/${MAX_RETRIES - 1}. Waiting ${backoffMs}ms.`);
+          await new Promise((res) => setTimeout(res, backoffMs));
           continue;
         }
         throw txError;
