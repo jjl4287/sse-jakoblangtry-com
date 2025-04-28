@@ -41,7 +41,14 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
   // Handle DnD end for both intra- and inter-column moves
   const onDragEnd = useCallback((result: DropResult) => {
     const { source, destination, draggableId, type } = result;
+    
+    // Early returns with additional validation
     if (!destination || !board) return;
+    if (!draggableId) {
+      console.warn('DnD operation missing draggableId');
+      return;
+    }
+    
     if (type === 'COLUMN') {
       const { index: srcIdx } = source;
       const { index: destIdx } = destination;
@@ -50,8 +57,11 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     } else {
       const { index: srcIdx, droppableId: srcCol } = source;
       const { index: destIdx, droppableId: destCol } = destination;
+      if (!srcCol || !destCol) {
+        console.warn('DnD operation missing column ids');
+        return;
+      }
       if (srcCol === destCol && srcIdx === destIdx) return;
-      // Use the UI drop index directly for DB order
       void moveCard(draggableId, destCol, destIdx, destIdx);
     }
   }, [board, moveCard, moveColumn]);
@@ -82,26 +92,39 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     if (!searchQuery.trim()) return board;
     
     const query = searchQuery.toLowerCase();
-    const columns = board.columns.map(column => ({
-      ...column,
-      cards: column.cards.filter(card => 
-        card.title.toLowerCase().includes(query) || 
-        card.description?.toLowerCase().includes(query) || 
-        card.labels.some(label => label.name.toLowerCase().includes(query))
-      )
-    }));
+    const columns = board.columns.map(column => {
+      // Defensive check for column 
+      if (!column || !column.cards) {
+        console.warn('Invalid column structure found while filtering', column);
+        return { ...column, cards: [] };
+      }
+      
+      // Safe filter that handles potential undefined values in cards
+      const filteredCards = column.cards
+        .filter(card => card && (
+          (card.title && card.title.toLowerCase().includes(query)) || 
+          (card.description && card.description.toLowerCase().includes(query)) || 
+          (card.labels && Array.isArray(card.labels) && card.labels.some(
+            label => label && label.name && label.name.toLowerCase().includes(query)
+          ))
+        ));
+      
+      return { ...column, cards: filteredCards };
+    });
     
     return { ...board, columns };
   }, [board, searchQuery]);
 
   // Calculate card count based on filtered board
   const cardCount = useMemo(() => {
-    return filteredBoard?.columns?.reduce((acc, col) => {
-      if (col?.cards) {
+    if (!filteredBoard || !filteredBoard.columns) return 0;
+    
+    return filteredBoard.columns.reduce((acc, col) => {
+      if (col && col.cards && Array.isArray(col.cards)) {
         return acc + col.cards.length;
       }
       return acc;
-    }, 0) ?? 0;
+    }, 0);
   }, [filteredBoard]);
 
   // Different UI states
@@ -205,20 +228,23 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
                 {...prov.droppableProps}
                 className="flex h-full overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent gap-x-4"
               >
-                {(filteredBoard?.columns ?? []).map((column, index) => (
-                  <Draggable key={column.id} draggableId={column.id} index={index}>
-                    {(provD) => (
-                      <div
-                        ref={provD.innerRef}
-                        {...provD.draggableProps}
-                        {...provD.dragHandleProps}
-                        style={{ ...provD.draggableProps.style }}
-                        className="flex flex-col h-full flex-1 min-w-[250px]"
-                      >
-                        <Column column={column} />
-                      </div>
-                    )}
-                  </Draggable>
+                {Array.isArray(filteredBoard?.columns) && filteredBoard?.columns.map((column, index) => (
+                  // Check if column exists and has ID before rendering
+                  column && column.id ? (
+                    <Draggable key={column.id} draggableId={column.id} index={index}>
+                      {(provD) => (
+                        <div
+                          ref={provD.innerRef}
+                          {...provD.draggableProps}
+                          {...provD.dragHandleProps}
+                          style={{ ...provD.draggableProps.style }}
+                          className="flex flex-col h-full flex-1 min-w-[250px]"
+                        >
+                          <Column column={column} />
+                        </div>
+                      )}
+                    </Draggable>
+                  ) : null
                 ))}
                 {prov.placeholder}
                 {/* Inline Add Column Form as a new column slot */}

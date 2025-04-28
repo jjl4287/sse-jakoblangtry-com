@@ -7,7 +7,7 @@
  */
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { Board, Column, Card, Label, Attachment, Comment } from '~/types';
 import { useSession } from 'next-auth/react';
@@ -90,30 +90,71 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, []
   );
 
-  // Debounced server calls for moves
-  const debouncedMoveColumn = useMemo(
-    () => debounce(
-      async (colId: string, idx: number) => {
-        try { await BoardService.moveColumn(colId, idx); } catch {}
-      },
-      1000,
-      { leading: false, trailing: true }
-    ),
-    []
-  );
-  const debouncedMoveCard = useMemo(
-    () => {
-      // Only invoke after 1 second of inactivity (trailing edge)
-      return debounce(
-        async (cardId: string, targetColumnId: string, order: number) => {
-          try { await BoardService.moveCard(cardId, targetColumnId, order); } catch {}
-        },
-        1000,
-        { leading: false, trailing: true }
-      );
+  const moveCardDebouncers = useRef<Record<string, (cid: string, colId: string, ord: number) => void>>({});
+  const moveColumnDebouncers = useRef<Record<string, (colId: string, idx: number) => void>>({});
+
+  // Debounce individual card moves via BoardService, updating state from returned board
+  const enqueueMoveCard = useCallback(
+    (cardId: string, targetColumnId: string, order: number) => {
+      if (!moveCardDebouncers.current[cardId]) {
+        moveCardDebouncers.current[cardId] = debounce(
+          async (cid: string, colId: string, ord: number) => {
+            setSaveStatus('saving');
+            try {
+              const updatedBoard = await BoardService.moveCard(cid, colId, ord);
+              setBoard(updatedBoard);
+              setSaveStatus('saved');
+            } catch (err) {
+              console.error('Failed to move card', err);
+              setSaveStatus('error');
+            }
+          },
+          300,
+          { leading: false, trailing: true }
+        );
+      }
+      moveCardDebouncers.current[cardId](cardId, targetColumnId, order);
     },
     []
   );
+
+  // Debounce individual column moves via BoardService, updating state from returned board
+  const enqueueMoveColumn = useCallback(
+    (columnId: string, newIndex: number) => {
+      if (!moveColumnDebouncers.current[columnId]) {
+        moveColumnDebouncers.current[columnId] = debounce(
+          async (cid: string, idx: number) => {
+            setSaveStatus('saving');
+            try {
+              const updatedBoard = await BoardService.moveColumn(cid, idx);
+              setBoard(updatedBoard);
+              setSaveStatus('saved');
+            } catch (err) {
+              console.error('Failed to move column', err);
+              setSaveStatus('error');
+            }
+          },
+          300,
+          { leading: false, trailing: true }
+        );
+      }
+      moveColumnDebouncers.current[columnId](columnId, newIndex);
+    },
+    []
+  );
+
+  // Flush pending move patches on pagehide or unmount
+  useEffect(() => {
+    const flushAll = () => {
+      Object.values(moveCardDebouncers.current).forEach(fn => fn.flush?.());
+      Object.values(moveColumnDebouncers.current).forEach(fn => fn.flush?.());
+    };
+    window.addEventListener('pagehide', flushAll);
+    return () => {
+      flushAll();
+      window.removeEventListener('pagehide', flushAll);
+    };
+  }, []);
 
   // Mutators:
   const updateTheme = useCallback(async (theme: 'light' | 'dark') => {
@@ -193,8 +234,11 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       cols.splice(newIndex, 0, m);
       return { ...prev!, columns: cols };
     });
-    if (session) debouncedMoveColumn(columnId, newIndex);
-  }, [session, debouncedMoveColumn, updateBoardState]);
+    if (session) {
+      setSaveStatus('saving');
+      enqueueMoveColumn(columnId, newIndex);
+    }
+  }, [session, enqueueMoveColumn, updateBoardState]);
 
   const createCard = useCallback(async (columnId: string, data: Omit<Card, 'id' | 'columnId' | 'order'>) => {
     updateBoardState(prev => {
@@ -272,8 +316,11 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const recalc = (arr: Card[]) => arr.map((card, i) => ({ ...card, order: i }));
       return { ...prev!, columns: cols.map(c => c.id === fromId || c.id === targetColumnId ? { ...c, cards: recalc(c.cards) } : c) };
     });
-    if (session) debouncedMoveCard(cardId, targetColumnId, newOrder);
-  }, [session, debouncedMoveCard, updateBoardState]);
+    if (session) {
+      setSaveStatus('saving');
+      enqueueMoveCard(cardId, targetColumnId, newOrder);
+    }
+  }, [session, enqueueMoveCard, updateBoardState]);
 
   const duplicateCard = useCallback((cardId: string, targetColumnId?: string) => {
     updateBoardState(prev => {
