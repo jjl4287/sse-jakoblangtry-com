@@ -1,139 +1,249 @@
 import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
-import type { Board } from '~/types';
 import { z } from 'zod';
+import { applyPatch } from 'fast-json-patch';
+import type { Operation } from 'fast-json-patch';
 
-// Schema for validating incoming Board data on PATCH
-const BoardInputSchema = z.object({
+// Define a JSON Merge Patch type for boards
+// Removed unused MergeBoardPatch type
+
+// JSON Merge Patch schema for board updates
+const CardMoveSchema = z.object({
+  id: z.string(),
+  columnId: z.string().optional(),
+  order: z.number().optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  dueDate: z.string().optional(),
+  priority: z.enum(['low','medium','high']).optional(),
+  labels: z.array(z.string()).optional(),
+  assignees: z.array(z.string()).optional(),
+  _delete: z.boolean().optional(),
+});
+const ColumnPatchSchema = z.object({
+  id: z.string(),
+  title: z.string().optional(),
+  width: z.number().optional(),
+  order: z.number().optional(),
+  _delete: z.boolean().optional(),
+});
+const LabelPatchSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  color: z.string().optional(),
+  _delete: z.boolean().optional(),
+});
+const CommentPatchSchema = z.object({
+  id: z.string(),
+  content: z.string().optional(),
+  _delete: z.boolean().optional(),
+});
+const AttachmentPatchSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  url: z.string().optional(),
+  type: z.string().optional(),
+  cardId: z.string(),
+  _delete: z.boolean().optional(),
+});
+const BoardPatchSchema = z.object({
+  title: z.string().optional(),
+  theme: z.enum(['light','dark']).optional(),
+  columns: z.array(ColumnPatchSchema).optional(),
+  cards: z.array(CardMoveSchema).optional(),
+  labels: z.array(LabelPatchSchema).optional(),
+  comments: z.array(CommentPatchSchema).optional(),
+  attachments: z.array(AttachmentPatchSchema).optional(),
+});
+
+// Input schema for full board shape, used in tests and for merge patch validation
+export const BoardInputSchema = z.object({
   id: z.string(),
   title: z.string(),
   theme: z.enum(['light','dark']),
-  columns: z.array(z.object({
-    id: z.string(),
-    title: z.string(),
-    width: z.number(),
-    order: z.number(),
-    cards: z.array(z.object({
-      id: z.string(),
-      title: z.string(),
-      description: z.string().optional(),
-      dueDate: z.string().optional(),
-      priority: z.enum(['low','medium','high']),
-      order: z.number(),
-      labels: z.array(z.object({ id: z.string(), name: z.string(), color: z.string() })),
-      assignees: z.array(z.string())
-    }))
-  }))
+  columns: z.array(z.any()),
 });
-
-export { BoardInputSchema };
-
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const boardId = params.id;
-  // Validate request body
-  const rawBody = await request.json();
-  const boardData = BoardInputSchema.parse(rawBody);
-  console.debug(`[API PATCH /api/boards/${boardId}] syncing columns:`, boardData.columns.map(c => c.id));
-  try {
-    // Ensure labels exist
-    const allLabels = boardData.columns.flatMap(col => col.cards.flatMap(card => card.labels));
-    const uniqueLabels = Array.from(new Map(allLabels.map(l => [l.id, l])).values());
-    await Promise.all(uniqueLabels.map(label =>
-      prisma.label.upsert({ where: { id: label.id }, update: { name: label.name, color: label.color }, create: { id: label.id, name: label.name, color: label.color } })
-    ));
-    // Ensure users exist
-    const allAssignees = boardData.columns.flatMap(col => col.cards.flatMap(card => card.assignees));
-    const uniqueAssignees = Array.from(new Set(allAssignees));
-    await Promise.all(uniqueAssignees.map(id =>
-      prisma.user.upsert({ where: { id }, update: {}, create: { id, name: id } })
-    ));
-    // Fetch existing board
-    const existing = await prisma.board.findUnique({ where: { id: boardId }, include: { columns: { include: { cards: true } } } });
-    if (!existing) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 });
-    }
-    // Update board with nested upserts
-    await prisma.board.update({
-      where: { id: boardId },
-      data: {
-        theme: boardData.theme,
-        columns: {
-          deleteMany: { id: { notIn: boardData.columns.map(c => c.id) } },
-          upsert: boardData.columns.map(col => ({
-            where: { id: col.id },
-            update: {
-              title: col.title,
-              width: col.width,
-              order: col.order,
-              cards: {
-                deleteMany: { id: { notIn: col.cards.map(card => card.id) } },
-                upsert: col.cards.map(card => ({
-                  where: { id: card.id },
-                  update: {
-                    title: card.title,
-                    description: card.description || '',
-                    dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
-                    priority: card.priority,
-                    order: card.order,
-                    labels: { set: card.labels.map(l => ({ id: l.id })) },
-                    assignees: { set: card.assignees.map(uId => ({ id: uId })) }
-                  },
-                  create: {
-                    id: card.id,
-                    title: card.title,
-                    description: card.description || '',
-                    dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
-                    priority: card.priority,
-                    order: card.order,
-                    labels: { connect: card.labels.map(l => ({ id: l.id })) },
-                    assignees: { connect: card.assignees.map(uId => ({ id: uId })) }
-                  }
-                }))
-              }
-            },
-            create: {
-              id: col.id,
-              title: col.title,
-              width: col.width,
-              order: col.order,
-              cards: {
-                create: col.cards.map(card => ({
-                  id: card.id,
-                  title: card.title,
-                  description: card.description || '',
-                  dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
-                  priority: card.priority,
-                  order: card.order,
-                  labels: { connect: card.labels.map(l => ({ id: l.id })) },
-                  assignees: { connect: card.assignees.map(uId => ({ id: uId })) }
-                }))
-              }
-            }
-          }))
-        }
-      }
-    });
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('[API PATCH /api/boards/' + boardId + '] Sync error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
 
 // DELETE /api/boards/[id]
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  // Await dynamic params per Next.js spec
+  const { id } = await params;
   try {
     await prisma.board.delete({ where: { id } });
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[API DELETE /api/boards/${id}] Error:`, error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+// PATCH /api/boards/[id]
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  // Await dynamic params per Next.js spec
+  const { id: boardId } = await params;
+  // Verify board exists
+  const existingBoard = await prisma.board.findUnique({ where: { id: boardId } });
+  if (!existingBoard) {
+    return NextResponse.json({ error: 'Board not found' }, { status: 404 });
+  }
+
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid request body: Expected JSON' }, { status: 400 });
+  }
+
+  try {
+    let mergeObj: unknown;
+
+    // Handle JSON Patch application inside the main try block
+    if (Array.isArray(rawBody)) {
+      const patchOps = rawBody as Operation[];
+      // Fetch full board state - Note: this happens before transaction start
+      const boardState = await prisma.board.findUnique({
+        where: { id: boardId },
+        include: {
+          columns: {
+            include: {
+              cards: {
+                include: {
+                  labels: true,
+                  assignees: true,
+                  attachments: true,
+                  comments: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      if (!boardState) {
+        throw new Error('Board state not found during patch application');
+      }
+      const plainDoc = JSON.parse(JSON.stringify(boardState)) as unknown;
+      const patchResult = applyPatch<unknown>(plainDoc, patchOps);
+
+      mergeObj = patchResult.newDocument;
+    } else if (typeof rawBody === 'object' && rawBody !== null) {
+      // JSON Merge Patch object
+      mergeObj = rawBody;
+    } else {
+      // Should be caught earlier, but handle defensively
+      return NextResponse.json({ error: 'Invalid patch format' }, { status: 400 });
+    }
+
+    // Validate the resulting object (from merge or patch application)
+    const patch = BoardPatchSchema.parse(mergeObj);
+
+    // --- Start Transaction --- 
+    await prisma.$transaction(async (tx) => {
+      // Board fields
+      const boardData: Record<string, unknown> = {};
+      if (patch.title !== undefined) boardData.title = patch.title;
+      if (patch.theme !== undefined) boardData.theme = patch.theme;
+      if (Object.keys(boardData).length) {
+        await tx.board.update({ where: { id: boardId }, data: boardData });
+      }
+      // Columns
+      if (patch.columns) {
+        for (const col of patch.columns) {
+          if (col._delete) {
+            await tx.column.delete({ where: { id: col.id } });
+          } else {
+            const cdata: Record<string, unknown> = {};
+            if (col.title !== undefined) cdata.title = col.title;
+            if (col.width !== undefined) cdata.width = col.width;
+            if (col.order !== undefined) cdata.order = col.order;
+            if (Object.keys(cdata).length) {
+              await tx.column.update({ where: { id: col.id }, data: cdata });
+            }
+          }
+        }
+      }
+      // Cards
+      if (patch.cards) {
+        for (const card of patch.cards) {
+          if (card._delete) {
+            await tx.card.delete({ where: { id: card.id } });
+          } else {
+            const cdata: Record<string, unknown> = {};
+            if (card.columnId !== undefined) cdata.columnId = card.columnId;
+            if (card.order !== undefined) cdata.order = card.order;
+            if (card.title !== undefined) cdata.title = card.title;
+            if (card.description !== undefined) cdata.description = card.description;
+            if (card.dueDate !== undefined) cdata.dueDate = new Date(card.dueDate);
+            if (card.priority !== undefined) cdata.priority = card.priority;
+            if (card.labels !== undefined) cdata.labels = { set: card.labels.map(id => ({ id })) };
+            if (card.assignees !== undefined) cdata.assignees = { set: card.assignees.map(id => ({ id })) };
+            if (Object.keys(cdata).length) {
+              await tx.card.update({ where: { id: card.id }, data: cdata });
+            }
+          }
+        }
+      }
+      // Labels
+      if (patch.labels) {
+        for (const label of patch.labels) {
+          if (label._delete) {
+            await tx.label.delete({ where: { id: label.id } });
+          } else {
+            const ldata: Record<string, unknown> = {};
+            if (label.name !== undefined) ldata.name = label.name;
+            if (label.color !== undefined) ldata.color = label.color;
+            await tx.label.upsert({
+              where: { id: label.id },
+              update: ldata,
+              create: { id: label.id, name: label.name ?? '', color: label.color ?? '' }
+            });
+          }
+        }
+      }
+      // Comments
+      if (patch.comments) {
+        for (const cm of patch.comments) {
+          if (cm._delete) {
+            await tx.comment.delete({ where: { id: cm.id } });
+          } else if (cm.content !== undefined) {
+            await tx.comment.update({ where: { id: cm.id }, data: { content: cm.content } });
+          }
+        }
+      }
+      // Attachments
+      if (patch.attachments) {
+        for (const att of patch.attachments) {
+          if (att._delete) {
+            await tx.attachment.delete({ where: { id: att.id } });
+          } else {
+            const adata: Record<string, unknown> = {};
+            if (att.name !== undefined) adata.name = att.name;
+            if (att.url !== undefined) adata.url = att.url;
+            if (att.type !== undefined) adata.type = att.type;
+            await tx.attachment.upsert({
+              where: { id: att.id },
+              update: adata,
+              create: { id: att.id, name: att.name ?? '', url: att.url ?? '', type: att.type ?? '', card: { connect: { id: att.cardId } } }
+            });
+          }
+        }
+      }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (e: unknown) {
+    console.error(`[API PATCH /api/boards/${boardId}] Patch error:`, e);
+    const msg = e instanceof Error ? e.message : String(e);
+    // Distinguish between Zod validation errors and other errors if needed
+    if (e instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Patch validation failed', issues: e.errors }, { status: 400 });
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { Column } from './Column';
-import { useBoard } from '~/services/board-context';
+import { useBoard, SaveStatus } from '~/services/board-context';
 import { motion } from 'framer-motion';
 import { useTheme } from '~/app/contexts/ThemeContext';
 import { Sun, Moon } from 'lucide-react';
@@ -19,7 +19,17 @@ export type BoardProps = {
 };
 
 export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
-  const { board, loading, error, searchQuery, setSearchQuery, moveCard, moveColumn } = useBoard();
+  const {
+    board,
+    loading,
+    error,
+    saveStatus,
+    saveError,
+    moveCard,
+    moveColumn
+  } = useBoard();
+  // Local state for search query filtering
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const headerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +41,14 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
   // Handle DnD end for both intra- and inter-column moves
   const onDragEnd = useCallback((result: DropResult) => {
     const { source, destination, draggableId, type } = result;
+    
+    // Early returns with additional validation
     if (!destination || !board) return;
+    if (!draggableId) {
+      console.warn('DnD operation missing draggableId');
+      return;
+    }
+    
     if (type === 'COLUMN') {
       const { index: srcIdx } = source;
       const { index: destIdx } = destination;
@@ -40,8 +57,11 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     } else {
       const { index: srcIdx, droppableId: srcCol } = source;
       const { index: destIdx, droppableId: destCol } = destination;
+      if (!srcCol || !destCol) {
+        console.warn('DnD operation missing column ids');
+        return;
+      }
       if (srcCol === destCol && srcIdx === destIdx) return;
-      // Use the UI drop index directly for DB order
       void moveCard(draggableId, destCol, destIdx, destIdx);
     }
   }, [board, moveCard, moveColumn]);
@@ -72,26 +92,39 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     if (!searchQuery.trim()) return board;
     
     const query = searchQuery.toLowerCase();
-    const columns = board.columns.map(column => ({
-      ...column,
-      cards: column.cards.filter(card => 
-        card.title.toLowerCase().includes(query) || 
-        card.description?.toLowerCase().includes(query) || 
-        card.labels.some(label => label.name.toLowerCase().includes(query))
-      )
-    }));
+    const columns = board.columns.map(column => {
+      // Defensive check for column 
+      if (!column || !column.cards) {
+        console.warn('Invalid column structure found while filtering', column);
+        return { ...column, cards: [] };
+      }
+      
+      // Safe filter that handles potential undefined values in cards
+      const filteredCards = column.cards
+        .filter(card => card && (
+          (card.title && card.title.toLowerCase().includes(query)) || 
+          (card.description && card.description.toLowerCase().includes(query)) || 
+          (card.labels && Array.isArray(card.labels) && card.labels.some(
+            label => label && label.name && label.name.toLowerCase().includes(query)
+          ))
+        ));
+      
+      return { ...column, cards: filteredCards };
+    });
     
     return { ...board, columns };
   }, [board, searchQuery]);
 
   // Calculate card count based on filtered board
   const cardCount = useMemo(() => {
-    return filteredBoard?.columns?.reduce((acc, col) => {
-      if (col?.cards) {
+    if (!filteredBoard || !filteredBoard.columns) return 0;
+    
+    return filteredBoard.columns.reduce((acc, col) => {
+      if (col && col.cards && Array.isArray(col.cards)) {
         return acc + col.cards.length;
       }
       return acc;
-    }, 0) ?? 0;
+    }, 0);
   }, [filteredBoard]);
 
   // Different UI states
@@ -181,6 +214,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
               <Moon className="h-5 w-5 text-blue-200" />
             )}
           </button>
+          <SaveStatusIndicator status={saveStatus} error={saveError} />
         </div>
       </motion.div>
       
@@ -194,20 +228,23 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
                 {...prov.droppableProps}
                 className="flex h-full overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent gap-x-4"
               >
-                {(filteredBoard?.columns ?? []).map((column, index) => (
-                  <Draggable key={column.id} draggableId={column.id} index={index}>
-                    {(provD) => (
-                      <div
-                        ref={provD.innerRef}
-                        {...provD.draggableProps}
-                        {...provD.dragHandleProps}
-                        style={{ ...provD.draggableProps.style }}
-                        className="flex flex-col h-full flex-1 min-w-[250px]"
-                      >
-                        <Column column={column} />
-                      </div>
-                    )}
-                  </Draggable>
+                {Array.isArray(filteredBoard?.columns) && filteredBoard?.columns.map((column, index) => (
+                  // Check if column exists and has ID before rendering
+                  column && column.id ? (
+                    <Draggable key={column.id} draggableId={column.id} index={index}>
+                      {(provD) => (
+                        <div
+                          ref={provD.innerRef}
+                          {...provD.draggableProps}
+                          {...provD.dragHandleProps}
+                          style={{ ...provD.draggableProps.style }}
+                          className="flex flex-col h-full flex-1 min-w-[250px]"
+                        >
+                          <Column column={column} />
+                        </div>
+                      )}
+                    </Draggable>
+                  ) : null
                 ))}
                 {prov.placeholder}
                 {/* Inline Add Column Form as a new column slot */}
@@ -222,5 +259,41 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
         </DragDropContext>
       </motion.div>
     </div>
+  );
+};
+
+const SaveStatusIndicator: React.FC<{ status: SaveStatus; error: Error | null }> = ({ status, error }) => {
+  if (status === 'idle') return null;
+
+  let text = 'Changes saved.';
+  let color = 'text-green-600';
+
+  if (status === 'saving') {
+    text = 'Saving...';
+    color = 'text-yellow-600';
+  }
+  if (status === 'error') {
+    text = `Save failed: ${error?.message || 'Unknown error'}`;
+    color = 'text-red-600';
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={{ duration: 0.2 }}
+      className={clsx(
+        "text-xs px-2 py-1 rounded-full whitespace-nowrap",
+        color,
+        {
+          'bg-green-100 dark:bg-green-900/50': status === 'saved',
+          'bg-yellow-100 dark:bg-yellow-900/50': status === 'saving',
+          'bg-red-100 dark:bg-red-900/50': status === 'error'
+        }
+      )}
+    >
+      {text}
+    </motion.div>
   );
 }; 

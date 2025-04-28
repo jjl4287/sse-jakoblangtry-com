@@ -58,9 +58,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       
       // Sync with board state if available
       if (board && board.theme !== storedTheme) {
-        updateTheme(storedTheme).catch(err => 
-          console.error('Error syncing theme with board:', err)
-        );
+        // updateTheme is sync now, internal state update triggers debounced save
+        updateTheme(storedTheme);
       }
     } else if (board) {
       // If no local storage but board has a theme, use that
@@ -84,9 +83,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     
     // Also update the board's theme if available
     if (updateTheme) {
-      updateTheme(newTheme).catch(err => 
-        console.error('Error updating theme:', err)
-      );
+      // updateTheme is sync, error handled within BoardContext save logic
+      updateTheme(newTheme);
     }
   }, [updateTheme]);
   

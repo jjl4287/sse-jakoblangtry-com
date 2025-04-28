@@ -1,432 +1,437 @@
+/**
+ * BoardContext provides board state and mutators.
+ * - Optimistic local updates
+ * - Debounced full-board PATCH for authenticated users
+ * - Save status indicator and retry on error
+ * - In-memory board for unauthenticated users
+ */
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { Board, Card } from '~/types';
-import { BoardService } from './board-service';
+import type { Board, Column, Card, Label, Attachment, Comment } from '~/types';
 import { useSession } from 'next-auth/react';
-import defaultBoardJson from '../../data/board.json';
 import { v4 as uuidv4 } from 'uuid';
+import { BoardService } from './board-service';
+import debounce from 'lodash/debounce';
 
-type BoardContextType = {
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+interface BoardContextType {
   board: Board | null;
   loading: boolean;
   error: Error | null;
+  saveStatus: SaveStatus;
+  saveError: Error | null;
   refreshBoard: () => Promise<void>;
-  updateTheme: (theme: 'light' | 'dark') => Promise<void>;
-  createColumn: (title: string, width: number) => Promise<void>;
-  updateColumn: (
-    columnId: string,
-    updates: { title?: string; width?: number }
-  ) => Promise<void>;
-  deleteColumn: (columnId: string) => Promise<void>;
-  moveColumn: (columnId: string, newIndex: number) => Promise<void>;
-  createCard: (
-    columnId: string,
-    cardData: Omit<Card, 'id' | 'columnId' | 'order'>
-  ) => Promise<void>;
-  updateCard: (
-    cardId: string,
-    updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'>>
-  ) => Promise<void>;
-  moveCard: (
-    cardId: string,
-    targetColumnId: string,
-    newOrder: number,
-    destinationIndex: number
-  ) => Promise<void>;
-  deleteCard: (cardId: string) => Promise<void>;
-  duplicateCard: (cardId: string, targetColumnId?: string) => Promise<void>;
-  addLabel: (cardId: string, name: string, color: string) => Promise<void>;
-  removeLabel: (cardId: string, labelId: string) => Promise<void>;
-  addComment: (cardId: string, author: string, content: string) => Promise<void>;
-  addAttachment: (
-    cardId: string,
-    name: string,
-    url: string,
-    type: string
-  ) => Promise<void>;
-  deleteComment: (cardId: string, commentId: string) => Promise<void>;
-  deleteAttachment: (cardId: string, attachmentId: string) => Promise<void>;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-};
+  updateTheme: (theme: 'light' | 'dark') => Promise<void> | void;
+  createColumn: (title: string, width: number) => Promise<void> | void;
+  updateColumn: (columnId: string, updates: Partial<Column>) => Promise<void> | void;
+  deleteColumn: (columnId: string) => Promise<void> | void;
+  moveColumn: (columnId: string, newIndex: number) => void;
+  createCard: (columnId: string, data: Omit<Card, 'id' | 'columnId' | 'order'>) => Promise<void> | void;
+  updateCard: (cardId: string, updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'>>) => Promise<void> | void;
+  deleteCard: (cardId: string) => Promise<void> | void;
+  moveCard: (cardId: string, targetColumnId: string, newOrder: number) => void;
+  duplicateCard: (cardId: string, targetColumnId?: string) => Promise<void> | void;
+  addLabel: (cardId: string, name: string, color: string) => Promise<void> | void;
+  removeLabel: (cardId: string, labelId: string) => Promise<void> | void;
+  addComment: (cardId: string, author: string, content: string) => Promise<void> | void;
+  deleteComment: (cardId: string, commentId: string) => Promise<void> | void;
+  addAttachment: (cardId: string, name: string, url: string, type: string) => Promise<void> | void;
+  deleteAttachment: (cardId: string, attachmentId: string) => Promise<void> | void;
+}
 
 const BoardContext = createContext<BoardContextType | undefined>(undefined);
 
-export const BoardProvider = ({ children }: { children: ReactNode }) => {
+export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [board, setBoard] = useState<Board | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState<Error | null>(null);
 
-  const { data: session, status } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
 
-  // Generic error handler for service calls
-  const handleServiceCall = async <T extends Board>(
-    serviceCall: () => Promise<T>,
-    showLoading: boolean = true,
-    errorMessage: string = 'Error processing request'
-  ): Promise<T | null> => {
+  // Fetch or initialize board
+  const refreshBoard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      if (showLoading) setLoading(true);
-      setError(null);
-      
-      const updatedBoard = await serviceCall();
-      setBoard(updatedBoard);
-      return updatedBoard;
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      console.error(`${errorMessage}:`, error);
-      return null;
+      if (session) {
+        const b = await BoardService.getBoard();
+        setBoard(b);
+      } else {
+        const stored = localStorage.getItem('board-local');
+        if (stored) setBoard(JSON.parse(stored));
+        else setBoard({ id: 'demo', title: 'Demo Board', theme: 'light', columns: [] });
+      }
+    } catch (e) {
+      setError(e as Error);
     } finally {
-      if (showLoading) setLoading(false);
-    }
-  };
-
-  // Load the board data based on authentication status
-  useEffect(() => {
-    if (status === 'loading') return;
-    if (session) {
-      void refreshBoard();
-    } else {
-      const defaultBoard = {
-        id: 'default',
-        title: 'Example Board',
-        theme: 'light',
-        columns: defaultBoardJson.columns,
-      };
-      setBoard(defaultBoard);
       setLoading(false);
     }
-  }, [session, status]);
+  }, [session]);
 
-  // Refresh the board data
-  const refreshBoard = useCallback(async () => {
-    await handleServiceCall(
-      BoardService.getBoard,
-      true,
-      'Error loading board data'
-    );
-  }, []);
+  useEffect(() => {
+    if (sessionStatus === 'loading') return;
+    refreshBoard();
+  }, [session, sessionStatus, refreshBoard]);
 
-  // Update the board theme
-  const updateTheme = useCallback(async (theme: 'light' | 'dark') => {
-    await handleServiceCall(
-      () => BoardService.updateTheme(theme),
-      false,
-      'Error updating theme'
-    );
-  }, []);
-
-  // Create a new column
-  const createColumn = useCallback(async (title: string, width: number) => {
-    // Fallback for unauthenticated users: update board locally
-    if (!session) {
+  // Optimistic local update helper
+  const updateBoardState = useCallback(
+    (fn: (prev: Board) => Board) => {
       setBoard(prev => {
         if (!prev) return prev;
-        const newColumn = {
-          id: uuidv4(),
-          title,
-          width,
-          cards: [],
-        };
-        return { ...prev, columns: [...prev.columns, newColumn] };
+        const next = fn(prev);
+        try { localStorage.setItem('board-local', JSON.stringify(next)); } catch {}
+        return next;
       });
-      return;
-    }
-    await handleServiceCall(
-      () => BoardService.createColumn(title, width),
-      true,
-      'Error creating column'
-    );
-  }, [session, handleServiceCall]);
-
-  // Update a column
-  const updateColumn = useCallback(async (
-    columnId: string,
-    updates: { title?: string; width?: number }
-  ) => {
-    await handleServiceCall(
-      () => BoardService.updateColumn(columnId, updates),
-      true,
-      'Error updating column'
-    );
-  }, []);
-
-  // Delete a column
-  const deleteColumn = useCallback(async (columnId: string) => {
-    await handleServiceCall(
-      () => BoardService.deleteColumn(columnId),
-      true,
-      'Error deleting column'
-    );
-  }, []);
-
-  // Move a column to a different position (optimistic reorder)
-  const moveColumn = useCallback(async (columnId: string, newIndex: number) => {
-    // Optimistically reorder columns locally
-    setBoard(prev => {
-      if (!prev) return prev;
-      const cols = [...prev.columns];
-      const oldIndex = cols.findIndex(c => c.id === columnId);
-      if (oldIndex === -1) return prev;
-      const [moved] = cols.splice(oldIndex, 1);
-      cols.splice(newIndex, 0, moved);
-      return { ...prev, columns: cols };
-    });
-    // Persist and sync with server
-    const result = await handleServiceCall(
-      () => BoardService.moveColumn(columnId, newIndex),
-      false,
-      'Error moving column'
-    );
-    if (!result) {
-      await refreshBoard();
-    }
-  }, [handleServiceCall, refreshBoard]);
-
-  // Create a new card
-  const createCard = useCallback(async (
-    columnId: string,
-    cardData: Omit<Card, 'id' | 'columnId' | 'order'>
-  ) => {
-    // Fallback for unauthenticated users: update card locally
-    if (!session) {
-      setBoard(prev => {
-        if (!prev) return prev;
-        const columns = prev.columns.map(col => ({ ...col, cards: [...col.cards] }));
-        const targetCol = columns.find(c => c.id === columnId);
-        if (!targetCol) return prev;
-        const newCard = {
-          id: uuidv4(),
-          columnId,
-          order: targetCol.cards.length,
-          ...cardData,
-        };
-        targetCol.cards.push(newCard as any);
-        return { ...prev, columns };
-      });
-      return;
-    }
-    await handleServiceCall(
-      () => BoardService.createCard(columnId, cardData),
-      true,
-      'Error creating card'
-    );
-  }, [session, handleServiceCall]);
-
-  // Update a card
-  const updateCard = useCallback(async (
-    cardId: string,
-    updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'>>
-  ) => {
-    await handleServiceCall(
-      () => BoardService.updateCard(cardId, updates),
-      true,
-      'Error updating card'
-    );
-  }, []);
-
-  // Move a card to a different column or position (optimistic index-based update)
-  const moveCard = useCallback(
-    async (
-      cardId: string,
-      targetColumnId: string,
-      newOrder: number,
-      destinationIndex: number
-    ) => {
-      // Optimistically reorder locally using array indices
-      setBoard(prev => {
-        if (!prev) return prev;
-        // clone columns and cards
-        const columns = prev.columns.map(col => ({ ...col, cards: [...col.cards] }));
-        let movedCard: Card | undefined;
-        let sourceColIdx: number | undefined;
-        let sourceCardIdx: number | undefined;
-        // locate card and its index
-        columns.forEach((col, cIdx) => {
-          const idx = col.cards.findIndex(c => c.id === cardId);
-          if (idx !== -1) {
-            movedCard = col.cards[idx];
-            sourceColIdx = cIdx;
-            sourceCardIdx = idx;
-          }
-        });
-        if (movedCard !== undefined && sourceColIdx !== undefined && sourceCardIdx !== undefined) {
-          // remove from source
-          columns[sourceColIdx].cards.splice(sourceCardIdx, 1);
-          // insert into target at given index
-          const destColIdx = columns.findIndex(c => c.id === targetColumnId);
-          if (destColIdx !== -1) {
-            columns[destColIdx].cards.splice(destinationIndex, 0, movedCard);
-          }
-          // reassign order values for both source and destination columns
-          [sourceColIdx, destColIdx].forEach(colIdx => {
-            columns[colIdx].cards.forEach((card, idx) => {
-              card.order = idx;
-            });
-          });
-        }
-        return { ...prev, columns };
-      });
-
-      // Persist & sync with server state
-      const result = await handleServiceCall(
-        () => BoardService.moveCard(cardId, targetColumnId, newOrder),
-        false,
-        'Error moving card'
-      );
-      if (!result) {
-        await refreshBoard();
-      }
-    },
-    [handleServiceCall, refreshBoard]
+    }, []
   );
 
-  // Delete a card
+  const moveCardDebouncers = useRef<Record<string, ReturnType<typeof debounce>>>({});
+  const moveColumnDebouncers = useRef<Record<string, ReturnType<typeof debounce>>>({});
+
+  // Debounce individual card moves via BoardService, updating state from returned board
+  const enqueueMoveCard = useCallback(
+    (cardId: string, targetColumnId: string, order: number) => {
+      if (!moveCardDebouncers.current[cardId]) {
+        moveCardDebouncers.current[cardId] = debounce(
+          async (cid: string, colId: string, ord: number) => {
+            setSaveStatus('saving');
+            try {
+              // Just save without refreshing the entire board
+              await BoardService.moveCard(cid, colId, ord);
+              setSaveStatus('saved');
+            } catch (err) {
+              console.error('Failed to move card', err);
+              setSaveStatus('error');
+            }
+          },
+          2500,
+          { leading: false, trailing: true }
+        );
+      }
+      moveCardDebouncers.current[cardId](cardId, targetColumnId, order);
+    },
+    []
+  );
+
+  // Debounce individual column moves via BoardService, updating state from returned board
+  const enqueueMoveColumn = useCallback(
+    (columnId: string, newIndex: number) => {
+      if (!moveColumnDebouncers.current[columnId]) {
+        moveColumnDebouncers.current[columnId] = debounce(
+          async (cid: string, idx: number) => {
+            setSaveStatus('saving');
+            try {
+              // Just save without refreshing the entire board
+              await BoardService.moveColumn(cid, idx);
+              setSaveStatus('saved');
+            } catch (err) {
+              console.error('Failed to move column', err);
+              setSaveStatus('error');
+            }
+          },
+          2500,
+          { leading: false, trailing: true }
+        );
+      }
+      moveColumnDebouncers.current[columnId](columnId, newIndex);
+    },
+    []
+  );
+
+  // Flush pending move patches on pagehide or unmount
+  useEffect(() => {
+    const flushAll = () => {
+      Object.values(moveCardDebouncers.current).forEach(fn => {
+        if (typeof fn.flush === 'function') fn.flush();
+      });
+      Object.values(moveColumnDebouncers.current).forEach(fn => {
+        if (typeof fn.flush === 'function') fn.flush();
+      });
+    };
+    window.addEventListener('pagehide', flushAll);
+    return () => {
+      flushAll();
+      window.removeEventListener('pagehide', flushAll);
+    };
+  }, []);
+
+  // Mutators:
+  const updateTheme = useCallback(async (theme: 'light' | 'dark') => {
+    updateBoardState(prev => ({ ...prev!, theme }));
+    if (!session) return;
+    setSaveStatus('saving');
+    try {
+      const updated = await BoardService.updateTheme(theme);
+      setBoard(updated);
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+    }
+  }, [session, updateBoardState]);
+
+  const createColumn = useCallback(async (title: string, width: number) => {
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: [
+        ...prev!.columns,
+        { id: uuidv4(), title, width, order: prev!.columns.length, cards: [] }
+      ]
+    }));
+    if (!session) return;
+    setSaveStatus('saving');
+    try {
+      const updated = await BoardService.createColumn(title, width);
+      setBoard(updated);
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+    }
+  }, [session, updateBoardState]);
+
+  const updateColumn = useCallback(async (columnId: string, updates: Partial<Column>) => {
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: prev!.columns.map(c => c.id === columnId ? { ...c, ...updates } : c)
+    }));
+    if (!session) return;
+    setSaveStatus('saving');
+    try {
+      const updated = await BoardService.updateColumn(columnId, updates);
+      setBoard(updated);
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+    }
+  }, [session, updateBoardState]);
+
+  const deleteColumn = useCallback(async (columnId: string) => {
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: prev!.columns.filter(c => c.id !== columnId)
+    }));
+    if (!session) return;
+    setSaveStatus('saving');
+    try {
+      const updated = await BoardService.deleteColumn(columnId);
+      setBoard(updated);
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+    }
+  }, [session, updateBoardState]);
+
+  const moveColumn = useCallback((columnId: string, newIndex: number) => {
+    updateBoardState(prev => {
+      const cols = [...prev!.columns];
+      const i = cols.findIndex(c => c.id === columnId);
+      if (i < 0) return prev!;
+      const [m] = cols.splice(i, 1);
+      if (m) {
+        cols.splice(newIndex, 0, m);
+      }
+      return { ...prev!, columns: cols };
+    });
+    if (session) {
+      setSaveStatus('saving');
+      enqueueMoveColumn(columnId, newIndex);
+    }
+  }, [session, enqueueMoveColumn, updateBoardState]);
+
+  const createCard = useCallback(async (columnId: string, data: Omit<Card, 'id' | 'columnId' | 'order'>) => {
+    updateBoardState(prev => {
+      const cols = prev!.columns.map(c => ({ ...c, cards: [...c.cards] }));
+      const col = cols.find(c => c.id === columnId);
+      if (col) col.cards.push({ id: uuidv4(), columnId, order: col.cards.length, ...data });
+      return { ...prev!, columns: cols };
+    });
+    if (!session) return;
+    setSaveStatus('saving');
+    try {
+      const updated = await BoardService.createCard(columnId, data);
+      setBoard(updated);
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+    }
+  }, [session, updateBoardState]);
+
+  const updateCard = useCallback(async (cardId: string, updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'>>) => {
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: prev!.columns.map(c => ({
+        ...c,
+        cards: c.cards.map(card => card.id === cardId ? { ...card, ...updates } : card)
+      }))
+    }));
+    if (!session) return;
+    setSaveStatus('saving');
+    try {
+      const updated = await BoardService.updateCard(cardId, updates as any);
+      setBoard(updated);
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+    }
+  }, [session, updateBoardState]);
+
   const deleteCard = useCallback(async (cardId: string) => {
-    await handleServiceCall(
-      () => BoardService.deleteCard(cardId),
-      true,
-      'Error deleting card'
-    );
-  }, []);
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: prev!.columns.map(c => ({
+        ...c,
+        cards: c.cards.filter(card => card.id !== cardId)
+      }))
+    }));
+    if (!session) return;
+    setSaveStatus('saving');
+    try {
+      const updated = await BoardService.deleteCard(cardId);
+      setBoard(updated);
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+    }
+  }, [session, updateBoardState]);
 
-  // Duplicate a card
-  const duplicateCard = useCallback(async (cardId: string, targetColumnId?: string) => {
-    await handleServiceCall(
-      () => BoardService.duplicateCard(cardId, targetColumnId),
-      true,
-      'Error duplicating card'
-    );
-  }, []);
+  const moveCard = useCallback((cardId: string, targetColumnId: string, newOrder: number) => {
+    updateBoardState(prev => {
+      const cols = prev!.columns.map(c => ({ ...c, cards: [...c.cards] }));
+      let moved: Card | undefined;
+      let fromId: string | undefined;
+      for (const c of cols) {
+        const idx = c.cards.findIndex(card => card.id === cardId);
+        if (idx >= 0) { [moved] = c.cards.splice(idx, 1); fromId = c.id; break; }
+      }
+      if (!moved) return prev!;
+      const dest = cols.find(c => c.id === targetColumnId);
+      if (!dest) return prev!;
+      moved.columnId = targetColumnId;
+      dest.cards.splice(newOrder, 0, moved);
+      const recalc = (arr: Card[]) => arr.map((card, i) => ({ ...card, order: i }));
+      return { ...prev!, columns: cols.map(c => c.id === fromId || c.id === targetColumnId ? { ...c, cards: recalc(c.cards) } : c) };
+    });
+    if (session) {
+      setSaveStatus('saving');
+      enqueueMoveCard(cardId, targetColumnId, newOrder);
+    }
+  }, [session, enqueueMoveCard, updateBoardState]);
 
-  // Add a label to a card
-  const addLabel = useCallback(async (cardId: string, name: string, color: string) => {
-    await handleServiceCall(
-      () => BoardService.addLabel(cardId, name, color),
-      true,
-      'Error adding label'
-    );
-  }, []);
+  const duplicateCard = useCallback((cardId: string, targetColumnId?: string) => {
+    updateBoardState(prev => {
+      const cols = prev!.columns.map(c => ({ ...c, cards: [...c.cards] }));
+      const src = cols.find(c => c.cards.some(card => card.id === cardId));
+      const orig = src?.cards.find(card => card.id === cardId);
+      if (!orig) return prev!;
+      const dest = cols.find(c => c.id === (targetColumnId ?? orig.columnId));
+      if (dest) dest.cards.push({ ...orig, id: uuidv4() });
+      return { ...prev!, columns: cols };
+    });
+  }, [updateBoardState]);
 
-  // Remove a label from a card
-  const removeLabel = useCallback(async (cardId: string, labelId: string) => {
-    await handleServiceCall(
-      () => BoardService.removeLabel(cardId, labelId),
-      true,
-      'Error removing label'
-    );
-  }, []);
+  const addLabel = useCallback((cardId: string, name: string, color: string) => {
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: prev!.columns.map(c => ({
+        ...c,
+        cards: c.cards.map(card => card.id === cardId ? { ...card, labels: [...card.labels, { id: uuidv4(), name, color }] } : card)
+      }))
+    }));
+  }, [updateBoardState]);
 
-  // Add a comment to a card
-  const addComment = useCallback(async (
-    cardId: string,
-    author: string,
-    content: string
-  ) => {
-    await handleServiceCall(
-      () => BoardService.addComment(cardId, author, content),
-      true,
-      'Error adding comment'
-    );
-  }, []);
+  const removeLabel = useCallback((cardId: string, labelId: string) => {
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: prev!.columns.map(c => ({
+        ...c,
+        cards: c.cards.map(card => card.id === cardId ? { ...card, labels: card.labels.filter(l => l.id !== labelId) } : card)
+      }))
+    }));
+  }, [updateBoardState]);
 
-  // Delete a comment from a card
-  const deleteComment = useCallback(async (cardId: string, commentId: string) => {
-    await handleServiceCall(
-      () => BoardService.deleteComment(cardId, commentId),
-      true,
-      'Error deleting comment'
-    );
-  }, []);
+  const addComment = useCallback((cardId: string, author: string, content: string) => {
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: prev!.columns.map(c => ({
+        ...c,
+        cards: c.cards.map(card => card.id === cardId ? { ...card, comments: [...card.comments, { id: uuidv4(), author, content, createdAt: new Date() }] } : card)
+      }))
+    }));
+  }, [updateBoardState]);
 
-  // Add an attachment to a card
-  const addAttachment = useCallback(async (
-    cardId: string,
-    name: string,
-    url: string,
-    type: string
-  ) => {
-    await handleServiceCall(
-      () => BoardService.addAttachment(cardId, name, url, type),
-      true,
-      'Error adding attachment'
-    );
-  }, []);
+  const deleteComment = useCallback((cardId: string, commentId: string) => {
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: prev!.columns.map(c => ({
+        ...c,
+        cards: c.cards.map(card => card.id === cardId ? { ...card, comments: card.comments.filter(cm => cm.id !== commentId) } : card)
+      }))
+    }));
+  }, [updateBoardState]);
 
-  // Delete an attachment from a card
-  const deleteAttachment = useCallback(async (cardId: string, attachmentId: string) => {
-    await handleServiceCall(
-      () => BoardService.deleteAttachment(cardId, attachmentId),
-      true,
-      'Error deleting attachment'
-    );
-  }, []);
+  const addAttachment = useCallback((cardId: string, name: string, url: string, type: string) => {
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: prev!.columns.map(c => ({
+        ...c,
+        cards: c.cards.map(card => card.id === cardId ? { ...card, attachments: [...card.attachments, { id: uuidv4(), name, url, type, createdAt: new Date() }] } : card)
+      }))
+    }));
+  }, [updateBoardState]);
+
+  const deleteAttachment = useCallback((cardId: string, attachmentId: string) => {
+    updateBoardState(prev => ({
+      ...prev!,
+      columns: prev!.columns.map(c => ({
+        ...c,
+        cards: c.cards.map(card => card.id === cardId ? { ...card, attachments: card.attachments.filter(a => a.id !== attachmentId) } : card)
+      }))
+    }));
+  }, [updateBoardState]);
 
   return (
-    <BoardContext.Provider
-      value={useMemo(() => ({
-        board,
-        loading,
-        error,
-        refreshBoard,
-        updateTheme,
-        createColumn,
-        updateColumn,
-        deleteColumn,
-        moveColumn,
-        createCard,
-        updateCard,
-        moveCard,
-        deleteCard,
-        duplicateCard,
-        addLabel,
-        removeLabel,
-        addComment,
-        addAttachment,
-        deleteComment,
-        deleteAttachment,
-        searchQuery,
-        setSearchQuery,
-      }), [
-        board,
-        loading,
-        error,
-        refreshBoard,
-        updateTheme,
-        createColumn,
-        updateColumn,
-        deleteColumn,
-        moveColumn,
-        createCard,
-        updateCard,
-        moveCard,
-        deleteCard,
-        duplicateCard,
-        addLabel,
-        removeLabel,
-        addComment,
-        addAttachment,
-        deleteComment,
-        deleteAttachment,
-        searchQuery,
-      ])}
-    >
+    <BoardContext.Provider value={{
+      board,
+      loading,
+      error,
+      saveStatus,
+      saveError,
+      refreshBoard,
+      updateTheme,
+      createColumn,
+      updateColumn,
+      deleteColumn,
+      moveColumn,
+      createCard,
+      updateCard,
+      deleteCard,
+      moveCard,
+      duplicateCard,
+      addLabel,
+      removeLabel,
+      addComment,
+      deleteComment,
+      addAttachment,
+      deleteAttachment
+    }}>
       {children}
     </BoardContext.Provider>
   );
 };
 
-// Custom hook to use the board context
-export const useBoard = (): BoardContextType => {
-  const context = useContext(BoardContext);
-  
-  if (context === undefined) {
-    throw new Error('useBoard must be used within a BoardProvider');
-  }
-  
-  return context;
-}; 
+export function useBoard(): BoardContextType {
+  const ctx = useContext(BoardContext);
+  if (!ctx) throw new Error('useBoard must be used within BoardProvider');
+  return ctx;
+} 

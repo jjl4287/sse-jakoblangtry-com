@@ -17,6 +17,12 @@ interface ColumnProps {
 export const Column = memo(({ 
   column
 }: ColumnProps) => {
+  // Early return with fallback if column is undefined or missing id
+  if (!column || !column.id) {
+    console.warn('Column component received undefined or invalid column data');
+    return null;
+  }
+
   const [isAddingCard, setIsAddingCard] = useState(false);
   const { updateColumn, deleteColumn } = useBoard();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -50,8 +56,15 @@ export const Column = memo(({
   
   // Memoize sorted cards to avoid re-sorting on each render
   const sortedCards = useMemo(
-    () => [...column.cards].sort((a, b) => a.order - b.order),
-    [column.cards]
+    () => {
+      // Ensure column.cards exists and is an array before sorting
+      if (!column.cards || !Array.isArray(column.cards)) {
+        console.warn(`Column ${column.id} has no cards array`);
+        return [];
+      }
+      return [...column.cards].sort((a, b) => a.order - b.order);
+    },
+    [column.cards, column.id]
   );
   
   // --- JSX Rendering Starts Here ---
@@ -115,7 +128,12 @@ export const Column = memo(({
         droppableId={column.id}
         type="CARD"
         renderClone={(providedClone, snapshotClone, rubric) => {
-          const cloneCard = sortedCards[rubric.source.index]!;
+          const cloneCard = sortedCards[rubric.source.index];
+          // Safety check for clone card
+          if (!cloneCard || !cloneCard.id) {
+            console.warn('Clone card is undefined or missing id', rubric.source.index);
+            return null;
+          }
           return (
             <div
               ref={providedClone.innerRef}
@@ -141,25 +159,28 @@ export const Column = memo(({
             }}
           >
             {sortedCards.map((card, index) => (
-              <Draggable key={card.id} draggableId={card.id} index={index}>
-                {(provided, snapshot) => {
-                  const style: React.CSSProperties = {
-                    ...provided.draggableProps.style,
-                    opacity: snapshot.isDragging ? 0 : 1,
-                  };
-                  return (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      {...provided.dragHandleProps}
-                      style={style}
-                      className="card-wrapper"
-                    >
-                      <Card card={card} index={index} columnId={column.id} />
-                    </div>
-                  );
-                }}
-              </Draggable>
+              // Check if card exists and has id before rendering Draggable
+              card && card.id ? (
+                <Draggable key={card.id} draggableId={card.id} index={index}>
+                  {(provided, snapshot) => {
+                    const style: React.CSSProperties = {
+                      ...provided.draggableProps.style,
+                      opacity: snapshot.isDragging ? 0 : 1,
+                    };
+                    return (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        style={style}
+                        className="card-wrapper"
+                      >
+                        <Card card={card} index={index} columnId={column.id} />
+                      </div>
+                    );
+                  }}
+                </Draggable>
+              ) : null
             ))}
             {isAddingCard && (
               <CardAddForm columnId={column.id} onCancel={() => setIsAddingCard(false)} />

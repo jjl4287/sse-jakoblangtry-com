@@ -72,6 +72,12 @@ export const Card = memo(({
   onDragStart,
   onDragEnd
 }: CardProps) => {
+  // Early return with fallback if card is undefined
+  if (!card || !card.id) {
+    console.warn('Card component received undefined or invalid card data');
+    return null;
+  }
+
   const ref = useRef<HTMLDivElement>(null);
   const { moveCard, deleteCard, duplicateCard } = useBoard();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -120,9 +126,12 @@ export const Card = memo(({
     }
   };
 
-  const { Icon: PriorityIcon, color: priorityColor } = getPriorityInfo(
-    card.priority ?? 'low'
-  );
+  // Safely access card properties
+  const cardPriority = card.priority || 'low';
+  const cardAttachments = card.attachments || [];
+  const cardAssignees = card.assignees || [];
+  
+  const { Icon: PriorityIcon, color: priorityColor } = getPriorityInfo(cardPriority);
 
   return (
     <>
@@ -159,9 +168,9 @@ export const Card = memo(({
         </div>
 
         <div className="flex-grow p-1">
-          {card.attachments && card.attachments.length > 0 && (
+          {cardAttachments.length > 0 && (
             <div className="mb-2">
-              {card.attachments.map((attachment) => (
+              {cardAttachments.map((attachment) => (
                 <AttachmentPreview key={attachment.id} url={attachment.url} />
               ))}
             </div>
@@ -186,7 +195,7 @@ export const Card = memo(({
                 </span>
               )}
               
-              {card.attachments && card.attachments.length > 0 && (
+              {cardAttachments.length > 0 && (
                  <span className="flex items-center ">
                   <Paperclip className="h-3 w-3" />
                 </span>
@@ -194,9 +203,9 @@ export const Card = memo(({
             </div>
 
             {/* Show first assignee's initial */}
-            {card.assignees?.[0] && (
-              <span className="flex items-center justify-center h-5 w-5 bg-gray-300 dark:bg-gray-600 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300" title={card.assignees[0]}>
-                {card.assignees[0].charAt(0).toUpperCase()}
+            {cardAssignees[0] && (
+              <span className="flex items-center justify-center h-5 w-5 bg-gray-300 dark:bg-gray-600 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300" title={cardAssignees[0]}>
+                {cardAssignees[0].charAt(0).toUpperCase()}
               </span>
             )}
           </div>
