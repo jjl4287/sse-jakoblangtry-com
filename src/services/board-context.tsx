@@ -90,8 +90,8 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, []
   );
 
-  const moveCardDebouncers = useRef<Record<string, (cid: string, colId: string, ord: number) => void>>({});
-  const moveColumnDebouncers = useRef<Record<string, (colId: string, idx: number) => void>>({});
+  const moveCardDebouncers = useRef<Record<string, ReturnType<typeof debounce>>>({});
+  const moveColumnDebouncers = useRef<Record<string, ReturnType<typeof debounce>>>({});
 
   // Debounce individual card moves via BoardService, updating state from returned board
   const enqueueMoveCard = useCallback(
@@ -101,15 +101,15 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           async (cid: string, colId: string, ord: number) => {
             setSaveStatus('saving');
             try {
-              const updatedBoard = await BoardService.moveCard(cid, colId, ord);
-              setBoard(updatedBoard);
+              // Just save without refreshing the entire board
+              await BoardService.moveCard(cid, colId, ord);
               setSaveStatus('saved');
             } catch (err) {
               console.error('Failed to move card', err);
               setSaveStatus('error');
             }
           },
-          300,
+          2500,
           { leading: false, trailing: true }
         );
       }
@@ -126,15 +126,15 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           async (cid: string, idx: number) => {
             setSaveStatus('saving');
             try {
-              const updatedBoard = await BoardService.moveColumn(cid, idx);
-              setBoard(updatedBoard);
+              // Just save without refreshing the entire board
+              await BoardService.moveColumn(cid, idx);
               setSaveStatus('saved');
             } catch (err) {
               console.error('Failed to move column', err);
               setSaveStatus('error');
             }
           },
-          300,
+          2500,
           { leading: false, trailing: true }
         );
       }
@@ -146,8 +146,12 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // Flush pending move patches on pagehide or unmount
   useEffect(() => {
     const flushAll = () => {
-      Object.values(moveCardDebouncers.current).forEach(fn => fn.flush?.());
-      Object.values(moveColumnDebouncers.current).forEach(fn => fn.flush?.());
+      Object.values(moveCardDebouncers.current).forEach(fn => {
+        if (typeof fn.flush === 'function') fn.flush();
+      });
+      Object.values(moveColumnDebouncers.current).forEach(fn => {
+        if (typeof fn.flush === 'function') fn.flush();
+      });
     };
     window.addEventListener('pagehide', flushAll);
     return () => {
@@ -231,7 +235,9 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const i = cols.findIndex(c => c.id === columnId);
       if (i < 0) return prev!;
       const [m] = cols.splice(i, 1);
-      cols.splice(newIndex, 0, m);
+      if (m) {
+        cols.splice(newIndex, 0, m);
+      }
       return { ...prev!, columns: cols };
     });
     if (session) {

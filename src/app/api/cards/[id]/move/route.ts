@@ -19,55 +19,59 @@ export async function POST(
     let attempt = 0;
     while (true) {
       try {
-        await prisma.$transaction(async (tx) => {
-          // Fetch original card and its column
-          const original = await tx.card.findUnique({ where: { id } });
-          if (!original) {
-            throw new Error('Card not found');
-          }
-          const oldColumnId = original.columnId;
-          // Same-column reorder
-          if (oldColumnId === targetColumnId) {
-            const cards = await tx.card.findMany({
-              where: { columnId: oldColumnId },
-              orderBy: { order: 'asc' }
-            });
-            const ids = cards.map(c => c.id);
-            const fromIdx = ids.indexOf(id);
-            ids.splice(fromIdx, 1);
-            ids.splice(newOrder, 0, id);
-            // Persist new orders
-            for (const [idx, cardId] of ids.entries()) {
-              await tx.card.update({ where: { id: cardId }, data: { order: idx } });
+        await prisma.$transaction(
+          async (tx) => {
+            // Fetch original card and its column
+            const original = await tx.card.findUnique({ where: { id } });
+            if (!original) {
+              throw new Error('Card not found');
             }
-          } else {
-            // Cross-column move: fetch both lists
-            const srcCards = await tx.card.findMany({
-              where: { columnId: oldColumnId },
-              orderBy: { order: 'asc' }
-            });
-            const destCards = await tx.card.findMany({
-              where: { columnId: targetColumnId },
-              orderBy: { order: 'asc' }
-            });
-            const srcIds = srcCards.map(c => c.id).filter(cardId => cardId !== id);
-            const destIds = destCards.map(c => c.id);
-            destIds.splice(newOrder, 0, id);
-            // Move the card
-            await tx.card.update({
-              where: { id },
-              data: { column: { connect: { id: targetColumnId } }, order: newOrder }
-            });
-            // Persist destination orders
-            for (const [idx, cardId] of destIds.entries()) {
-              await tx.card.update({ where: { id: cardId }, data: { order: idx } });
+            const oldColumnId = original.columnId;
+            // Same-column reorder
+            if (oldColumnId === targetColumnId) {
+              const cards = await tx.card.findMany({
+                where: { columnId: oldColumnId },
+                orderBy: { order: 'asc' }
+              });
+              const ids = cards.map(c => c.id);
+              const fromIdx = ids.indexOf(id);
+              ids.splice(fromIdx, 1);
+              ids.splice(newOrder, 0, id);
+              // Batch-persist new orders
+              const ops = ids.map((cardId, idx) =>
+                tx.card.update({ where: { id: cardId }, data: { order: idx } })
+              );
+              await Promise.all(ops);
+            } else {
+              // Cross-column move: fetch both lists
+              const srcCards = await tx.card.findMany({
+                where: { columnId: oldColumnId },
+                orderBy: { order: 'asc' }
+              });
+              const destCards = await tx.card.findMany({
+                where: { columnId: targetColumnId },
+                orderBy: { order: 'asc' }
+              });
+              const srcIds = srcCards.map(c => c.id).filter(cardId => cardId !== id);
+              const destIds = destCards.map(c => c.id);
+              destIds.splice(newOrder, 0, id);
+              // Move the card
+              await tx.card.update({
+                where: { id },
+                data: { column: { connect: { id: targetColumnId } }, order: newOrder }
+              });
+              // Batch-persist destination and source orders
+              const destOps = destIds.map((cardId, idx) =>
+                tx.card.update({ where: { id: cardId }, data: { order: idx } })
+              );
+              const srcOps = srcIds.map((cardId, idx) =>
+                tx.card.update({ where: { id: cardId }, data: { order: idx } })
+              );
+              await Promise.all([...destOps, ...srcOps]);
             }
-            // Persist source orders
-            for (const [idx, cardId] of srcIds.entries()) {
-              await tx.card.update({ where: { id: cardId }, data: { order: idx } });
-            }
-          }
-        });
+          },
+          { timeout: 60000, maxWait: 5000 }
+        );
         // If we get here, transaction succeeded
         break;
       } catch (txError: any) {
