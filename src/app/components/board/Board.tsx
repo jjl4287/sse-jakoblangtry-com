@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 import { Column } from './Column';
-import { useBoard } from '~/services/board-context';
+import { useBoard, SaveStatus } from '~/services/board-context';
 import { motion } from 'framer-motion';
 import { useTheme } from '~/app/contexts/ThemeContext';
 import { Sun, Moon } from 'lucide-react';
@@ -19,7 +19,17 @@ export type BoardProps = {
 };
 
 export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
-  const { board, loading, error, searchQuery, setSearchQuery, moveCard, moveColumn } = useBoard();
+  const {
+    board,
+    loading,
+    error,
+    saveStatus,
+    saveError,
+    moveCard,
+    moveColumn
+  } = useBoard();
+  // Local state for search query filtering
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const headerRef = useRef<HTMLDivElement>(null);
@@ -181,6 +191,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
               <Moon className="h-5 w-5 text-blue-200" />
             )}
           </button>
+          <SaveStatusIndicator status={saveStatus} error={saveError} />
         </div>
       </motion.div>
       
@@ -222,5 +233,41 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
         </DragDropContext>
       </motion.div>
     </div>
+  );
+};
+
+const SaveStatusIndicator: React.FC<{ status: SaveStatus; error: Error | null }> = ({ status, error }) => {
+  if (status === 'idle') return null;
+
+  let text = 'Changes saved.';
+  let color = 'text-green-600';
+
+  if (status === 'saving') {
+    text = 'Saving...';
+    color = 'text-yellow-600';
+  }
+  if (status === 'error') {
+    text = `Save failed: ${error?.message || 'Unknown error'}`;
+    color = 'text-red-600';
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={{ duration: 0.2 }}
+      className={clsx(
+        "text-xs px-2 py-1 rounded-full whitespace-nowrap",
+        color,
+        {
+          'bg-green-100 dark:bg-green-900/50': status === 'saved',
+          'bg-yellow-100 dark:bg-yellow-900/50': status === 'saving',
+          'bg-red-100 dark:bg-red-900/50': status === 'error'
+        }
+      )}
+    >
+      {text}
+    </motion.div>
   );
 }; 
