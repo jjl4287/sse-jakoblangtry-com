@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
-  closestCenter,
+  rectIntersection,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -93,35 +93,33 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     });
   }, []);
 
-  // Handle drag over for cross-column card movement
+  // Handle drag over for cross-column card moves: drop immediately at end
   const handleDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event;
-    
-    // Return if no over target or same IDs
     if (!active || !over || active.id === over.id) return;
-    
+
     const activeData = active.data.current as { type: string; columnId?: string; index?: number };
-    const overData = over.data.current as { type: string; columnId?: string };
-    
-    // Only proceed if dragging a card over a different column
-    if (activeData?.type === 'card' && overData?.type === 'column') {
-      const activeCardId = active.id as string;
-      const { columnId: sourceColumnId } = activeData;
-      const targetColumnId = over.id as string;
-      
-      // Don't do anything if source and target columns are the same
-      if (sourceColumnId === targetColumnId) return;
-      
-      // Find target column
-      const targetColumn = board?.columns.find(col => col.id === targetColumnId);
-      if (!targetColumn) return;
-      
-      // Calculate target index (at the end of the column)
-      const targetIndex = targetColumn.cards.length;
-      
-      // Move the card immediately for better UX
-      moveCard(activeCardId, targetColumnId, targetIndex);
+    if (activeData.type !== 'card' || !activeData.columnId) return;
+    const activeCardId = active.id as string;
+    const sourceColumnId = activeData.columnId;
+
+    const overData = over.data.current as { type: string; columnId?: string; index?: number };
+    let targetColumnId: string | undefined;
+    if (overData.type === 'column') {
+      targetColumnId = over.id as string;
+    } else if (overData.type === 'card') {
+      targetColumnId = overData.columnId;
+    } else {
+      return;
     }
+    if (!targetColumnId || sourceColumnId === targetColumnId) return;
+
+    const targetColumn = board?.columns.find(col => col.id === targetColumnId);
+    if (!targetColumn) return;
+
+    // Always insert at end for consistent UX
+    const targetIndex = targetColumn.cards.length;
+    moveCard(activeCardId, targetColumnId, targetIndex);
   }, [board?.columns, moveCard]);
 
   // Handle drag end for both card and column movement
@@ -332,7 +330,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
       {/* Board Content with dnd-kit */}
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={rectIntersection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
