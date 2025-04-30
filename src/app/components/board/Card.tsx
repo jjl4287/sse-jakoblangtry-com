@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useRef, memo, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { useBoard } from '~/services/board-context';
 import { ExpandedCardModal } from './ExpandedCardModal';
 import { Button } from '~/components/ui/button';
@@ -36,33 +35,6 @@ interface CardProps {
   onDragStart?: (item: CardDragItem) => void;
   onDragEnd?: () => void;
 }
-
-// Card appearance animation variants
-const cardVariants = {
-  normal: {
-    scale: 1,
-    y: 0,
-    boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
-    zIndex: 1,
-    transition: { duration: 0.15, ease: [0.16, 1, 0.3, 0.55] }
-  },
-  hover: {
-    scale: 1.03,
-    y: -2,
-    boxShadow: "0px 10px 15px rgba(0,0,0,0.1)",
-    zIndex: 50,
-    transition: { duration: 0.15, ease: [0.16, 1, 0.3, 0.55] }
-  },
-  dragging: {
-    scale: 1.08,
-    y: -6,
-    boxShadow: "0px 20px 30px rgba(0,0,0,0.2)",
-    opacity: 0.9,
-    cursor: "grabbing",
-    zIndex: 999,
-    transition: { duration: 0.15 }
-  }
-};
 
 export const Card = memo(({ 
   card, 
@@ -135,15 +107,10 @@ export const Card = memo(({
 
   return (
     <>
-      <motion.div
+      <div
         ref={ref}
-        layoutId={`card-${card.id}`}
-        className="relative glass-card p-2 cursor-pointer group border rounded-lg"
+        className="relative glass-card p-2 cursor-pointer group border rounded-lg card-content"
         data-card-id={card.id}
-        variants={cardVariants}
-        initial="normal"
-        animate="normal"
-        whileHover={!isDropdownOpen ? "hover" : "normal"}
         onClick={handleOpenModal}
         style={{ pointerEvents: 'auto' }}
       >
@@ -210,7 +177,7 @@ export const Card = memo(({
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
       {isModalOpen && (
         <ExpandedCardModal
           card={card}

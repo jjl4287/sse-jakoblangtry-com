@@ -1,10 +1,28 @@
 'use client';
 
 import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import type { DropResult } from '@hello-pangea/dnd';
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  horizontalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { SortableColumn } from './SortableColumn';
 import { Column } from './Column';
-import { useBoard, SaveStatus } from '~/services/board-context';
+import { SortableCard } from './SortableCard';
+import { Card } from './Card';
+import { useBoard } from '~/services/board-context';
+import type { SaveStatus } from '~/services/board-context';
 import { motion } from 'framer-motion';
 import { useTheme } from '~/app/contexts/ThemeContext';
 import { Sun, Moon } from 'lucide-react';
@@ -13,6 +31,7 @@ import { Search } from 'lucide-react';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import { ColumnAddForm } from './ColumnAddForm';
 import { clsx } from 'clsx';
+import type { Card as CardType, Column as ColumnType } from '~/types';
 
 export type BoardProps = {
   sidebarOpen: boolean;
@@ -28,6 +47,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     moveCard,
     moveColumn
   } = useBoard();
+  
   // Local state for search query filtering
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isAddingColumn, setIsAddingColumn] = useState(false);
@@ -35,36 +55,148 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
   const headerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Track active drag item for DragOverlay
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeItem, setActiveItem] = useState<{
+    type: 'card' | 'column';
+    card?: CardType;
+    column?: ColumnType;
+    index?: number;
+    columnId?: string;
+  } | null>(null);
+
+  // Define sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement required before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   // Use the custom hook for the header lighting effect
   useMousePositionStyle(headerRef);
 
-  // Handle DnD end for both intra- and inter-column moves
-  const onDragEnd = useCallback((result: DropResult) => {
-    const { source, destination, draggableId, type } = result;
+  // Handle drag start to track active item
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event;
+    setActiveId(active.id as string);
+    setActiveItem(active.data.current as {
+      type: 'card' | 'column';
+      card?: CardType;
+      column?: ColumnType;
+      index?: number;
+      columnId?: string;
+    });
+  }, []);
+
+  // Handle drag over for cross-column card movement
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { active, over } = event;
     
-    // Early returns with additional validation
-    if (!destination || !board) return;
-    if (!draggableId) {
-      console.warn('DnD operation missing draggableId');
-      return;
+    // Return if no over target or same IDs
+    if (!active || !over || active.id === over.id) return;
+    
+    const activeData = active.data.current as { type: string; columnId?: string; index?: number };
+    const overData = over.data.current as { type: string; columnId?: string };
+    
+    // Only proceed if dragging a card over a different column
+    if (activeData?.type === 'card' && overData?.type === 'column') {
+      const activeCardId = active.id as string;
+      const { columnId: sourceColumnId } = activeData;
+      const targetColumnId = over.id as string;
+      
+      // Don't do anything if source and target columns are the same
+      if (sourceColumnId === targetColumnId) return;
+      
+      // Find target column
+      const targetColumn = board?.columns.find(col => col.id === targetColumnId);
+      if (!targetColumn) return;
+      
+      // Calculate target index (at the end of the column)
+      const targetIndex = targetColumn.cards.length;
+      
+      // Move the card immediately for better UX
+      moveCard(activeCardId, targetColumnId, targetIndex);
     }
+  }, [board?.columns, moveCard]);
+
+  // Handle drag end for both card and column movement
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
     
-    if (type === 'COLUMN') {
-      const { index: srcIdx } = source;
-      const { index: destIdx } = destination;
-      if (srcIdx === destIdx) return;
-      void moveColumn(draggableId, destIdx);
-    } else {
-      const { index: srcIdx, droppableId: srcCol } = source;
-      const { index: destIdx, droppableId: destCol } = destination;
-      if (!srcCol || !destCol) {
-        console.warn('DnD operation missing column ids');
-        return;
+    if (!active || !over || !board) return;
+    
+    // Extract data
+    const activeId = active.id as string;
+    const overId = over.id as string;
+    
+    const activeData = active.data.current as { type: string; columnId?: string; index?: number };
+    const overData = over.data.current as { type: string; columnId?: string };
+    
+    // Handle column movement
+    if (activeData?.type === 'column') {
+      if (activeId !== overId) {
+        // Find source and destination column indexes
+        const activeColumnIndex = board.columns.findIndex(col => col.id === activeId);
+        const overColumnIndex = board.columns.findIndex(col => col.id === overId);
+        
+        if (activeColumnIndex !== -1 && overColumnIndex !== -1) {
+          moveColumn(activeId, overColumnIndex);
+        }
       }
-      if (srcCol === destCol && srcIdx === destIdx) return;
-      void moveCard(draggableId, destCol, destIdx, destIdx);
+    } 
+    // Handle card movement
+    else if (activeData?.type === 'card') {
+      const activeCardId = activeId;
+      const { columnId: sourceColumnId } = activeData;
+      
+      // Find target column and position
+      let targetColumnId = sourceColumnId;
+      let targetIndex = 0;
+      
+      // Check if dropping on another card
+      if (overData?.type === 'card') {
+        targetColumnId = overData.columnId;
+        
+        // Find the target index in the target column
+        const targetColumn = board.columns.find(col => col.id === targetColumnId);
+        if (targetColumn) {
+          const targetCard = targetColumn.cards.find(card => card.id === overId);
+          if (targetCard) {
+            targetIndex = targetCard.order;
+          }
+        }
+      } 
+      // Check if dropping on a column
+      else if (overData?.type === 'column') {
+        targetColumnId = overId;
+        // Place at the end of the column
+        const targetColumn = board.columns.find(col => col.id === targetColumnId);
+        if (targetColumn) {
+          targetIndex = targetColumn.cards.length;
+        }
+      }
+      
+      // Only move if needed and if we didn't already move during dragOver
+      if (sourceColumnId !== targetColumnId || activeData.index !== targetIndex) {
+        moveCard(activeCardId, targetColumnId ?? '', targetIndex ?? 0);
+      }
     }
+    
+    // Clear active items
+    setActiveId(null);
+    setActiveItem(null);
   }, [board, moveCard, moveColumn]);
+
+  // Reset active items if drag is canceled
+  const handleDragCancel = useCallback(() => {
+    setActiveId(null);
+    setActiveItem(null);
+  }, []);
 
   // Add keyboard shortcut listener
   useEffect(() => {
@@ -89,26 +221,15 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
   // Filter cards based on search query
   const filteredBoard = useMemo(() => {
     if (!board) return null;
-    if (!searchQuery.trim()) return board;
+    if (!searchQuery?.trim()) return board;
     
     const query = searchQuery.toLowerCase();
     const columns = board.columns.map(column => {
-      // Defensive check for column 
-      if (!column || !column.cards) {
-        console.warn('Invalid column structure found while filtering', column);
-        return { ...column, cards: [] };
-      }
-      
-      // Safe filter that handles potential undefined values in cards
-      const filteredCards = column.cards
-        .filter(card => card && (
-          (card.title && card.title.toLowerCase().includes(query)) || 
-          (card.description && card.description.toLowerCase().includes(query)) || 
-          (card.labels && Array.isArray(card.labels) && card.labels.some(
-            label => label && label.name && label.name.toLowerCase().includes(query)
-          ))
-        ));
-      
+      const filteredCards = column?.cards?.filter(card => (
+        card?.title?.toLowerCase().includes(query) ||
+        card?.description?.toLowerCase().includes(query) ||
+        card?.labels?.some(label => label?.name?.toLowerCase().includes(query))
+      )) ?? [];
       return { ...column, cards: filteredCards };
     });
     
@@ -117,15 +238,21 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
 
   // Calculate card count based on filtered board
   const cardCount = useMemo(() => {
-    if (!filteredBoard || !filteredBoard.columns) return 0;
+    if (!filteredBoard?.columns) return 0;
     
-    return filteredBoard.columns.reduce((acc, col) => {
-      if (col && col.cards && Array.isArray(col.cards)) {
+    return filteredBoard?.columns?.reduce((acc, col) => {
+      if (col?.cards) {
         return acc + col.cards.length;
       }
       return acc;
-    }, 0);
+    }, 0) ?? 0;
   }, [filteredBoard]);
+
+  // Get the column IDs for the sortable context
+  const columnsIds = useMemo(() => 
+    filteredBoard?.columns?.map(col => col?.id ?? '') ?? [], 
+    [filteredBoard?.columns]
+  );
 
   // Different UI states
   if (loading) {
@@ -164,39 +291,28 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
   return (
     <div className="relative flex flex-col h-full w-full p-2">
       {/* Board Header */}
-      <motion.div 
-        ref={headerRef}
-        className="glass-column glass-border-animated p-2 mb-1 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 rounded-lg"
-        style={{ 
-          // CSS variables --x and --y are now set by the hook
-          transformOrigin: "center center" 
-        }}
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="flex items-center flex-grow mr-4 min-w-0">
-          <h2 className={clsx(
-            "text-lg font-semibold whitespace-nowrap truncate transition-all duration-300 ease-in-out",
-            { 'pl-10': !sidebarOpen } // Add padding only when sidebar is closed
-          )} style={{ color: 'var(--sidebar-primary-foreground)' }}>
-            {board.title}
-          </h2>
-        </div>
-        <div className="flex flex-wrap items-center space-x-0 space-y-2 sm:space-y-0 sm:space-x-3 flex-shrink-0">
-          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm w-full sm:w-auto text-center">
+      <header className="glass-card glass-border-animated p-2 mb-1 flex items-center justify-between rounded-lg">
+        {/* Board Title */}
+        <h2 
+          className={clsx(
+            "text-2xl font-bold truncate text-neutral-900 dark:text-white max-w-[30vw] transition-all duration-300",
+            sidebarOpen ? "pl-0" : "pl-10"
+          )}
+        >
+          {board.title}
+        </h2>
+        {/* Controls */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
             {columnCount} Columns
           </div>
-          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm w-full sm:w-auto text-center">
+          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
             {cardCount} Cards
           </div>
-          <button
-            onClick={() => setIsAddingColumn(true)}
-            className="glass-button px-3 py-1 rounded-full text-sm shadow-sm w-full sm:w-auto text-center"
-          >
+          <button onClick={() => setIsAddingColumn(true)} className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
             + Add Column
           </button>
-          <div className="relative w-full sm:w-auto">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               ref={searchInputRef}
@@ -204,96 +320,57 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
               placeholder="Search..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="pl-9 pr-3 py-1 h-8 w-full sm:w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
+              className="pl-9 pr-3 py-1 h-8 w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
             />
           </div>
-          <button onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} className="p-1 ml-2">
-            {theme === 'dark' ? (
-              <Sun className="h-5 w-5 text-yellow-400" />
-            ) : (
-              <Moon className="h-5 w-5 text-blue-200" />
-            )}
+          <button onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} className="p-1">
+            {theme === 'dark' ? <Sun className="h-5 w-5 text-yellow-400" /> : <Moon className="h-5 w-5 text-blue-200" />}
           </button>
-          <SaveStatusIndicator status={saveStatus} error={saveError} />
         </div>
-      </motion.div>
+      </header>
       
-      {/* Board Content */}
-      <motion.div className="flex-1 overflow-hidden pt-2 pb-0" layout={false}>
-        <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="board" type="COLUMN" direction="horizontal">
-            {(prov) => (
-              <div
-                ref={prov.innerRef}
-                {...prov.droppableProps}
-                className="flex h-full overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent gap-x-4"
-              >
-                {Array.isArray(filteredBoard?.columns) && filteredBoard?.columns.map((column, index) => (
-                  // Check if column exists and has ID before rendering
-                  column && column.id ? (
-                    <Draggable key={column.id} draggableId={column.id} index={index}>
-                      {(provD) => (
-                        <div
-                          ref={provD.innerRef}
-                          {...provD.draggableProps}
-                          {...provD.dragHandleProps}
-                          style={{ ...provD.draggableProps.style }}
-                          className="flex flex-col h-full flex-1 min-w-[250px]"
-                        >
-                          <Column column={column} />
-                        </div>
-                      )}
-                    </Draggable>
-                  ) : null
-                ))}
-                {prov.placeholder}
-                {/* Inline Add Column Form as a new column slot */}
-                {isAddingColumn && (
-                  <div className="flex flex-col h-full flex-1 min-w-[250px]">
-                    <ColumnAddForm onCancel={() => setIsAddingColumn(false)} />
-                  </div>
-                )}
+      {/* Board Content with dnd-kit */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <div 
+          className={clsx(
+            "flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-2 pb-0 gap-x-4 justify-start -mx-2",
+          )}
+        >
+          <SortableContext 
+            items={columnsIds} 
+            strategy={horizontalListSortingStrategy}
+          >
+            {filteredBoard?.columns?.map((column) => (
+              column?.id ? <SortableColumn key={column.id} column={column} /> : null
+            ))}
+          </SortableContext>
+        </div>
+        
+        <DragOverlay zIndex={9999}>
+          {activeId && activeItem ? (
+            activeItem.type === 'column' && activeItem.column ? (
+              <div className="column-drag-overlay flex-shrink-0 overflow-visible">
+                <Column column={activeItem.column} />
               </div>
-            )}
-          </Droppable>
-        </DragDropContext>
-      </motion.div>
+            ) : activeItem.type === 'card' && activeItem.card && typeof activeItem.index === 'number' && activeItem.columnId ? (
+              <div className="card-wrapper dragging">
+                <Card 
+                  card={activeItem.card} 
+                  index={activeItem.index} 
+                  columnId={activeItem.columnId} 
+                />
+              </div>
+            ) : null
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
-  );
-};
-
-const SaveStatusIndicator: React.FC<{ status: SaveStatus; error: Error | null }> = ({ status, error }) => {
-  if (status === 'idle') return null;
-
-  let text = 'Changes saved.';
-  let color = 'text-green-600';
-
-  if (status === 'saving') {
-    text = 'Saving...';
-    color = 'text-yellow-600';
-  }
-  if (status === 'error') {
-    text = `Save failed: ${error?.message || 'Unknown error'}`;
-    color = 'text-red-600';
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 10 }}
-      transition={{ duration: 0.2 }}
-      className={clsx(
-        "text-xs px-2 py-1 rounded-full whitespace-nowrap",
-        color,
-        {
-          'bg-green-100 dark:bg-green-900/50': status === 'saved',
-          'bg-yellow-100 dark:bg-yellow-900/50': status === 'saving',
-          'bg-red-100 dark:bg-red-900/50': status === 'error'
-        }
-      )}
-    >
-      {text}
-    </motion.div>
   );
 }; 

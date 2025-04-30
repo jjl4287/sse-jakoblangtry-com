@@ -7,8 +7,8 @@ import CursorLightEffect from '~/components/effects/CursorLightEffect';
 import Providers from './providers';
 
 export const metadata: Metadata = {
-  title: "SSE Goals for 25/26",
-  description: "RITs SSE needs a means to track its goals, so that we can actually measure the success of our efforts.",
+  title: "Jello Kanban",
+  description: "Jello Kanban is a simple and effective way to manage your projects and tasks.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
