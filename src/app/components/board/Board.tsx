@@ -5,12 +5,10 @@ import {
   DndContext,
   DragOverlay,
   rectIntersection,
-  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
-  type CollisionDetection,
 } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
 import {
@@ -265,14 +263,6 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     [filteredBoard?.columns]
   );
 
-  // Select collision algorithm per active drag type
-  const collisionDetection: CollisionDetection = useCallback((args) => {
-    if (activeItem?.type === 'column') {
-      return closestCenter(args);
-    }
-    return rectIntersection(args);
-  }, [activeItem]);
-
   // Different UI states
   if (loading) {
     return (
@@ -351,7 +341,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
       {/* Board Content with dnd-kit */}
       <DndContext
         sensors={sensors}
-        collisionDetection={collisionDetection}
+        collisionDetection={rectIntersection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
