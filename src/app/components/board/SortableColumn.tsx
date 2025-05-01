@@ -28,6 +28,11 @@ export function SortableColumn({ column, dragOverlay = false }: SortableColumnPr
     setTitleInput(column.title);
   }, [column.title]);
   
+  // Memoize sortable data to prevent unstable object reference triggering continuous re-measure
+  const sortableColumnData = useMemo(
+    () => ({ type: 'column' as const, columnId: column.id }),
+    [column.id]
+  );
   const {
     attributes,
     listeners,
@@ -38,7 +43,7 @@ export function SortableColumn({ column, dragOverlay = false }: SortableColumnPr
     isOver,
   } = useSortable({
     id: column.id,
-    data: { type: 'column', column },
+    data: sortableColumnData,
     disabled: dragOverlay,
   });
 

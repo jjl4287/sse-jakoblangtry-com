@@ -58,6 +58,7 @@ export function SortableCard({ card, index, columnId }: SortableCardProps) {
         card={card} 
         index={index} 
         columnId={columnId} 
+        isDragging={isDragging}
       />
     </div>
   );

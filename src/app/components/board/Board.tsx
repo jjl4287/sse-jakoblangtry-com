@@ -9,6 +9,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  MeasuringStrategy,
+  MeasuringFrequency,
 } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
 import {
@@ -48,6 +50,12 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     moveColumn
   } = useBoard();
   
+  // Keep a ref to board to use in stable callbacks without re-defining on every change
+  const boardRef = useRef(board);
+  useEffect(() => {
+    boardRef.current = board;
+  }, [board]);
+
   // Local state for search query filtering
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isAddingColumn, setIsAddingColumn] = useState(false);
@@ -65,6 +73,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     columnId?: string;
   } | null>(null);
   const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({});
+  const lastCrossColumnMove = useRef<string>('');
 
   // Define sensors
   const sensors = useSensors(
@@ -93,6 +102,10 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
       columnId?: string;
     } | undefined;
     if (!data) return;
+    // Add class on html when dragging a card
+    if (data.type === 'card') {
+      document.documentElement.classList.add('card-dragging-active');
+    }
     setActiveItem(data);
     // If dragging a column, capture its DOM size for overlay ghost
     if (data.type === 'column') {
@@ -109,29 +122,26 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     const { active, over } = event;
     if (!active || !over || active.id === over.id) return;
 
-    const activeData = active.data.current as { type: string; columnId?: string; index?: number };
+    const activeData = active.data.current as { type: string; columnId?: string };
     if (activeData.type !== 'card' || !activeData.columnId) return;
-    const activeCardId = active.id as string;
-    const sourceColumnId = activeData.columnId;
 
-    const overData = over.data.current as { type: string; columnId?: string; index?: number };
-    let targetColumnId: string | undefined;
-    if (overData.type === 'column') {
-      targetColumnId = over.id as string;
-    } else if (overData.type === 'card') {
-      targetColumnId = overData.columnId;
-    } else {
-      return;
-    }
-    if (!targetColumnId || sourceColumnId === targetColumnId) return;
+    const overData = over.data.current as { type: string; columnId?: string };
+    const targetColumnId =
+      overData.type === 'column' ? (over.id as string)
+      : overData.type === 'card' ? overData.columnId!
+      : undefined;
+    if (!targetColumnId || targetColumnId === lastCrossColumnMove.current) return;
 
-    const targetColumn = board?.columns.find(col => col.id === targetColumnId);
+    const targetColumn = boardRef.current?.columns.find(c => c.id === targetColumnId);
     if (!targetColumn) return;
 
-    // Always insert at end for consistent UX
+    const alreadyInTarget = targetColumn.cards.some(c => c.id === active.id);
+    if (alreadyInTarget) return;
+
     const targetIndex = targetColumn.cards.length;
-    moveCard(activeCardId, targetColumnId, targetIndex);
-  }, [board?.columns, moveCard]);
+    moveCard(active.id as string, targetColumnId, targetIndex);
+    lastCrossColumnMove.current = targetColumnId;
+  }, [moveCard]);
 
   // Handle drag end for both card and column movement
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -199,12 +209,18 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     // Clear active items
     setActiveId(null);
     setActiveItem(null);
+    // Remove dragging-in-progress class and reset cross-column ref
+    document.documentElement.classList.remove('card-dragging-active');
+    lastCrossColumnMove.current = '';
   }, [board, moveCard, moveColumn]);
 
   // Reset active items if drag is canceled
   const handleDragCancel = useCallback(() => {
     setActiveId(null);
     setActiveItem(null);
+    // Remove class and reset if drag is cancelled
+    document.documentElement.classList.remove('card-dragging-active');
+    lastCrossColumnMove.current = '';
   }, []);
 
   // Add keyboard shortcut listener
@@ -342,6 +358,13 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
       <DndContext
         sensors={sensors}
         collisionDetection={rectIntersection}
+        // Only measure droppables before dragging to avoid infinite loops during drag
+        measuring={{
+          droppable: {
+            strategy: MeasuringStrategy.BeforeDragging,
+            frequency: MeasuringFrequency.Optimized,
+          },
+        }}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}

@@ -311,6 +311,7 @@
 
   /* Dragging state */
   .card-wrapper.dragging {
+    pointer-events: none;
     z-index: 9999 !important;
     opacity: 1;
     margin: 0 !important;
@@ -649,10 +650,23 @@
 
 /* Make the dragging class elevate and scale the card in one smooth motion */
 .card-wrapper.dragging {
+  pointer-events: none;
   z-index: 9999 !important;
   opacity: 1;
   margin: 0 !important;
   padding: 0 !important;
   /* Slight scale for visual feedback */
   transform: scale(1.02) translate3d(0, 0, 0);
+}
+
+/* Prevent column hover effect during card drag */
+html.card-dragging-active .dark .glass-column:hover {
+  background-color: rgba(66, 110, 140, var(--glass-bg-opacity-dark)) !important;
+  border-color: rgba(255, 255, 255, var(--glass-border-opacity-dark)) !important;
+  z-index: 10 !important;
+}
+html.card-dragging-active .light .glass-column:hover {
+  background-color: rgba(66, 110, 140, var(--glass-bg-opacity-light)) !important;
+  border-color: rgba(210, 220, 230, var(--glass-border-opacity-light)) !important;
+  z-index: 10 !important;
 }
