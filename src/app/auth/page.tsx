@@ -21,7 +21,7 @@ export default function AuthPage() {
       setError('Email and password are required');
       return;
     }
-    const result = (await signIn('credentials', { redirect: false, email: email.trim(), password })) as SignInResponse | undefined;
+    const result = await signIn('credentials', { redirect: false, email: email.trim(), password });
     if (result?.error) {
       setError('Invalid email or password');
     } else {
@@ -42,11 +42,14 @@ export default function AuthPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), email: email.trim(), password }),
       });
-      const data = await res.json();
+      const data: unknown = await res.json();
       if (!res.ok) {
-        setError(data.error ?? 'Registration failed');
+        const errorMessage = (typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string')
+          ? data.error
+          : 'Registration failed';
+        setError(errorMessage);
       } else {
-        const signInResult = (await signIn('credentials', { redirect: false, email: email.trim(), password })) as SignInResponse | undefined;
+        const signInResult = await signIn('credentials', { redirect: false, email: email.trim(), password });
         if (signInResult?.error) {
           setError('Registration succeeded but sign-in failed');
         } else {
