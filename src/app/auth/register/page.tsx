@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -56,14 +56,22 @@ export default function RegisterPage() {
       <div className="flex flex-col space-y-2 w-full max-w-xs mb-4">
         <button
           type="button"
-          onClick={() => signIn('github', { callbackUrl: '/' })}
+          onClick={async () => {
+            // Ensure any existing session is signed out before OAuth signup
+            await signOut({ redirect: false });
+            signIn('github', { callbackUrl: '/' });
+          }}
           className="w-full bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-4 py-2 font-medium"
         >
           Register with GitHub
         </button>
         <button
           type="button"
-          onClick={() => signIn('google', { callbackUrl: '/' })}
+          onClick={async () => {
+            // Ensure any existing session is signed out before OAuth signup
+            await signOut({ redirect: false });
+            signIn('google', { callbackUrl: '/' });
+          }}
           className="w-full bg-red-600 hover:bg-red-500 text-white rounded-lg px-4 py-2 font-medium"
         >
           Register with Google
