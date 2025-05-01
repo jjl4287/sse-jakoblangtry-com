@@ -31,8 +31,8 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
   
   // Memoize sortable data to prevent unstable object reference triggering continuous re-measure
   const sortableColumnData = useMemo(
-    () => ({ type: 'column' as const, columnId: column.id }),
-    [column.id]
+    () => ({ type: 'column' as const, columnId: column.id, column }),
+    [column]
   );
   const {
     attributes,
