@@ -1,25 +1,38 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GitHubProvider from "next-auth/providers/github";
+import GoogleProvider from "next-auth/providers/google";
 import prisma from '~/lib/prisma';
+import bcrypt from 'bcrypt';
 import type { NextAuthOptions } from "next-auth";
 
 // Use Prisma to persist users
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      name: "Username",
+      name: "Credentials",
       credentials: {
-        username: { label: "Username", type: "text" }
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.username) return null;
-        // Only allow login for existing users
-        const dbUser = await prisma.user.findFirst({ where: { name: credentials.username } });
-        if (!dbUser) {
-          return null; // user must register first
-        }
-        return { id: dbUser.id, name: dbUser.name };
+        if (!credentials?.email || !credentials?.password) return null;
+        // Find user by email
+        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+        if (!user || !user.hashedPassword) return null;
+        // Verify password
+        const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
+        if (!isValid) return null;
+        return { id: user.id, name: user.name, email: user.email };
       }
+    }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_ID!,
+      clientSecret: process.env.GITHUB_SECRET!
+    }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_ID!,
+      clientSecret: process.env.GOOGLE_SECRET!
     })
   ],
   session: { strategy: "jwt" },
@@ -29,6 +42,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.sub!;
         session.user.name = token.name!;
+        session.user.email = token.email!;
       }
       return session;
     }

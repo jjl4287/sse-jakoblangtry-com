@@ -1,6 +1,9 @@
 /* eslint-disable */
 // @ts-nocheck
 import { PrismaClient, Priority } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import * as dotenv from 'dotenv';
+dotenv.config();
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -25,10 +28,15 @@ async function main() {
   console.log('Seeding database from board.json');
 
   // Create an admin user
+  // Hash the default admin password
+  const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS ?? '10');
+  const hashedPassword = await bcrypt.hash('Ins3cur3!', saltRounds);
   const admin = await prisma.user.create({
     data: {
       id: 'admin', // fixed ID for admin user
       name: 'admin', // login username
+      email: 'jakob@jakoblangtry.com',
+      hashedPassword
     },
   });
 

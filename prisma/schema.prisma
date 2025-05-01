@@ -78,6 +78,10 @@ model Comment {
 model User {
   id            String   @id @default(cuid())
   name          String
+  email         String?  @unique
+  hashedPassword String?
+  resetToken     String?
+  resetTokenExpiry DateTime?
   assignedCards Card[]   @relation("CardAssignees")
   boards        Board[]
   createdAt     DateTime @default(now())

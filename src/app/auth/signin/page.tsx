@@ -6,20 +6,25 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function SignInPage() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!username.trim()) {
-      setError('Username is required');
+    if (!email.trim() || !password) {
+      setError('Email and password are required');
       return;
     }
-    const result = await signIn('credentials', { redirect: false, username: username.trim() });
+    const result = await signIn('credentials', {
+      redirect: false,
+      email: email.trim(),
+      password
+    });
     if (result?.error) {
-      setError('Invalid username or not registered');
+      setError('Invalid email or password');
     } else {
       router.push('/');
     }
@@ -30,13 +35,23 @@ export default function SignInPage() {
       <h1 className="text-2xl mb-4 text-gray-800 dark:text-gray-200">Sign In</h1>
       <form onSubmit={handleSubmit} className="flex flex-col space-y-4 w-full max-w-xs">
         <label className="flex flex-col text-gray-700 dark:text-gray-300">
-          Username
+          Email
           <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className="mt-1 px-3 py-2 border rounded-lg bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground"
-            placeholder="Enter username"
+            placeholder="you@example.com"
+          />
+        </label>
+        <label className="flex flex-col text-gray-700 dark:text-gray-300">
+          Password
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mt-1 px-3 py-2 border rounded-lg bg-background dark:bg-gray-800 border-border dark:border-gray-700 text-foreground"
+            placeholder="Enter password"
           />
         </label>
         <button
