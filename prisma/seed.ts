@@ -29,7 +29,18 @@ async function main() {
 
   // Create an admin user
   // Hash the default admin password
-  const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS ?? '10');
+  const getSaltRounds = () => {
+    const saltRoundsEnv = process.env.BCRYPT_SALT_ROUNDS;
+    const saltRounds = parseInt(saltRoundsEnv ?? '10', 10);
+    if (isNaN(saltRounds) || saltRounds <= 0) {
+      console.warn(
+        `Invalid BCRYPT_SALT_ROUNDS value: "${saltRoundsEnv}". Falling back to default value of 10.`
+      );
+      return 10;
+    }
+    return saltRounds;
+  };
+  const saltRounds = getSaltRounds();
   const hashedPassword = await bcrypt.hash('Ins3cur3!', saltRounds);
   const admin = await prisma.user.create({
     data: {
