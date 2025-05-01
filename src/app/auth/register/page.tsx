@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -32,7 +33,17 @@ export default function RegisterPage() {
         const data = await res.json();
         setError(data?.error || 'Registration failed');
       } else {
-        router.push('/auth/signin');
+        // Auto sign in after successful registration
+        const signInResult = await signIn('credentials', {
+          redirect: false,
+          email: email.trim(),
+          password
+        });
+        if (signInResult?.error) {
+          setError('Registration succeeded but auto sign-in failed');
+        } else {
+          router.push('/');
+        }
       }
     } catch {
       setError('Registration failed');
@@ -42,6 +53,22 @@ export default function RegisterPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background dark:bg-gray-900">
       <h1 className="text-2xl mb-4 text-gray-800 dark:text-gray-200">Register</h1>
+      <div className="flex flex-col space-y-2 w-full max-w-xs mb-4">
+        <button
+          type="button"
+          onClick={() => signIn('github', { callbackUrl: '/' })}
+          className="w-full bg-gray-800 hover:bg-gray-700 text-white rounded-lg px-4 py-2 font-medium"
+        >
+          Register with GitHub
+        </button>
+        <button
+          type="button"
+          onClick={() => signIn('google', { callbackUrl: '/' })}
+          className="w-full bg-red-600 hover:bg-red-500 text-white rounded-lg px-4 py-2 font-medium"
+        >
+          Register with Google
+        </button>
+      </div>
       <form onSubmit={handleSubmit} className="flex flex-col space-y-4 w-full max-w-xs">
         <label className="flex flex-col text-gray-700 dark:text-gray-300">
           Username

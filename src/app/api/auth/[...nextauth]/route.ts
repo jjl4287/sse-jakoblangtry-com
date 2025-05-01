@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
@@ -8,6 +9,9 @@ import type { NextAuthOptions } from "next-auth";
 
 // Use Prisma to persist users
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  // Use a secret to ensure JWT and provider callbacks work properly
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
       name: "Credentials",
