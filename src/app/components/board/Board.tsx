@@ -349,7 +349,8 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
       >
         <div 
           className={clsx(
-            "flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-2 pb-0 gap-x-4 justify-start -mx-2",
+            "flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-1 pb-0 gap-x-1 justify-start -mx-1",
+            sidebarOpen ? "justify-start" : "justify-between"
           )}
         >
           <SortableContext 

@@ -159,10 +159,11 @@
     isolation: isolate; /* Create new stacking context */
     clip-path: none !important; /* Prevent clipping */
     transform-style: preserve-3d; /* Preserve 3D positioning */
-    /* Equal column width */
-    flex: 1 0 250px !important;
-    max-width: 350px !important;
-    margin: 0 0.5rem !important;
+    /* Allow flexible columns to fill available space */
+    flex: 1 1 0 !important;
+    max-width: none !important;
+    /* Spacing between columns (adjust gutter as needed) */
+    margin: 0 0.25rem !important;
     /* Core column styling without filter to prevent DnD fixed-preview offset */
     border-width: var(--glass-border-width);
     transition: background-color var(--transition-speed) ease-in-out,
@@ -193,14 +194,14 @@
   .card-wrapper {
     position: relative;
     z-index: 1;
-    margin-bottom: 0.5rem;
-    margin-top: 0.3rem;
-    margin-left: 3px;
-    margin-right: 3px;
-    padding-left: 2px;
-    padding-right: 2px;
-    padding-top: 4px;
-    padding-bottom: 4px;
+    margin-bottom: 0.25rem;
+    margin-top: 0.15rem;
+    margin-left: 2px;
+    margin-right: 2px;
+    padding-left: 1px;
+    padding-right: 1px;
+    padding-top: 2px;
+    padding-bottom: 2px;
     overflow: visible !important;
     width: calc(100% - 6px);
     contain: none !important;
@@ -282,6 +283,11 @@
     background-color: rgba(66, 110, 140, var(--glass-bg-opacity-dark)); 
     border-color: rgba(255, 255, 255, var(--glass-border-opacity-dark));
     /* Layout (flex, flex-col) and shadow are applied in JSX */
+  }
+
+  /* Override gutter margin for the sidebar (aside element) */
+  aside.glass-column {
+    margin: 0 !important;
   }
 
   .light .glass-column {
