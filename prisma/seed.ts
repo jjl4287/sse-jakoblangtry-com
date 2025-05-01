@@ -37,7 +37,8 @@ async function main() {
     data: {
       title: 'Admin Board',
       theme: board.theme || 'dark',
-      isPublic: true,
+      // Only visible to the admin user
+      isPublic: false,
       user: { connect: { id: admin.id } }
     },
   });
