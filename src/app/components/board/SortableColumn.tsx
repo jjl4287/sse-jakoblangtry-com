@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, type CSSProperties } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -12,19 +12,21 @@ import { Trash2 } from 'lucide-react';
 
 interface SortableColumnProps {
   column: ColumnType;
+  /** When true, renders as DragOverlay ghost */
+  dragOverlay?: boolean;
 }
 
-export function SortableColumn({ column }: SortableColumnProps) {
+export function SortableColumn({ column, dragOverlay = false }: SortableColumnProps) {
+  // Column.id is assumed valid (validated by parent Column wrapper)
+
   const [isAddingCard, setIsAddingCard] = useState(false);
   const { updateColumn, deleteColumn } = useBoard();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [titleInput, setTitleInput] = useState(column?.title || '');
+  const [titleInput, setTitleInput] = useState(column.title);
   
   useEffect(() => {
-    if (column?.title) {
-      setTitleInput(column.title);
-    }
-  }, [column?.title]);
+    setTitleInput(column.title);
+  }, [column.title]);
   
   const {
     attributes,
@@ -35,25 +37,16 @@ export function SortableColumn({ column }: SortableColumnProps) {
     isDragging,
     isOver,
   } = useSortable({
-    id: column?.id || `temp-${Math.random()}`,
-    data: {
-      type: 'column',
-      column
-    },
-    disabled: !column?.id
+    id: column.id,
+    data: { type: 'column', column },
+    disabled: dragOverlay,
   });
 
-  // Early return with fallback if column is undefined or missing id
-  if (!column?.id) {
-    console.warn('Column component received undefined or invalid column data');
-    return null;
-  }
-
-  const style = {
+  // Transform handles ghost positioning; hide in-list element on its own drag
+  const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 999 : isOver ? 50 : 'auto',
-    opacity: 1,
+    opacity: isDragging && !dragOverlay ? 0 : 1,
   };
 
   const handleAddCardClick = useCallback(() => {
@@ -107,8 +100,9 @@ export function SortableColumn({ column }: SortableColumnProps) {
   return (
     <div
       ref={setNodeRef}
+      data-column-id={column.id}
       style={style}
-      className="flex flex-col h-full min-w-[250px] max-w-[350px] glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2"
+      className="mx-2 flex flex-col flex-shrink-0 h-full min-w-[250px] max-w-[350px] glass-column border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2"
       {...attributes}
       {...listeners}
     >

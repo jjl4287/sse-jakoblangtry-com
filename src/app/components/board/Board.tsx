@@ -5,10 +5,12 @@ import {
   DndContext,
   DragOverlay,
   rectIntersection,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
+  type CollisionDetection,
 } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
 import {
@@ -18,8 +20,8 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { SortableColumn } from './SortableColumn';
-import { Column } from './Column';
 import { SortableCard } from './SortableCard';
+import { Column } from './Column';
 import { Card } from './Card';
 import { useBoard } from '~/services/board-context';
 import type { SaveStatus } from '~/services/board-context';
@@ -64,6 +66,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     index?: number;
     columnId?: string;
   } | null>(null);
+  const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({});
 
   // Define sensors
   const sensors = useSensors(
@@ -84,14 +87,24 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
     setActiveId(active.id as string);
-    setActiveItem(active.data.current as {
+    const data = active.data?.current as {
       type: 'card' | 'column';
       card?: CardType;
       column?: ColumnType;
       index?: number;
       columnId?: string;
-    });
-  }, []);
+    } | undefined;
+    if (!data) return;
+    setActiveItem(data);
+    // If dragging a column, capture its DOM size for overlay ghost
+    if (data.type === 'column') {
+      const el = document.querySelector(`[data-column-id="${active.id}"]`);
+      if (el instanceof HTMLElement) {
+        const { width, height } = el.getBoundingClientRect();
+        setOverlayStyle({ width, height });
+      }
+    }
+  }, [setOverlayStyle]);
 
   // Handle drag over for cross-column card moves: drop immediately at end
   const handleDragOver = useCallback((event: DragOverEvent) => {
@@ -252,6 +265,14 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     [filteredBoard?.columns]
   );
 
+  // Select collision algorithm per active drag type
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    if (activeItem?.type === 'column') {
+      return closestCenter(args);
+    }
+    return rectIntersection(args);
+  }, [activeItem]);
+
   // Different UI states
   if (loading) {
     return (
@@ -330,7 +351,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
       {/* Board Content with dnd-kit */}
       <DndContext
         sensors={sensors}
-        collisionDetection={rectIntersection}
+        collisionDetection={collisionDetection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
@@ -352,21 +373,20 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
         </div>
         
         <DragOverlay zIndex={9999}>
-          {activeId && activeItem ? (
-            activeItem.type === 'column' && activeItem.column ? (
-              <div className="column-drag-overlay flex-shrink-0 overflow-visible">
-                <Column column={activeItem.column} />
-              </div>
-            ) : activeItem.type === 'card' && activeItem.card && typeof activeItem.index === 'number' && activeItem.columnId ? (
-              <div className="card-wrapper dragging">
-                <Card 
-                  card={activeItem.card} 
-                  index={activeItem.index} 
-                  columnId={activeItem.columnId} 
-                />
-              </div>
-            ) : null
-          ) : null}
+          {activeItem?.type === 'column' && activeItem.column && (
+            <div className="column-drag-overlay" style={overlayStyle}>
+              <Column column={activeItem.column} />
+            </div>
+          )}
+          {activeItem?.type === 'card' && activeItem.card && typeof activeItem.index === 'number' && activeItem.columnId && (
+            <div className="card-wrapper dragging">
+              <Card 
+                card={activeItem.card} 
+                index={activeItem.index} 
+                columnId={activeItem.columnId} 
+              />
+            </div>
+          )}
         </DragOverlay>
       </DndContext>
     </div>

@@ -19,7 +19,7 @@ export const Column = memo(({ column }: ColumnProps) => {
   // Just render the SortableColumn without the sortable functionality
   // For use in the DragOverlay or other non-sortable contexts
   return (
-    <div className="flex flex-col h-full flex-1 min-w-[250px] max-w-[350px] mx-2 glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2">
+    <div className="mx-2 flex flex-col flex-shrink-0 h-full min-w-[250px] max-w-[350px] glass-column relative border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2">
       <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full">
         <h3 className="text-lg font-semibold">{column?.title}</h3>
         <div className="flex items-center gap-2">
