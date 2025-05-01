@@ -388,8 +388,8 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
         
         <DragOverlay zIndex={9999}>
           {activeItem?.type === 'column' && activeItem.column && (
-            <div className="column-drag-overlay" style={overlayStyle}>
-              <Column column={activeItem.column} />
+            <div style={overlayStyle}>
+              <SortableColumn column={activeItem.column} dragOverlay />
             </div>
           )}
           {activeItem?.type === 'card' && activeItem.card && typeof activeItem.index === 'number' && activeItem.columnId && (

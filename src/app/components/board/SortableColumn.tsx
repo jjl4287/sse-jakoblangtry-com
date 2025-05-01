@@ -14,10 +14,15 @@ interface SortableColumnProps {
   column: ColumnType;
   /** When true, renders as DragOverlay ghost */
   dragOverlay?: boolean;
+  /** Optional style overrides when rendered in DragOverlay */
+  overlayStyle?: React.CSSProperties;
 }
 
 export function SortableColumn({ column, dragOverlay = false }: SortableColumnProps) {
   // Column.id is assumed valid (validated by parent Column wrapper)
+
+  // Extract overlayStyle prop
+  const { overlayStyle } = (arguments[0] as SortableColumnProps);
 
   const [isAddingCard, setIsAddingCard] = useState(false);
   const { updateColumn, deleteColumn } = useBoard();
@@ -47,12 +52,14 @@ export function SortableColumn({ column, dragOverlay = false }: SortableColumnPr
     disabled: dragOverlay,
   });
 
-  // Transform handles ghost positioning; hide in-list element on its own drag
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging && !dragOverlay ? 0 : 1,
-  };
+  // Compute style: apply transforms only in-list; for overlay, merge optional overlayStyle overrides
+  const style: CSSProperties = dragOverlay
+    ? { opacity: 1, ...overlayStyle }
+    : {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0 : 1,
+      };
 
   const handleAddCardClick = useCallback(() => {
     setIsAddingCard(true);
