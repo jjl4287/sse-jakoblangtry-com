@@ -20,7 +20,6 @@ export function SortableCard({ card, index, columnId }: SortableCardProps) {
     transform,
     transition,
     isDragging,
-    isOver,
   } = useSortable({
     id: card?.id || `temp-${Math.random()}`,
     data: {
