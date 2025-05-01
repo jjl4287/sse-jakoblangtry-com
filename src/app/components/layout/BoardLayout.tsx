@@ -98,7 +98,7 @@ const InnerBoardLayout: React.FC = () => {
     <div className="flex h-screen relative">
       <aside
         className={clsx(
-          'fixed left-0 z-50 w-64 flex flex-col justify-between',
+          'fixed z-50 w-62 flex flex-col justify-between',
           'top-2 bottom-2 h-[calc(100vh-1rem)]',
           'glass-column glass-border-animated bg-[#A7F3D0]/15 dark:bg-[#A7F3D0]/25 backdrop-blur-md border border-[#A7F3D0]/30 rounded-xl shadow-md hover:shadow-lg',
           'transition-transform duration-300 ease-in-out',

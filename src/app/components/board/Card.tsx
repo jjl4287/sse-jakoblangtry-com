@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useRef, memo, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { useBoard } from '~/services/board-context';
 import { ExpandedCardModal } from './ExpandedCardModal';
 import { Button } from '~/components/ui/button';
@@ -32,42 +31,17 @@ interface CardProps {
   card: CardType;
   index: number;
   columnId: string;
+  isDragging?: boolean;
   onMoveCard?: (dragIndex: number, hoverIndex: number) => void;
   onDragStart?: (item: CardDragItem) => void;
   onDragEnd?: () => void;
 }
 
-// Card appearance animation variants
-const cardVariants = {
-  normal: {
-    scale: 1,
-    y: 0,
-    boxShadow: "0px 4px 6px rgba(0,0,0,0.1)",
-    zIndex: 1,
-    transition: { duration: 0.15, ease: [0.16, 1, 0.3, 0.55] }
-  },
-  hover: {
-    scale: 1.03,
-    y: -2,
-    boxShadow: "0px 10px 15px rgba(0,0,0,0.1)",
-    zIndex: 50,
-    transition: { duration: 0.15, ease: [0.16, 1, 0.3, 0.55] }
-  },
-  dragging: {
-    scale: 1.08,
-    y: -6,
-    boxShadow: "0px 20px 30px rgba(0,0,0,0.2)",
-    opacity: 0.9,
-    cursor: "grabbing",
-    zIndex: 999,
-    transition: { duration: 0.15 }
-  }
-};
-
 export const Card = memo(({ 
   card, 
   index, 
   columnId,
+  isDragging,
   onMoveCard,
   onDragStart,
   onDragEnd
@@ -135,37 +109,35 @@ export const Card = memo(({
 
   return (
     <>
-      <motion.div
+      <div
         ref={ref}
-        layoutId={`card-${card.id}`}
-        className="relative glass-card p-2 cursor-pointer group border rounded-lg"
+        className="relative glass-card p-2 cursor-pointer group border rounded-lg card-content"
         data-card-id={card.id}
-        variants={cardVariants}
-        initial="normal"
-        animate="normal"
-        whileHover={!isDropdownOpen ? "hover" : "normal"}
         onClick={handleOpenModal}
         style={{ pointerEvents: 'auto' }}
       >
-        <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-[50ms]" onClick={handleDropdownTriggerClick}>
-          <DropdownMenu onOpenChange={handleDropdownOpenChange} open={isDropdownOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem onSelect={handleDuplicate}>
-                <Copy className="mr-2 h-4 w-4" />
-                <span>Duplicate Card</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={handleDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                <Trash2 className="mr-2 h-4 w-4" />
-                <span>Delete Card</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {/* Conditionally render the ENTIRE DropdownMenu only when not dragging */}
+        {!isDragging && (
+          <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-[50ms]" onClick={handleDropdownTriggerClick}>
+            <DropdownMenu onOpenChange={handleDropdownOpenChange} open={isDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onSelect={handleDuplicate}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  <span>Duplicate Card</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <span>Delete Card</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
 
         <div className="flex-grow p-1">
           {cardAttachments.length > 0 && (
@@ -210,7 +182,7 @@ export const Card = memo(({
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
       {isModalOpen && (
         <ExpandedCardModal
           card={card}
