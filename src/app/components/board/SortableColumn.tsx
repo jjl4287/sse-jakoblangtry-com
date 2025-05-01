@@ -18,12 +18,8 @@ interface SortableColumnProps {
   overlayStyle?: React.CSSProperties;
 }
 
-export function SortableColumn({ column, dragOverlay = false }: SortableColumnProps) {
+export function SortableColumn({ column, dragOverlay = false, overlayStyle }: SortableColumnProps) {
   // Column.id is assumed valid (validated by parent Column wrapper)
-
-  // Extract overlayStyle prop
-  const { overlayStyle } = (arguments[0] as SortableColumnProps);
-
   const [isAddingCard, setIsAddingCard] = useState(false);
   const { updateColumn, deleteColumn } = useBoard();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
