@@ -49,6 +49,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     moveColumn,
     createColumn
   } = useBoard();
+  const { theme, toggleTheme } = useTheme();
   
   // Keep a ref to board to use in stable callbacks without re-defining on every change
   const boardRef = useRef(board);
