@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useEffect, type CSSProperties } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, type CSSProperties, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -27,6 +27,15 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
   
   useEffect(() => {
     setTitleInput(column.title);
+  }, [column.title]);
+  
+  // Automatically start inline editing when a new column is added with placeholder title
+  const inlineEditTriggered = useRef(false);
+  useEffect(() => {
+    if (!inlineEditTriggered.current && column.title === 'New Column') {
+      setIsEditingTitle(true);
+      inlineEditTriggered.current = true;
+    }
   }, [column.title]);
   
   // Memoize sortable data to prevent unstable object reference triggering continuous re-measure

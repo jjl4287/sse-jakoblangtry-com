@@ -31,7 +31,6 @@ import { Sun, Moon } from 'lucide-react';
 import { Input } from "~/components/ui/input";
 import { Search } from 'lucide-react';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
-import { ColumnAddForm } from './ColumnAddForm';
 import { clsx } from 'clsx';
 import type { Card as CardType, Column as ColumnType } from '~/types';
 
@@ -47,7 +46,8 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     saveStatus,
     saveError,
     moveCard,
-    moveColumn
+    moveColumn,
+    createColumn
   } = useBoard();
   
   // Keep a ref to board to use in stable callbacks without re-defining on every change
@@ -58,10 +58,6 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
 
   // Local state for search query filtering
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isAddingColumn, setIsAddingColumn] = useState(false);
-  const { theme, toggleTheme } = useTheme();
-  const headerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Track active drag item for DragOverlay
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -87,6 +83,8 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     })
   );
 
+  // Ref for header element, used by mouse position hook
+  const headerRef = useRef<HTMLDivElement>(null);
   // Use the custom hook for the header lighting effect
   useMousePositionStyle(headerRef);
 
@@ -279,6 +277,16 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     [filteredBoard?.columns]
   );
 
+  // Handler to add a new column with a placeholder name and trigger inline edit
+  const handleAddColumnClick = useCallback(() => {
+    if (!board) return;
+    const width = board.columns.length ? 100 / (board.columns.length + 1) : 100;
+    void createColumn('New Column', width);
+  }, [board, createColumn]);
+
+  const { theme, toggleTheme } = useTheme();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   // Different UI states
   if (loading) {
     return (
@@ -334,7 +342,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
           <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
             {cardCount} Cards
           </div>
-          <button onClick={() => setIsAddingColumn(true)} className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
+          <button onClick={handleAddColumnClick} className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
             + Add Column
           </button>
           <div className="relative">
