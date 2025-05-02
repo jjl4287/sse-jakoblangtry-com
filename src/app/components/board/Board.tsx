@@ -31,6 +31,7 @@ import { Input } from "~/components/ui/input";
 import { Search } from 'lucide-react';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import { clsx } from 'clsx';
+import { motion } from 'framer-motion';
 import type { Card as CardType, Column as ColumnType } from '~/types';
 
 // Props for header inline editing and external focus control
@@ -343,14 +344,10 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
       <header className="glass-card glass-border-animated p-2 mb-1 flex items-center justify-between rounded-lg">
         {/* Board Title Inline Edit */}
         {isEditingHeader ? (
-          <input
+          <motion.input
             autoFocus
             type="text"
-            className={clsx(
-              "text-2xl font-bold truncate bg-transparent border-b-2 border-foreground focus:outline-none w-full max-w-[30vw]",
-              "transform transition-transform duration-500 ease-out",
-              sidebarOpen ? 'translate-x-0' : 'translate-x-10'
-            )}
+            className="flex-1 min-w-0 text-2xl font-bold truncate bg-transparent border-b-2 border-foreground focus:outline-none"
             value={headerTitle}
             onChange={(e) => setHeaderTitle(e.target.value)}
             onBlur={() => {
@@ -363,18 +360,20 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
                 setIsEditingHeader(false);
               }
             }}
+            initial={{ x: sidebarOpen ? '16rem' : 0 }}
+            animate={{ x: sidebarOpen ? '16rem' : 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
           />
         ) : (
-          <h2
-            className={clsx(
-              "text-2xl font-bold truncate text-neutral-900 dark:text-white max-w-[30vw] transition-all duration-300",
-              "transform transition-transform duration-500 ease-out",
-              sidebarOpen ? 'translate-x-0' : 'translate-x-10'
-            )}
+          <motion.h2
+            className="flex-1 min-w-0 text-2xl font-bold truncate text-neutral-900 dark:text-white"
             onDoubleClick={() => { if (board) { setIsEditingHeader(true); setHeaderTitle(board.title); } }}
+            initial={{ x: !sidebarOpen ? '3rem' : 0 }}
+            animate={{ x: !sidebarOpen ? '3rem' : 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
             {board.title}
-          </h2>
+          </motion.h2>
         )}
         {/* Controls */}
         <div className="flex items-center gap-3 flex-wrap">

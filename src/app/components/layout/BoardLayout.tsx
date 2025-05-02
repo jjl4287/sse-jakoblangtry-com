@@ -11,6 +11,7 @@ import { Plus, Pin, Trash2 } from 'lucide-react';
 import { BoardService } from '~/services/board-service';
 import { v4 as uuidv4 } from 'uuid';
 import { Sidebar } from '~/app/components/layout/Sidebar';
+import { motion } from 'framer-motion';
 
 export default function BoardLayout() {
   return (
@@ -120,7 +121,7 @@ const InnerBoardLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen relative">
+    <div className="flex h-screen relative justify-end">
       <Sidebar
         boards={projects}
         onSelect={handleSelectBoard}
@@ -143,17 +144,20 @@ const InnerBoardLayout: React.FC = () => {
           </button>
         </div>
       )}
-      <div className={clsx(
-        "flex-1 flex flex-col relative transition-all duration-500 ease-out",
-        sidebarOpen ? 'pl-64' : 'pl-0'
-      )}>
+      <motion.div
+        className="flex flex-col relative"
+        initial={{ width: '100%' }}
+        animate={{ width: sidebarOpen ? 'calc(100% - 16rem)' : '100%' }}
+        transition={{ duration: 0.2, ease: 'easeInOut' }}
+        style={{ willChange: 'width' }}
+      >
         <Board
           focusEditTitleBoardId={focusRenameId}
           clearFocusEdit={() => setFocusRenameId(null)}
           onRenameBoard={handleRenameBoard}
           sidebarOpen={sidebarOpen}
         />
-      </div>
+      </motion.div>
     </div>
   );
 };

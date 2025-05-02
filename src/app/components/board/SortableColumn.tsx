@@ -119,7 +119,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
       ref={setNodeRef}
       data-column-id={column.id}
       style={style}
-      className="mx-2 flex flex-col flex-shrink-0 h-full min-w-[250px] max-w-[350px] glass-column border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2"
+      className="mx-2 flex flex-col flex-shrink h-full min-w-[250px] max-w-[350px] glass-column border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2"
       {...attributes}
       {...listeners}
     >
