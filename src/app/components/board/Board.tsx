@@ -284,9 +284,6 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     void createColumn('New Column', width);
   }, [board, createColumn]);
 
-  const { theme, toggleTheme } = useTheme();
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
   // Different UI states
   if (loading) {
     return (
