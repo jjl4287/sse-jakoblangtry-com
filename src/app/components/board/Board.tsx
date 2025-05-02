@@ -366,7 +366,8 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
             autoFocus
             ref={headerInputRef}
             type="text"
-            className="flex-1 min-w-0 text-2xl font-bold truncate bg-transparent border-b-2 border-foreground focus:outline-none"
+            // Underline only under text, auto-width
+            className="text-2xl font-bold bg-transparent border-b-2 border-transparent focus:border-foreground focus:outline-none h-[2rem] leading-[2rem] truncate w-auto inline-block"
             value={headerTitle}
             onChange={(e) => setHeaderTitle(e.target.value)}
             onBlur={() => {
@@ -385,7 +386,8 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
           />
         ) : (
           <motion.h2
-            className="flex-1 min-w-0 text-2xl font-bold truncate text-neutral-900 dark:text-white"
+            // Underline only under text, auto-width
+            className="text-2xl font-bold bg-transparent border-b-2 border-transparent h-[2rem] leading-[2rem] truncate text-neutral-900 dark:text-white w-auto inline-block"
             onDoubleClick={startHeaderEdit}
             initial={{ x: sidebarOpen ? 0 : 40 }}
             animate={{ x: sidebarOpen ? 0 : 40 }}

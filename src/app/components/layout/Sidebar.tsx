@@ -115,7 +115,7 @@ export const Sidebar: FC<SidebarProps> = ({
                     <input
                       autoFocus
                       ref={sidebarInputRef}
-                      className="flex-1 min-w-0 text-sm bg-transparent border-b-2 border-foreground focus:outline-none mr-2"
+                      className="flex-1 min-w-0 text-sm bg-transparent border-b-2 border-transparent focus:border-foreground focus:outline-none mr-2"
                       value={editTitle}
                       onChange={(e) => setEditTitle(e.target.value)}
                       onBlur={() => {

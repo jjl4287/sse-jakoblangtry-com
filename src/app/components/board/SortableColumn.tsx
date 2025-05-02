@@ -140,7 +140,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
       {...attributes}
       {...listeners}
     >
-      <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full h-7">
         {isEditingTitle ? (
           <input
             type="text"
@@ -148,7 +148,6 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
             onChange={e => setTitleInput(e.target.value)}
             onBlur={handleTitleBlur}
             onKeyDown={e => {
-              // Prevent event bubbling (no accidental cancel)
               e.stopPropagation();
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -158,16 +157,15 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
                 setIsEditingTitle(false);
                 setTitleInput(column.title);
               }
-              // All other keys (including space) fall through to default input behavior
             }}
-            className="flex-1 min-w-0 text-lg font-semibold bg-transparent border-b-2 border-foreground focus:outline-none mr-2"
+            className="flex-1 min-w-0 text-lg font-semibold bg-transparent border-b-2 border-transparent focus:border-foreground focus:outline-none mr-2 py-0 h-7 leading-tight"
             autoFocus
             ref={columnInputRef}
           />
         ) : (
           <h3
-            onDoubleClick={() => { startColumnEdit(); }}
-            className="flex-1 min-w-0 text-lg font-semibold hover:text-primary-light transition-colors cursor-text mr-2 truncate"
+            className="flex-1 min-w-0 text-lg font-semibold border-b-2 border-transparent hover:text-primary-light transition-colors cursor-text mr-2 leading-tight truncate"
+            onDoubleClick={startColumnEdit}
           >
             {column.title}
           </h3>
