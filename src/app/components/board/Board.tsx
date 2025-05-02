@@ -25,7 +25,6 @@ import { Column } from './Column';
 import { Card } from './Card';
 import { useBoard } from '~/services/board-context';
 import type { SaveStatus } from '~/services/board-context';
-import { motion } from 'framer-motion';
 import { useTheme } from '~/app/contexts/ThemeContext';
 import { Sun, Moon } from 'lucide-react';
 import { Input } from "~/components/ui/input";
