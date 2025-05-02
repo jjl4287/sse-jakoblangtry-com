@@ -85,8 +85,10 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
 
   // Ref for header element, used by mouse position hook
   const headerRef = useRef<HTMLDivElement>(null);
-  // Use the custom hook for the header lighting effect
   useMousePositionStyle(headerRef);
+
+  // Declare ref for search input to focus on keyboard shortcut
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Handle drag start to track active item
   const handleDragStart = useCallback((event: DragStartEvent) => {
