@@ -46,7 +46,10 @@ async function main() {
     data: {
       id: 'admin', // fixed ID for admin user
       name: 'admin', // login username
-      email: 'jakob@jakoblangtry.com',
+      email: process.env.ADMIN_EMAIL || (() => {
+        console.warn('ADMIN_EMAIL environment variable is not set. Falling back to default email: admin@example.com');
+        return 'admin@example.com';
+      })(),
       hashedPassword
     },
   });
