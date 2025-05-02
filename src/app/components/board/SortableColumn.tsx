@@ -35,6 +35,10 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
     if (!inlineEditTriggered.current && column.title === 'New Column') {
       setIsEditingTitle(true);
       inlineEditTriggered.current = true;
+      // Auto-select the new placeholder title
+      requestAnimationFrame(() => {
+        columnInputRef.current?.select();
+      });
     }
   }, [column.title]);
   
@@ -70,14 +74,27 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
     setIsAddingCard(true);
   }, []);
   
+  // Ref for column input selection
+  const columnInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle column inline edit start
+  const startColumnEdit = () => {
+    setIsEditingTitle(true);
+    // Select text after state update and render
+    requestAnimationFrame(() => {
+      columnInputRef.current?.select();
+    });
+  };
+  
   const handleTitleBlur = useCallback(() => {
     setIsEditingTitle(false);
     if (titleInput.trim() && titleInput !== column.title) {
-      const updatePromise = updateColumn(column.id, { title: titleInput.trim() });
-      if (updatePromise) {
-        updatePromise.catch((err: Error) => {
+      // Optimistic update; errors logged and title reset if needed
+      const promise = updateColumn(column.id, { title: titleInput.trim() });
+      if (promise && typeof promise.catch === 'function') {
+        void promise.catch((err: Error) => {
           console.error('Failed to update column title:', err);
-          setTitleInput(column.title); // Reset to original title if update fails
+          setTitleInput(column.title);
         });
       }
     } else {
@@ -113,17 +130,17 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
     sortedCards.map(card => card.id), 
     [sortedCards]
   );
-  
+
   return (
     <div
       ref={setNodeRef}
       data-column-id={column.id}
       style={style}
-      className="mx-2 flex flex-col flex-shrink-0 h-full min-w-[250px] max-w-[350px] glass-column border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2"
+      className="mx-2 flex flex-col flex-shrink h-full min-w-[250px] max-w-[350px] glass-column border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2"
       {...attributes}
       {...listeners}
     >
-      <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full h-7">
         {isEditingTitle ? (
           <input
             type="text"
@@ -131,6 +148,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
             onChange={e => setTitleInput(e.target.value)}
             onBlur={handleTitleBlur}
             onKeyDown={e => {
+              e.stopPropagation();
               if (e.key === 'Enter') {
                 e.preventDefault();
                 e.currentTarget.blur();
@@ -140,18 +158,19 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
                 setTitleInput(column.title);
               }
             }}
-            className="text-lg font-semibold px-2 py-1 rounded border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/20"
+            className="flex-1 min-w-0 text-lg font-semibold bg-transparent border-b-2 border-transparent focus:border-foreground focus:outline-none mr-2 py-0 h-7 leading-tight"
             autoFocus
+            ref={columnInputRef}
           />
         ) : (
           <h3
-            className="text-lg font-semibold hover:text-primary-light transition-colors cursor-text"
-            onDoubleClick={() => setIsEditingTitle(true)}
+            className="flex-1 min-w-0 text-lg font-semibold border-b-2 border-transparent hover:text-primary-light transition-colors cursor-text mr-2 leading-tight truncate"
+            onDoubleClick={startColumnEdit}
           >
             {column.title}
           </h3>
         )}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 ml-auto">
           <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
             {column.cards.length}
           </span>

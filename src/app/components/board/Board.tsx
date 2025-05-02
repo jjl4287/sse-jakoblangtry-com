@@ -25,20 +25,24 @@ import { Column } from './Column';
 import { Card } from './Card';
 import { useBoard } from '~/services/board-context';
 import type { SaveStatus } from '~/services/board-context';
-import { motion } from 'framer-motion';
 import { useTheme } from '~/app/contexts/ThemeContext';
 import { Sun, Moon } from 'lucide-react';
 import { Input } from "~/components/ui/input";
 import { Search } from 'lucide-react';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import { clsx } from 'clsx';
+import { motion } from 'framer-motion';
 import type { Card as CardType, Column as ColumnType } from '~/types';
 
-export type BoardProps = {
+// Props for header inline editing and external focus control
+export interface BoardProps {
+  focusEditTitleBoardId?: string | null;
+  clearFocusEdit?: () => void;
+  onRenameBoard?: (id: string, title: string) => void;
   sidebarOpen: boolean;
-};
+}
 
-export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
+export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusEdit, onRenameBoard, sidebarOpen }) => {
   const {
     board,
     loading,
@@ -51,6 +55,25 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
   } = useBoard();
   const { theme, toggleTheme } = useTheme();
   
+  // Header inline edit state
+  const [isEditingHeader, setIsEditingHeader] = useState(false);
+  const [headerTitle, setHeaderTitle] = useState<string>(() => board?.title ?? '');
+  // Ref for header input selection
+  const headerInputRef = useRef<HTMLInputElement>(null);
+
+  // If external focus request matches this board, enter edit mode
+  useEffect(() => {
+    if (board && focusEditTitleBoardId === board.id) {
+      setIsEditingHeader(true);
+      setHeaderTitle(board.title);
+      // Select text after state update and render
+      requestAnimationFrame(() => {
+        headerInputRef.current?.select();
+      });
+      clearFocusEdit?.();
+    }
+  }, [focusEditTitleBoardId, board, clearFocusEdit]);
+
   // Keep a ref to board to use in stable callbacks without re-defining on every change
   const boardRef = useRef(board);
   useEffect(() => {
@@ -287,6 +310,18 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     void createColumn('New Column', width);
   }, [board, createColumn]);
 
+  // Handle inline edit start
+  const startHeaderEdit = () => {
+    if (board) {
+      setIsEditingHeader(true);
+      setHeaderTitle(board.title);
+      // Select text after state update and render
+      requestAnimationFrame(() => {
+        headerInputRef.current?.select();
+      });
+    }
+  };
+
   // Different UI states
   if (loading) {
     return (
@@ -325,15 +360,42 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     <div className="relative flex flex-col h-full w-full p-2">
       {/* Board Header */}
       <header className="glass-card glass-border-animated p-2 mb-1 flex items-center justify-between rounded-lg">
-        {/* Board Title */}
-        <h2 
-          className={clsx(
-            "text-2xl font-bold truncate text-neutral-900 dark:text-white max-w-[30vw] transition-all duration-300",
-            sidebarOpen ? "pl-0" : "pl-10"
-          )}
-        >
-          {board.title}
-        </h2>
+        {/* Board Title Inline Edit */}
+        {isEditingHeader ? (
+          <motion.input
+            autoFocus
+            ref={headerInputRef}
+            type="text"
+            // Underline only under text, auto-width
+            className="text-2xl font-bold bg-transparent border-b-2 border-transparent focus:border-foreground focus:outline-none h-[2rem] leading-[2rem] truncate w-auto inline-block"
+            value={headerTitle}
+            onChange={(e) => setHeaderTitle(e.target.value)}
+            onBlur={() => {
+              if (board && headerTitle.trim()) onRenameBoard?.(board.id, headerTitle.trim());
+              setIsEditingHeader(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (board && headerTitle.trim()) onRenameBoard?.(board.id, headerTitle.trim());
+                setIsEditingHeader(false);
+              }
+            }}
+            initial={{ x: sidebarOpen ? 0 : 40 }}
+            animate={{ x: sidebarOpen ? 0 : 40 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+          />
+        ) : (
+          <motion.h2
+            // Underline only under text, auto-width
+            className="text-2xl font-bold bg-transparent border-b-2 border-transparent h-[2rem] leading-[2rem] truncate text-neutral-900 dark:text-white w-auto inline-block"
+            onDoubleClick={startHeaderEdit}
+            initial={{ x: sidebarOpen ? 0 : 40 }}
+            animate={{ x: sidebarOpen ? 0 : 40 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+          >
+            {board.title}
+          </motion.h2>
+        )}
         {/* Controls */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
@@ -379,10 +441,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
         onDragCancel={handleDragCancel}
       >
         <div 
-          className={clsx(
-            "flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-1 pb-0 gap-x-1 justify-start -mx-1",
-            sidebarOpen ? "justify-start" : "justify-between"
-          )}
+          className="flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-1 pb-0 gap-x-1 -mx-1 justify-start"
         >
           <SortableContext 
             items={columnsIds} 
