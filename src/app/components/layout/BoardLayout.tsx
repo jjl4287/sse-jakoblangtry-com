@@ -142,7 +142,15 @@ const InnerBoardLayout: React.FC = () => {
         </div>
         <div className="p-4 px-6 pt-0">
           <div className="mt-4 flex items-center border-t border-border/20 pt-4 space-x-2">
-            <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+            {session?.user?.image ? (
+              <img
+                src={session.user.image}
+                alt={`${session.user.name ?? 'User'}'s avatar`}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+            )}
             {session ? (
               <>
                 <span className="text-gray-800 dark:text-gray-200 truncate">{session.user?.name}</span>

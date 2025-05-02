@@ -1,6 +1,9 @@
 /* eslint-disable */
 // @ts-nocheck
 import { PrismaClient, Priority } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import * as dotenv from 'dotenv';
+dotenv.config();
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -25,10 +28,29 @@ async function main() {
   console.log('Seeding database from board.json');
 
   // Create an admin user
+  // Hash the default admin password
+  const getSaltRounds = () => {
+    const saltRoundsEnv = process.env.BCRYPT_SALT_ROUNDS;
+    const saltRounds = parseInt(saltRoundsEnv ?? '10', 10);
+    if (isNaN(saltRounds) || saltRounds <= 0) {
+      console.warn(
+        `Invalid BCRYPT_SALT_ROUNDS value: "${saltRoundsEnv}". Falling back to default value of 10.`
+      );
+      return 10;
+    }
+    return saltRounds;
+  };
+  const saltRounds = getSaltRounds();
+  const hashedPassword = await bcrypt.hash('Ins3cur3!', saltRounds);
   const admin = await prisma.user.create({
     data: {
       id: 'admin', // fixed ID for admin user
       name: 'admin', // login username
+      email: process.env.ADMIN_EMAIL || (() => {
+        console.warn('ADMIN_EMAIL environment variable is not set. Falling back to default email: admin@example.com');
+        return 'admin@example.com';
+      })(),
+      hashedPassword
     },
   });
 
@@ -37,7 +59,8 @@ async function main() {
     data: {
       title: 'Admin Board',
       theme: board.theme || 'dark',
-      isPublic: true,
+      // Only visible to the admin user
+      isPublic: false,
       user: { connect: { id: admin.id } }
     },
   });
