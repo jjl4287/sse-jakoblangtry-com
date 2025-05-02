@@ -34,11 +34,15 @@ import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import { clsx } from 'clsx';
 import type { Card as CardType, Column as ColumnType } from '~/types';
 
-export type BoardProps = {
+// Props for header inline editing and external focus control
+export interface BoardProps {
+  focusEditTitleBoardId?: string | null;
+  clearFocusEdit?: () => void;
+  onRenameBoard?: (id: string, title: string) => void;
   sidebarOpen: boolean;
-};
+}
 
-export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
+export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusEdit, onRenameBoard, sidebarOpen }) => {
   const {
     board,
     loading,
@@ -49,7 +53,21 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     moveColumn,
     createColumn
   } = useBoard();
+  const { theme, toggleTheme } = useTheme();
   
+  // Header inline edit state
+  const [isEditingHeader, setIsEditingHeader] = useState(false);
+  const [headerTitle, setHeaderTitle] = useState<string>(() => board?.title ?? '');
+
+  // If external focus request matches this board, enter edit mode
+  useEffect(() => {
+    if (board && focusEditTitleBoardId === board.id) {
+      setIsEditingHeader(true);
+      setHeaderTitle(board.title);
+      clearFocusEdit?.();
+    }
+  }, [focusEditTitleBoardId, board, clearFocusEdit]);
+
   // Keep a ref to board to use in stable callbacks without re-defining on every change
   const boardRef = useRef(board);
   useEffect(() => {
@@ -324,15 +342,41 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
     <div className="relative flex flex-col h-full w-full p-2">
       {/* Board Header */}
       <header className="glass-card glass-border-animated p-2 mb-1 flex items-center justify-between rounded-lg">
-        {/* Board Title */}
-        <h2 
-          className={clsx(
-            "text-2xl font-bold truncate text-neutral-900 dark:text-white max-w-[30vw] transition-all duration-300",
-            sidebarOpen ? "pl-0" : "pl-10"
-          )}
-        >
-          {board.title}
-        </h2>
+        {/* Board Title Inline Edit */}
+        {isEditingHeader ? (
+          <input
+            autoFocus
+            type="text"
+            className={clsx(
+              "text-2xl font-bold truncate bg-transparent border-b-2 border-foreground focus:outline-none w-full max-w-[30vw]",
+              "transform transition-transform duration-500 ease-out",
+              sidebarOpen ? 'translate-x-0' : 'translate-x-10'
+            )}
+            value={headerTitle}
+            onChange={(e) => setHeaderTitle(e.target.value)}
+            onBlur={() => {
+              if (board && headerTitle.trim()) onRenameBoard?.(board.id, headerTitle.trim());
+              setIsEditingHeader(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (board && headerTitle.trim()) onRenameBoard?.(board.id, headerTitle.trim());
+                setIsEditingHeader(false);
+              }
+            }}
+          />
+        ) : (
+          <h2
+            className={clsx(
+              "text-2xl font-bold truncate text-neutral-900 dark:text-white max-w-[30vw] transition-all duration-300",
+              "transform transition-transform duration-500 ease-out",
+              sidebarOpen ? 'translate-x-0' : 'translate-x-10'
+            )}
+            onDoubleClick={() => { if (board) { setIsEditingHeader(true); setHeaderTitle(board.title); } }}
+          >
+            {board.title}
+          </h2>
+        )}
         {/* Controls */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
@@ -378,10 +422,7 @@ export const Board: React.FC<BoardProps> = ({ sidebarOpen }) => {
         onDragCancel={handleDragCancel}
       >
         <div 
-          className={clsx(
-            "flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-1 pb-0 gap-x-1 justify-start -mx-1",
-            sidebarOpen ? "justify-start" : "justify-between"
-          )}
+          className="flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-1 pb-0 gap-x-1 -mx-1 justify-start"
         >
           <SortableContext 
             items={columnsIds} 

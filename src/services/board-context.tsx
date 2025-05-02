@@ -25,6 +25,7 @@ interface BoardContextType {
   saveError: Error | null;
   refreshBoard: () => Promise<void>;
   updateTheme: (theme: 'light' | 'dark') => Promise<void> | void;
+  updateTitle: (title: string) => void;
   createColumn: (title: string, width: number) => Promise<void> | void;
   updateColumn: (columnId: string, updates: Partial<Column>) => Promise<void> | void;
   deleteColumn: (columnId: string) => Promise<void> | void;
@@ -89,6 +90,11 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       });
     }, []
   );
+
+  // Update only the title locally
+  const updateTitle = useCallback((title: string) => {
+    updateBoardState(prev => ({ ...prev!, title }));
+  }, [updateBoardState]);
 
   const moveCardDebouncers = useRef<Record<string, ReturnType<typeof debounce>>>({});
   const moveColumnDebouncers = useRef<Record<string, ReturnType<typeof debounce>>>({});
@@ -409,6 +415,7 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       saveError,
       refreshBoard,
       updateTheme,
+      updateTitle,
       createColumn,
       updateColumn,
       deleteColumn,
