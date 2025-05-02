@@ -35,6 +35,18 @@ export const Sidebar: FC<SidebarProps> = ({
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState('');
   const { data: session } = useSession();
+  // Ref for sidebar input selection
+  const sidebarInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Handle inline edit start
+  const startSidebarEdit = (id: string, currentTitle: string) => {
+    setEditingId(id);
+    setEditTitle(currentTitle);
+    // Select text after state update and render
+    requestAnimationFrame(() => {
+      sidebarInputRef.current?.select();
+    });
+  };
 
   return (
     <>
@@ -84,8 +96,8 @@ export const Sidebar: FC<SidebarProps> = ({
                 onClick={async () => {
                   try {
                     const id = await onCreate('New Board');
-                    setEditingId(id);
-                    setEditTitle('New Board');
+                    // Start inline edit and select text
+                    startSidebarEdit(id, 'New Board');
                   } catch (error) {
                     console.error('Failed to create board:', error);
                   }
@@ -97,12 +109,13 @@ export const Sidebar: FC<SidebarProps> = ({
                 <div
                   key={b.id}
                   className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer transition-colors"
-                  onClick={() => onSelect(b.id)}
+                  onClick={(e) => { e.stopPropagation(); onSelect(b.id); }}
                 >
                   {editingId === b.id ? (
                     <input
                       autoFocus
-                      className="flex-1 px-2 py-1 border rounded"
+                      ref={sidebarInputRef}
+                      className="flex-1 min-w-0 text-sm bg-transparent border-b-2 border-foreground focus:outline-none mr-2"
                       value={editTitle}
                       onChange={(e) => setEditTitle(e.target.value)}
                       onBlur={() => {
@@ -114,25 +127,24 @@ export const Sidebar: FC<SidebarProps> = ({
                           if (editTitle.trim()) onRename(b.id, editTitle.trim());
                           setEditingId(null);
                         }
+                        if (e.key === 'Escape') {
+                          setEditingId(null);
+                          setEditTitle(b.title);
+                        }
                       }}
                     />
                   ) : (
                     <span
-                      className="truncate flex-1"
-                      onDoubleClick={() => {
-                        setEditingId(b.id);
-                        setEditTitle(b.title);
-                      }}
-                    >
-                      {b.title}
-                    </span>
+                      className="truncate flex-1 text-sm mr-2"
+                      onDoubleClick={(e) => { e.stopPropagation(); startSidebarEdit(b.id, b.title); }}
+                    >{b.title}</span>
                   )}
-                  <div className="flex space-x-2">
-                    <Button size="icon" variant="ghost" onClick={() => onPin(b.id)}>
-                      <Pin size={16} />
+                  <div className="flex space-x-1 ml-auto">
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onPin(b.id); }}>
+                      <Pin size={14} />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => onDelete(b.id)}>
-                      <Trash2 size={16} />
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onDelete(b.id); }}>
+                      <Trash2 size={14} />
                     </Button>
                   </div>
                 </div>

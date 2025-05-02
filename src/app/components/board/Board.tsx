@@ -58,12 +58,18 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
   // Header inline edit state
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [headerTitle, setHeaderTitle] = useState<string>(() => board?.title ?? '');
+  // Ref for header input selection
+  const headerInputRef = useRef<HTMLInputElement>(null);
 
   // If external focus request matches this board, enter edit mode
   useEffect(() => {
     if (board && focusEditTitleBoardId === board.id) {
       setIsEditingHeader(true);
       setHeaderTitle(board.title);
+      // Select text after state update and render
+      requestAnimationFrame(() => {
+        headerInputRef.current?.select();
+      });
       clearFocusEdit?.();
     }
   }, [focusEditTitleBoardId, board, clearFocusEdit]);
@@ -304,6 +310,18 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
     void createColumn('New Column', width);
   }, [board, createColumn]);
 
+  // Handle inline edit start
+  const startHeaderEdit = () => {
+    if (board) {
+      setIsEditingHeader(true);
+      setHeaderTitle(board.title);
+      // Select text after state update and render
+      requestAnimationFrame(() => {
+        headerInputRef.current?.select();
+      });
+    }
+  };
+
   // Different UI states
   if (loading) {
     return (
@@ -346,6 +364,7 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
         {isEditingHeader ? (
           <motion.input
             autoFocus
+            ref={headerInputRef}
             type="text"
             className="flex-1 min-w-0 text-2xl font-bold truncate bg-transparent border-b-2 border-foreground focus:outline-none"
             value={headerTitle}
@@ -360,16 +379,16 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
                 setIsEditingHeader(false);
               }
             }}
-            initial={{ x: sidebarOpen ? '16rem' : 0 }}
-            animate={{ x: sidebarOpen ? '16rem' : 0 }}
+            initial={{ x: sidebarOpen ? 0 : 40 }}
+            animate={{ x: sidebarOpen ? 0 : 40 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
           />
         ) : (
           <motion.h2
             className="flex-1 min-w-0 text-2xl font-bold truncate text-neutral-900 dark:text-white"
-            onDoubleClick={() => { if (board) { setIsEditingHeader(true); setHeaderTitle(board.title); } }}
-            initial={{ x: !sidebarOpen ? '3rem' : 0 }}
-            animate={{ x: !sidebarOpen ? '3rem' : 0 }}
+            onDoubleClick={startHeaderEdit}
+            initial={{ x: sidebarOpen ? 0 : 40 }}
+            animate={{ x: sidebarOpen ? 0 : 40 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
             {board.title}

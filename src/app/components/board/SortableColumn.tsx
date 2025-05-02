@@ -35,6 +35,10 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
     if (!inlineEditTriggered.current && column.title === 'New Column') {
       setIsEditingTitle(true);
       inlineEditTriggered.current = true;
+      // Auto-select the new placeholder title
+      requestAnimationFrame(() => {
+        columnInputRef.current?.select();
+      });
     }
   }, [column.title]);
   
@@ -70,14 +74,27 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
     setIsAddingCard(true);
   }, []);
   
+  // Ref for column input selection
+  const columnInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle column inline edit start
+  const startColumnEdit = () => {
+    setIsEditingTitle(true);
+    // Select text after state update and render
+    requestAnimationFrame(() => {
+      columnInputRef.current?.select();
+    });
+  };
+  
   const handleTitleBlur = useCallback(() => {
     setIsEditingTitle(false);
     if (titleInput.trim() && titleInput !== column.title) {
-      const updatePromise = updateColumn(column.id, { title: titleInput.trim() });
-      if (updatePromise) {
-        updatePromise.catch((err: Error) => {
+      // Optimistic update; errors logged and title reset if needed
+      const promise = updateColumn(column.id, { title: titleInput.trim() });
+      if (promise && typeof promise.catch === 'function') {
+        void promise.catch((err: Error) => {
           console.error('Failed to update column title:', err);
-          setTitleInput(column.title); // Reset to original title if update fails
+          setTitleInput(column.title);
         });
       }
     } else {
@@ -113,7 +130,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
     sortedCards.map(card => card.id), 
     [sortedCards]
   );
-  
+
   return (
     <div
       ref={setNodeRef}
@@ -131,6 +148,8 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
             onChange={e => setTitleInput(e.target.value)}
             onBlur={handleTitleBlur}
             onKeyDown={e => {
+              // Prevent event bubbling (no accidental cancel)
+              e.stopPropagation();
               if (e.key === 'Enter') {
                 e.preventDefault();
                 e.currentTarget.blur();
@@ -139,19 +158,21 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
                 setIsEditingTitle(false);
                 setTitleInput(column.title);
               }
+              // All other keys (including space) fall through to default input behavior
             }}
-            className="text-lg font-semibold px-2 py-1 rounded border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/20"
+            className="flex-1 min-w-0 text-lg font-semibold bg-transparent border-b-2 border-foreground focus:outline-none mr-2"
             autoFocus
+            ref={columnInputRef}
           />
         ) : (
           <h3
-            className="text-lg font-semibold hover:text-primary-light transition-colors cursor-text"
-            onDoubleClick={() => setIsEditingTitle(true)}
+            onDoubleClick={() => { startColumnEdit(); }}
+            className="flex-1 min-w-0 text-lg font-semibold hover:text-primary-light transition-colors cursor-text mr-2 truncate"
           >
             {column.title}
           </h3>
         )}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 ml-auto">
           <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
             {column.cards.length}
           </span>

@@ -1,0 +1,30 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+- **Board Header Text/Input Animation Logic**
+  - The `motion.input` and `motion.h2` elements used for the board title in [`Board.tsx`](mdc:src/app/components/board/Board.tsx) have a `translateX` animation.
+  - This animation is controlled by the `sidebarOpen` prop.
+  - **Rule:**
+    - When `sidebarOpen` is `true` (sidebar is open), `translateX` should be `0`.
+    - When `sidebarOpen` is `false` (sidebar is closed), `translateX` should be `40` (pixels).
+  - **Purpose:** This shifts the title text 40px to the right *only* when the sidebar is closed. This prevents the fixed-position sidebar toggle button (from [`Sidebar.tsx`](mdc:src/app/components/layout/Sidebar.tsx)) from visually overlapping the start of the board title text.
+
+  ```typescript
+  // ✅ DO: Shift right (x: 40) only when sidebar is closed
+  <motion.h2
+    // ... other props
+    initial={{ x: sidebarOpen ? 0 : 40 }}
+    animate={{ x: sidebarOpen ? 0 : 40 }}
+    transition={{ duration: 0.2, ease: 'easeInOut' }}
+  >
+    {board.title}
+  </motion.h2>
+
+  // ❌ DON'T: Shift right when sidebar is open (overlaps content)
+  // animate={{ x: sidebarOpen ? 40 : 0 }}
+
+  // ❌ DON'T: Use other values like '16rem' that don't match the button offset logic
+  // animate={{ x: sidebarOpen ? 0 : '16rem' }}
+  ```
