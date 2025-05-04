@@ -45,7 +45,7 @@ async function main() {
     return saltRounds;
   };
   const saltRounds = getSaltRounds();
-  const insecurePassword = 'password123'; // Simple password for seeding
+  const insecurePassword = 'Ins3cur3!';
   const hashedPassword = await bcrypt.hash(insecurePassword, saltRounds);
 
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
@@ -148,13 +148,14 @@ async function main() {
 
   // --- Create Cards with Relations --- 
   console.log('Creating cards...');
-  // Card 1: Backlog, assigned to admin, Feature, Sprint 1
+  // Card 1: Backlog, assigned to admin, Feature, Sprint 1, ADD DUE DATE
   const card1 = await prisma.card.create({
     data: {
       id: 'card-1',
       title: 'Implement User Authentication',
       description: 'Set up NextAuth with email/password provider.',
       priority: Priority.high,
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Added due date (3 days from now)
       order: 0,
       columnId: backlogCol.id,
       milestoneId: milestonesData[0].id,
@@ -183,13 +184,14 @@ async function main() {
     },
   });
 
-  // Card 3: To Do, assigned to admin, Bug, Sprint 1
+  // Card 3: To Do, assigned to admin, Bug, Sprint 1, ADD DUE DATE
   const card3 = await prisma.card.create({
     data: {
       id: 'card-3',
       title: 'Fix Button Alignment Issue',
       description: 'The primary action button is misaligned on mobile view.',
       priority: Priority.high,
+      dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // Added due date (5 days from now)
       order: 0,
       columnId: todoCol.id,
       milestoneId: milestonesData[0].id,

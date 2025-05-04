@@ -120,7 +120,7 @@ alwaysApply: true
     - Component-level in `tests/components/board/BoardSettings.spec.tsx`.
 
 ### Step 7: Replace Inline Card Form with Floating Sheet (#28)
-- Status: pending
+- Status: done
 - Description: Shadcn floating Window/Sheet UI for card creation with Markdown support.
 - Actions:
   - Build `NewCardSheet` in `src/app/components/board/ui/NewCardSheet.tsx`.

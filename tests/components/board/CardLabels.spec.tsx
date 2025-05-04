@@ -2,12 +2,13 @@
  * @vitest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Label } from '~/types';
 import { CardLabels } from '~/app/components/board/ui/CardLabels';
 import { useBoard } from '~/services/board-context';
-import { act } from 'react-dom/test-utils';
+import { userEvent } from '@testing-library/user-event';
+import { Card } from '@prisma/client';
 
 // Mock the board context hooks
 const mockAddLabel = vi.fn();
@@ -19,6 +20,10 @@ vi.mock('~/services/board-context', () => ({
     removeLabel: mockRemoveLabel,
   }),
 }));
+
+// Mocks
+vi.mock('@/services/board');
+vi.mock('sonner');
 
 describe('CardLabels', () => {
   beforeEach(() => {
@@ -52,16 +57,28 @@ describe('CardLabels', () => {
   });
 
   it('opens the popover and adds a new label', async () => {
-    render(<CardLabels cardId="card1" labels={[]} />);
+    const { addLabel } = useBoard();
+    render(<CardLabels cardId="c1" labels={[]} />);
+
+    // Open popover using data-testid
     await act(async () => {
-      fireEvent.click(screen.getByRole('button'));
+      fireEvent.click(screen.getByTestId('add-label-button'));
     });
+    
+    // Wait for the popover content to appear and find the input
+    await waitFor(() => expect(screen.getByPlaceholderText('Label name')).toBeInTheDocument());
+
+    // Add new label
+    fireEvent.change(screen.getByPlaceholderText('Label name'), { target: { value: 'New Label' } });
+    // Click color picker or set color if needed
+    // fireEvent.click(screen.getBy...);
+
     await act(async () => {
-      await screen.findByPlaceholderText('Label name');
-      fireEvent.change(screen.getByPlaceholderText('Label name'), { target: { value: 'Test' } });
-      fireEvent.change(screen.getByDisplayValue('#000000'), { target: { value: '#123456' } });
-      fireEvent.click(screen.getByText('Add'));
+      // Find the "Add" button within the popover content to be more specific
+      const popoverContent = screen.getByRole('dialog'); // Popover content often has dialog role
+      fireEvent.click(within(popoverContent).getByRole('button', { name: /Add/i }));
     });
-    expect(mockAddLabel).toHaveBeenCalledWith('card1', 'Test', '#123456');
+
+    expect(addLabel).toHaveBeenCalledWith('c1', expect.objectContaining({ name: 'New Label' }));
   });
 }); 

@@ -88,6 +88,7 @@ export interface Comment {
 export interface Milestone {
   id: string;
   name: string;
+  title: string;
   dueDate?: Date;
 }
 
@@ -116,6 +117,13 @@ export interface BoardMember {
   id: string;
   userId: string;
   boardId: string;
+}
+
+/**
+ * Combined type for BoardMember including the full User object
+ */
+export interface BoardMemberWithUser extends BoardMember {
+  user: User;
 }
 
 /**

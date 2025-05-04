@@ -9,7 +9,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { Board, Column, Card, Label, Attachment, Comment } from '~/types';
+import type { Board, Column, Card, Label, Attachment, Comment, BoardMember, Milestone, User, Priority } from '~/types';
 import { useSession } from 'next-auth/react';
 import { v4 as uuidv4 } from 'uuid';
 import { BoardService } from './board-service';
@@ -17,8 +17,22 @@ import debounce from 'lodash/debounce';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
+// Define the full Card type for creation
+// This needs to align with what NewCardSheet prepares and BoardService expects
+type CreateCardData = Partial<Omit<Card, 'id' | 'order' | 'columnId'>> & {
+  title: string;
+  columnId: string;
+  order?: number; // order might be calculated on server
+  // Use Prisma connect syntax for relations
+  assignees?: { connect: { id: string }[] };
+  labels?: { connect: { id: string }[] };
+};
+
 interface BoardContextType {
   board: Board | null;
+  boardMembers: BoardMember[];
+  milestones: Milestone[];
+  labels: Label[];
   loading: boolean;
   error: Error | null;
   saveStatus: SaveStatus;
@@ -30,7 +44,7 @@ interface BoardContextType {
   updateColumn: (columnId: string, updates: Partial<Column>) => Promise<void> | void;
   deleteColumn: (columnId: string) => Promise<void> | void;
   moveColumn: (columnId: string, newIndex: number) => void;
-  createCard: (columnId: string, data: Omit<Card, 'id' | 'columnId' | 'order'>) => Promise<void> | void;
+  createCard: (columnId: string, data: CreateCardData) => Promise<void> | void;
   updateCard: (cardId: string, updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'>>) => Promise<void> | void;
   deleteCard: (cardId: string) => Promise<void> | void;
   moveCard: (cardId: string, targetColumnId: string, newOrder: number) => void;
@@ -47,6 +61,9 @@ const BoardContext = createContext<BoardContextType | undefined>(undefined);
 
 export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [board, setBoard] = useState<Board | null>(null);
+  const [boardMembers, setBoardMembers] = useState<BoardMember[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -54,18 +71,37 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const { data: session, status: sessionStatus } = useSession();
 
-  // Fetch or initialize board
+  // Fetch or initialize board AND related data
   const refreshBoard = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       if (session) {
-        const b = await BoardService.getBoard();
-        setBoard(b);
+        // Assuming getBoard now returns the full structure or we need separate calls
+        // Let's assume getBoard returns everything for now
+        const fullBoardData = await BoardService.getBoard(); 
+        setBoard(fullBoardData);
+        // Assuming fullBoardData contains these arrays, adjust if needed
+        setBoardMembers(fullBoardData.members || []); 
+        setMilestones(fullBoardData.milestones || []); 
+        setLabels(fullBoardData.labels || []); 
       } else {
+        // Handle local storage / demo board
         const stored = localStorage.getItem('board-local');
-        if (stored) setBoard(JSON.parse(stored));
-        else setBoard({ id: 'demo', title: 'Demo Board', theme: 'light', columns: [] });
+        if (stored) {
+           const localBoard = JSON.parse(stored);
+           setBoard(localBoard);
+           // Demo boards likely won't have these, set to empty
+           setBoardMembers([]);
+           setMilestones([]);
+           setLabels([]);
+        } else {
+          // Initial demo board structure
+           setBoard({ id: 'demo', title: 'Demo Board', theme: 'light', columns: [] });
+           setBoardMembers([]);
+           setMilestones([]);
+           setLabels([]);
+        }
       }
     } catch (e) {
       setError(e as Error);
@@ -252,22 +288,69 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [session, enqueueMoveColumn, updateBoardState]);
 
-  const createCard = useCallback(async (columnId: string, data: Omit<Card, 'id' | 'columnId' | 'order'>) => {
+  const createCard = useCallback(async (columnId: string, data: CreateCardData) => {
+    // Optimistic Update (create a temporary card)
+    const tempId = uuidv4();
+    const now = new Date().toISOString();
+    const newCard: Card = {
+      id: tempId,
+      columnId,
+      title: data.title,
+      description: data.description || '',
+      order: data.order ?? Date.now(), // Use provided order or timestamp
+      createdAt: now,
+      updatedAt: now,
+      // --- Add default/empty values for other fields ---      
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      priority: data.priority ?? Priority.medium, // Default priority? Or null?
+      // TEMP: Simulate relations locally - Need full objects which we don't have easily here
+      assignees: [], // Will be updated on save
+      labels: [], // Will be updated on save
+      comments: [], // Will be updated on save
+      attachments: [], // Will be updated on save
+      milestone: null, // Will be updated on save
+      milestoneId: data.milestoneId || null,
+    };
+
     updateBoardState(prev => {
-      const cols = prev!.columns.map(c => ({ ...c, cards: [...c.cards] }));
-      const col = cols.find(c => c.id === columnId);
-      if (col) col.cards.push({ id: uuidv4(), columnId, order: col.cards.length, ...data });
+      const cols = prev!.columns.map(c => {
+        if (c.id === columnId) {
+          // Add new card, ensuring cards array exists
+          const cards = [...(c.cards || []), newCard].sort((a, b) => a.order - b.order);
+          return { ...c, cards };
+        }
+        return c;
+      });
       return { ...prev!, columns: cols };
     });
-    if (!session) return;
+
+    if (!session) return; // No server save for demo boards
+
     setSaveStatus('saving');
     try {
-      const updated = await BoardService.createCard(columnId, data);
-      setBoard(updated);
+      // Call BoardService with the correct structure
+      const updatedBoard = await BoardService.createCard(columnId, data);
+      setBoard(updatedBoard); // Update board with server state (includes real ID)
+      // Update related data if the service returns it
+      setBoardMembers(updatedBoard.members || []);
+      setMilestones(updatedBoard.milestones || []);
+      setLabels(updatedBoard.labels || []);
       setSaveStatus('saved');
     } catch (e) {
       setSaveStatus('error');
       setSaveError(e as Error);
+      // Rollback? Or just log error and keep optimistic state?
+      console.error("Failed to save new card:", e);
+      // Simple rollback: Remove the temp card
+      updateBoardState(prev => {
+         const cols = prev!.columns.map(c => {
+          if (c.id === columnId) {
+            return { ...c, cards: (c.cards || []).filter(card => card.id !== tempId) };
+          }
+          return c;
+        });
+        return { ...prev!, columns: cols };
+      });
     }
   }, [session, updateBoardState]);
 
@@ -406,39 +489,70 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }));
   }, [updateBoardState]);
 
-  return (
-    <BoardContext.Provider value={{
-      board,
-      loading,
-      error,
-      saveStatus,
-      saveError,
-      refreshBoard,
-      updateTheme,
-      updateTitle,
-      createColumn,
-      updateColumn,
-      deleteColumn,
-      moveColumn,
-      createCard,
-      updateCard,
-      deleteCard,
-      moveCard,
-      duplicateCard,
-      addLabel,
-      removeLabel,
-      addComment,
-      deleteComment,
-      addAttachment,
-      deleteAttachment
-    }}>
-      {children}
-    </BoardContext.Provider>
-  );
+  // Update context value
+  const contextValue = useMemo(() => ({
+    board,
+    boardMembers,
+    milestones,
+    labels,
+    loading,
+    error,
+    saveStatus,
+    saveError,
+    refreshBoard,
+    updateTheme,
+    updateTitle,
+    createColumn,
+    updateColumn,
+    deleteColumn,
+    moveColumn,
+    createCard,
+    updateCard,
+    deleteCard,
+    moveCard,
+    duplicateCard,
+    addLabel,
+    removeLabel,
+    addComment,
+    deleteComment,
+    addAttachment,
+    deleteAttachment
+  }), [
+    board,
+    boardMembers,
+    milestones,
+    labels,
+    loading,
+    error,
+    saveStatus,
+    saveError,
+    refreshBoard,
+    updateTheme,
+    updateTitle,
+    createColumn,
+    updateColumn,
+    deleteColumn,
+    moveColumn,
+    createCard,
+    updateCard,
+    deleteCard,
+    moveCard,
+    duplicateCard,
+    addLabel,
+    removeLabel,
+    addComment,
+    deleteComment,
+    addAttachment,
+    deleteAttachment
+  ]);
+
+  return <BoardContext.Provider value={contextValue}>{children}</BoardContext.Provider>;
 };
 
 export function useBoard(): BoardContextType {
-  const ctx = useContext(BoardContext);
-  if (!ctx) throw new Error('useBoard must be used within BoardProvider');
-  return ctx;
+  const context = useContext(BoardContext);
+  if (context === undefined) {
+    throw new Error('useBoard must be used within a BoardProvider');
+  }
+  return context;
 } 

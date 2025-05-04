@@ -4,11 +4,21 @@ import React, { useState, useCallback, useMemo, useEffect, type CSSProperties, u
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import type { Column as ColumnType } from '~/types';
+import type { Column as ColumnType, Label, Milestone, Card, Priority } from '~/types';
 import { useBoard } from '~/services/board-context';
-import { CardAddForm } from './CardAddForm';
+import { NewCardSheet } from './ui/NewCardSheet';
 import { SortableCard } from './SortableCard'; 
 import { Trash2 } from 'lucide-react';
+
+// Define the type for the card data passed from NewCardSheet
+// This should match the `CreateCardData` type in board-context.tsx
+type CreateCardData = Partial<Omit<Card, 'id' | 'order' | 'columnId'>> & {
+  title: string;
+  columnId: string;
+  order?: number; 
+  assignees?: { connect: { id: string }[] };
+  labels?: { connect: { id: string }[] };
+};
 
 interface SortableColumnProps {
   column: ColumnType;
@@ -20,8 +30,15 @@ interface SortableColumnProps {
 
 export function SortableColumn({ column, dragOverlay = false, overlayStyle }: SortableColumnProps) {
   // Column.id is assumed valid (validated by parent Column wrapper)
-  const [isAddingCard, setIsAddingCard] = useState(false);
-  const { updateColumn, deleteColumn } = useBoard();
+  const [isNewCardSheetOpen, setIsNewCardSheetOpen] = useState(false);
+  const { 
+    updateColumn, 
+    deleteColumn, 
+    createCard, 
+    boardMembers,
+    milestones,
+    labels,
+  } = useBoard();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(column.title);
   
@@ -71,7 +88,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
       };
 
   const handleAddCardClick = useCallback(() => {
-    setIsAddingCard(true);
+    setIsNewCardSheetOpen(true);
   }, []);
   
   // Ref for column input selection
@@ -130,6 +147,13 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
     sortedCards.map(card => card.id), 
     [sortedCards]
   );
+
+  // Create a wrapper for the createCard function to match NewCardSheet's expectation
+  const handleCreateCard = useCallback(async (cardData: CreateCardData) => {
+    // The context createCard expects columnId as the first arg
+    // cardData from NewCardSheet already includes necessary fields
+    await createCard(column.id, cardData);
+  }, [createCard, column.id]);
 
   return (
     <div
@@ -211,16 +235,22 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
         </SortableContext>
         
         {/* Empty column drop target to ensure we can drop into empty columns */}
-        {sortedCards.length === 0 && !isAddingCard && (
+        {sortedCards.length === 0 && !isNewCardSheetOpen && (
           <div className={`empty-column-drop-area ${isOver ? 'drag-over' : ''}`}>
             <p className="text-sm text-white/50">Drop cards here</p>
           </div>
         )}
-        
-        {isAddingCard && (
-          <CardAddForm columnId={column.id} onCancel={() => setIsAddingCard(false)} />
-        )}
       </div>
+
+      <NewCardSheet
+        open={isNewCardSheetOpen}
+        onOpenChange={setIsNewCardSheetOpen}
+        columnId={column.id}
+        boardMembers={boardMembers || []}
+        milestones={milestones || []}
+        labels={labels || []}
+        onCreateCard={handleCreateCard}
+      />
     </div>
   );
 } 

@@ -1,33 +1,33 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useBoard } from '~/services/board-context';
 import type { Attachment } from '~/types';
 import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, FileUp, Link as LinkIcon, Trash2 } from 'lucide-react';
 import { AttachmentPreview } from '../AttachmentPreview';
-import { Trash2 } from 'lucide-react';
 
 export interface CardAttachmentsProps {
   cardId: string;
   attachments: Attachment[];
 }
 
+// Main component for displaying and managing attachments
 export function CardAttachments({ cardId, attachments }: CardAttachmentsProps) {
   const { addAttachment, deleteAttachment } = useBoard();
-  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [url, setUrl] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleAddUrl = useCallback(async () => {
-    if (!attachmentUrl.trim()) return;
+    if (!url.trim()) return;
     try {
-      const url = attachmentUrl.trim();
       const name = new URL(url).hostname.replace('www.', '');
       await addAttachment(cardId, name, url, 'link');
-      setAttachmentUrl('');
+      setUrl('');
     } catch (e) {
       console.error('Failed to add attachment URL:', e);
     }
-  }, [attachmentUrl, addAttachment, cardId]);
+  }, [url, addAttachment, cardId]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFile(e.target.files?.[0] ?? null);
@@ -67,11 +67,11 @@ export function CardAttachments({ cardId, attachments }: CardAttachmentsProps) {
         <Input
           type="url"
           placeholder="Attachment URL"
-          value={attachmentUrl}
-          onChange={(e) => setAttachmentUrl(e.target.value)}
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
           className="rounded-md"
         />
-        <Button onClick={handleAddUrl} size="sm" disabled={!attachmentUrl.trim()}>
+        <Button onClick={handleAddUrl} size="sm" disabled={!url.trim()}>
           Add Link
         </Button>
       </div>
@@ -81,6 +81,7 @@ export function CardAttachments({ cardId, attachments }: CardAttachmentsProps) {
           aria-label="Attachment File"
           onChange={handleFileChange}
           className="rounded-md p-1"
+          ref={fileInputRef}
         />
         <Button onClick={handleAddFile} size="sm" disabled={!selectedFile}>
           Add File

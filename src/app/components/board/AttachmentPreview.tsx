@@ -10,7 +10,13 @@ interface AttachmentPreviewProps {
 
 export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url }) => {
   try {
-    const parsedUrl = new URL(url);
+    // Check if URL is relative (starts with '/' but not '//') and prepend origin if necessary
+    const absoluteUrl = url.startsWith('/') && !url.startsWith('//') 
+      ? `${window.location.origin}${url}` 
+      : url;
+      
+    // Use the potentially modified absolute URL for parsing
+    const parsedUrl = new URL(absoluteUrl); 
     const hostname = parsedUrl.hostname.toLowerCase();
     const pathname = parsedUrl.pathname.toLowerCase();
 

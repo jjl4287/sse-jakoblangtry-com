@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 // jest-dom not available; use toBeDefined
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { BoardSettings } from '~/app/components/board/ui/BoardSettings';
 import { BoardService } from '~/services/board-service';
+// import { useBoardStore } from '~/stores/board'; // Removed unused import
 
 // Mock next-auth session
 vi.mock('next-auth/react', () => ({
@@ -55,28 +56,62 @@ describe('BoardSettings component', () => {
   });
 
   it('shows Join button if user not a member and calls joinBoard', async () => {
-    (BoardService.listBoardMembers as any).mockResolvedValue([]);
-    render(<BoardSettings boardId="b1" open={true} onClose={() => {}} />);
-    await waitFor(() => {});
-    const joinBtn = screen.getByRole('button', { name: /Join Board/ });
-    fireEvent.click(joinBtn);
-    expect(BoardService.joinBoard).toHaveBeenCalledWith('b1');
+    // useBoardStore.setState({ board: mockBoard, members: [], groups: [], isMember: false }); // Removed store mock
+    // Temporarily mock listBoardMembers to return empty for this specific case if needed
+    (BoardService.listBoardMembers as any).mockResolvedValueOnce([]); 
+    render(<BoardSettings boardId="b1" open={true} onClose={() => {}} />); // Use props as originally intended
+    const joinButton = await screen.findByRole('button', { name: /Join Board/i }); // Wait for button
+    expect(joinButton).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(joinButton);
+    });
+
+    expect(BoardService.joinBoard).toHaveBeenCalledWith('b1'); // Use mocked BoardService
   });
 
   it('creates a new group on Create click', async () => {
-    render(<BoardSettings boardId="b1" open={true} onClose={() => {}} />);
-    await waitFor(() => {});
-    fireEvent.change(screen.getByPlaceholderText('New group name'), { target: { value: 'MyGroup' } });
-    fireEvent.click(screen.getByRole('button', { name: /Create/ }));
-    expect(BoardService.createGroup).toHaveBeenCalledWith('MyGroup');
+    render(<BoardSettings boardId="b1" open={true} onClose={() => {}} />); 
+
+    await screen.findByText('Alice'); 
+
+    // Correct placeholder text
+    fireEvent.change(screen.getByPlaceholderText('New group name'), { target: { value: 'New Test Group' } }); 
+
+    await act(async () => {
+      // Use the correct button text "Create"
+      fireEvent.click(screen.getByRole('button', { name: /Create/i })); 
+    });
+
+    expect(BoardService.createGroup).toHaveBeenCalledWith('New Test Group');
   });
 
   it('shares board with selected group on Share click', async () => {
-    render(<BoardSettings boardId="b1" open={true} onClose={() => {}} />);
-    await waitFor(() => {});
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'g2' } });
-    fireEvent.click(screen.getByRole('button', { name: /Share/ }));
-    expect(BoardService.shareBoardWithGroup).toHaveBeenCalledWith('b1', 'g2');
+    (BoardService.listGroups as any).mockResolvedValueOnce([{ id: 'g1', name: 'Existing Group'}]);
+
+    render(<BoardSettings boardId="b1" open={true} onClose={() => {}} />); 
+
+    await screen.findByText('Alice'); 
+    await screen.findByText('Team'); 
+
+    // Target the select element (adjust selector if needed, e.g., add label/testid)
+    // Assuming there's only one select element in this part of the form
+    const groupSelect = screen.getByRole('combobox'); // Assuming this resolves to the <select> based on context/libraries used, might need refinement
+    
+    // Change the select value
+    await act(async () => {
+      // fireEvent.change might need the underlying <select> target, not just the combobox role wrapper
+      // Let's try changing the value directly on the element found by role first
+      fireEvent.change(groupSelect, { target: { value: 'g1' } }); 
+    });
+
+    // Find and click the Share button
+    const shareButton = screen.getByRole('button', { name: /Share/i });
+    await act(async () => {
+      fireEvent.click(shareButton);
+    });
+
+    expect(BoardService.shareBoardWithGroup).toHaveBeenCalledWith('b1', 'g1');
   });
 
   it('does not render when open=false', () => {
