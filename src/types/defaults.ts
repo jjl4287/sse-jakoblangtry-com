@@ -1,4 +1,4 @@
-import type { Board } from './index';
+import type { Board, User, Milestone } from './index';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -11,42 +11,67 @@ export const createDefaultBoard = (): Board => {
       title: 'Product Backlog',
       width: 25,
       cards: [],
+      order: 0,
     },
     {
       id: uuidv4(),
       title: 'In Progress',
       width: 25,
       cards: [],
+      order: 1,
     },
     {
       id: uuidv4(),
       title: 'Code Review',
       width: 25,
       cards: [],
+      order: 2,
     },
     {
       id: uuidv4(),
       title: 'Done',
       width: 25,
       cards: [],
+      order: 3,
     },
   ];
 
   return {
-    columns: defaultColumns,
-    theme: 'dark', // Default to dark theme as per PRD
+    id: uuidv4(),
+    title: 'New Board',
+    user: { id: 'placeholder-user-id', name: 'Placeholder User' } as User,
+    userId: 'placeholder-user-id',
+    pinned: false,
+    isPublic: false,
+    columns: defaultColumns.map((col, index) => ({ ...col, order: index })),
+    theme: 'dark',
   };
 };
 
 /**
  * Default board with sample data for development purposes
  */
+
+// Define some sample users (replace with actual user data structure/source if needed)
+const sampleUser1: Partial<User> = { id: 'user1', name: 'John Doe' };
+const sampleUser2: Partial<User> = { id: 'user2', name: 'Jane Smith' };
+
+// Define a sample milestone
+const sampleMilestone1: Milestone = { id: 'm1', name: 'Sprint 1 End' };
+
 export const sampleBoard: Board = {
+  id: 'board1',
+  title: 'Sample Project Board',
+  userId: 'user1',
+  pinned: false,
+  isPublic: false,
+  user: sampleUser1 as User,
   columns: [
     {
       id: '1',
       title: 'Product Backlog',
       width: 25,
+      order: 0,
       cards: [
         {
           id: '101',
@@ -55,12 +80,14 @@ export const sampleBoard: Board = {
           labels: [
             { id: '201', name: 'Feature', color: '#1A7F56' }
           ],
-          assignees: ['John Doe'],
+          assignees: [sampleUser1.id!],
           priority: 'medium',
           attachments: [],
           comments: [],
           columnId: '1',
           order: 0,
+          milestoneId: sampleMilestone1.id,
+          milestone: sampleMilestone1,
         },
         {
           id: '102',
@@ -69,7 +96,7 @@ export const sampleBoard: Board = {
           labels: [
             { id: '202', name: 'Enhancement', color: '#15593B' }
           ],
-          assignees: ['Jane Smith'],
+          assignees: [sampleUser2.id!],
           priority: 'low',
           attachments: [],
           comments: [],
@@ -82,6 +109,7 @@ export const sampleBoard: Board = {
       id: '2',
       title: 'In Progress',
       width: 25,
+      order: 1,
       cards: [
         {
           id: '103',
@@ -90,15 +118,25 @@ export const sampleBoard: Board = {
           labels: [
             { id: '203', name: 'Bug', color: '#ff0000' }
           ],
-          assignees: ['John Doe'],
+          assignees: [sampleUser1.id!, sampleUser2.id!],
           priority: 'high',
-          attachments: [],
+          attachments: [
+            {
+              id: 'att1', name: 'screenshot.png', url:'/attachments/screenshot.png', type:'image/png', createdAt: new Date()
+            }
+          ],
           comments: [
             {
               id: '301',
-              author: 'John Doe',
+              author: sampleUser1.name!,
               content: 'This is mostly affecting small tablets',
               createdAt: new Date('2024-01-15'),
+            },
+            {
+              id: '302',
+              author: sampleUser2.name!,
+              content: 'Can confirm, checked on iPad Mini.',
+              createdAt: new Date('2024-01-16'),
             }
           ],
           columnId: '2',
@@ -110,12 +148,14 @@ export const sampleBoard: Board = {
       id: '3',
       title: 'Code Review',
       width: 25,
+      order: 2,
       cards: [],
     },
     {
       id: '4',
       title: 'Done',
       width: 25,
+      order: 3,
       cards: [
         {
           id: '104',
@@ -125,7 +165,7 @@ export const sampleBoard: Board = {
             { id: '204', name: 'Setup', color: '#0A3622' }
           ],
           dueDate: new Date('2024-01-10'),
-          assignees: ['Jane Smith'],
+          assignees: [sampleUser2.id!],
           priority: 'high',
           attachments: [
             {

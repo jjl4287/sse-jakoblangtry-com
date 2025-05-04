@@ -1,7 +1,7 @@
 ---
-description:
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
 - **Board Header Text/Input Animation Logic**
   - The `motion.input` and `motion.h2` elements used for the board title in [`Board.tsx`](mdc:src/app/components/board/Board.tsx) have a `translateX` animation.

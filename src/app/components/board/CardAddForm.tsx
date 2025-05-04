@@ -47,7 +47,7 @@ export const CardAddForm: React.FC<CardAddFormProps> = ({ columnId, onCancel }) 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="glass-card glass-depth-2 glass-border-animated p-3 mb-3">
+    <form onSubmit={handleSubmit} className="glass-card glass-depth-2 glass-border-animated rounded-md p-3 mb-3">
       <div className="mb-2">
         <input
           type="text"

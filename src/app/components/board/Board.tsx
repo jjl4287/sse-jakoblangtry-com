@@ -33,6 +33,11 @@ import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
 import type { Card as CardType, Column as ColumnType } from '~/types';
+import { Avatar, AvatarFallback } from '~/components/ui/avatar';
+import { BoardSettings } from './ui/BoardSettings';
+import { Settings } from 'lucide-react';
+import { Button } from '~/components/ui/button';
+import { BoardService } from '~/services/board-service';
 
 // Props for header inline editing and external focus control
 export interface BoardProps {
@@ -41,6 +46,9 @@ export interface BoardProps {
   onRenameBoard?: (id: string, title: string) => void;
   sidebarOpen: boolean;
 }
+
+// Insert Member interface under component imports
+interface Member { id: string; name: string; email?: string; joinedAt: string; }
 
 export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusEdit, onRenameBoard, sidebarOpen }) => {
   const {
@@ -113,6 +121,19 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
 
   // Declare ref for search input to focus on keyboard shortcut
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Members and settings panel state (always declared)
+  const [members, setMembers] = useState<Member[]>([]);
+  const [openSettings, setOpenSettings] = useState(false);
+
+  // Fetch board members on board change
+  useEffect(() => {
+    if (board?.id) {
+      BoardService.listBoardMembers(board.id)
+        .then(setMembers)
+        .catch(console.error);
+    }
+  }, [board?.id]);
 
   // Handle drag start to track active item
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -353,14 +374,23 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
     );
   }
 
-  // Column count stat
+  // Column count stat (using hooks above)
   const columnCount = filteredBoard?.columns?.length ?? 0;
 
   return (
     <div className="relative flex flex-col h-full w-full p-2">
       {/* Board Header */}
       <header className="glass-card glass-border-animated p-2 mb-1 flex items-center justify-between rounded-lg">
-        {/* Board Title Inline Edit */}
+        {/* Inline title edit */}
+        {/* Avatars list */}
+        <div className="flex -space-x-2 mr-4">
+          {members.map(m => (
+            <Avatar key={m.id} className="border-2 border-white dark:border-gray-800 h-6 w-6">
+              <AvatarFallback>{m.name.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          ))}
+        </div>
+        {/* Existing title input or h2 */}
         {isEditingHeader ? (
           <motion.input
             autoFocus
@@ -398,6 +428,9 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
         )}
         {/* Controls */}
         <div className="flex items-center gap-3 flex-wrap">
+          <Button variant="ghost" size="icon" onClick={() => setOpenSettings(true)}>
+            <Settings className="h-4 w-4" />
+          </Button>
           <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
             {columnCount} Columns
           </div>
@@ -470,6 +503,9 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
           )}
         </DragOverlay>
       </DndContext>
+
+      {/* Board Settings Panel */}
+      <BoardSettings boardId={board.id} open={openSettings} onClose={() => setOpenSettings(false)} />
     </div>
   );
 }; 

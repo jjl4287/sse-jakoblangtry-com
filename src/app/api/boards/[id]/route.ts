@@ -107,27 +107,28 @@ export async function PATCH(
     // Handle JSON Patch application inside the main try block
     if (Array.isArray(rawBody)) {
       const patchOps = rawBody as Operation[];
-      // Fetch full board state - Note: this happens before transaction start
+      // Fetch board state - Reduced depth for efficiency
       const boardState = await prisma.board.findUnique({
         where: { id: boardId },
         include: {
+          // Only include columns and basic card info initially
+          // If a patch targets deeper nested card fields, it might fail
+          // or require adjustments later.
           columns: {
             include: {
-              cards: {
-                include: {
-                  labels: true,
-                  assignees: true,
-                  attachments: true,
-                  comments: true,
-                },
-              },
-            },
-          },
+              // Fetch cards, but not their nested relations (labels, comments etc.)
+              cards: true 
+            }
+          }
+          // Intentionally omitting includes for labels, comments, attachments at board level for pre-fetch
         },
       });
       if (!boardState) {
         throw new Error('Board state not found during patch application');
       }
+      // Convert Prisma Decimal to number for JSON compatibility if needed, and apply patch
+      // Note: JSON.stringify/parse is a common way but might have type fidelity issues (e.g., Date -> string)
+      // Consider a more robust deep cloning/conversion method if necessary.
       const plainDoc = JSON.parse(JSON.stringify(boardState)) as unknown;
       const patchResult = applyPatch<unknown>(plainDoc, patchOps);
 

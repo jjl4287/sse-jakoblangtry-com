@@ -14,6 +14,8 @@ model Board {
   columns   Column[]
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
+  boardMembers BoardMember[] @relation("BoardMemberToBoard")
+  boardGroups  BoardGroup[]  @relation("BoardGroupToBoard")
   pinned    Boolean   @default(false)
   isPublic  Boolean   @default(false)
   createdAt DateTime  @default(now())
@@ -42,6 +44,8 @@ model Card {
   priority    Priority
   attachments Attachment[]
   comments    Comment[]
+  milestone   Milestone?   @relation(fields: [milestoneId], references: [id])
+  milestoneId String?
   column      Column       @relation(fields: [columnId], references: [id], onDelete: Cascade)
   columnId    String
   order       Float
@@ -86,6 +90,8 @@ model User {
   resetTokenExpiry DateTime?
   assignedCards Card[]   @relation("CardAssignees")
   boards        Board[]
+  boardMembers  BoardMember[] @relation("BoardMemberToUser")
+  groupMembers  GroupMember[] @relation("GroupMemberToUser")
   accounts      Account[]
   sessions      Session[]
   createdAt     DateTime @default(now())
@@ -133,4 +139,59 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Milestones for cards
+model Milestone {
+  id        String   @id @default(cuid())
+  name      String
+  dueDate   DateTime?
+  cards     Card[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Board membership join table for multi-user sharing
+model BoardMember {
+  id      String  @id @default(cuid())
+  user    User    @relation("BoardMemberToUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+  board   Board   @relation("BoardMemberToBoard", fields: [boardId], references: [id], onDelete: Cascade)
+  boardId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, boardId])
+}
+
+// Groups and group membership for organization-level sharing
+model Group {
+  id        String        @id @default(cuid())
+  name      String
+  members   GroupMember[] @relation("GroupMemberToGroup")
+  boardGroups  BoardGroup[]  @relation("BoardGroupToGroup")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model GroupMember {
+  id      String   @id @default(cuid())
+  user    User     @relation("GroupMemberToUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+  group   Group    @relation("GroupMemberToGroup", fields: [groupId], references: [id], onDelete: Cascade)
+  groupId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, groupId])
+}
+
+// Join table linking boards to groups for group-based sharing
+model BoardGroup {
+  id      String  @id @default(cuid())
+  board   Board   @relation("BoardGroupToBoard", fields: [boardId], references: [id], onDelete: Cascade)
+  boardId String
+  group   Group   @relation("BoardGroupToGroup", fields: [groupId], references: [id], onDelete: Cascade)
+  groupId String
+  createdAt DateTime @default(now())
+
+  @@unique([boardId, groupId])
 } 

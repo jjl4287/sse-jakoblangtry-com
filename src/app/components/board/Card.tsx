@@ -18,6 +18,9 @@ import { AttachmentPreview } from './AttachmentPreview';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import type { Card as CardType } from '~/types';
 import type { CardDragItem } from '~/constants/dnd-types';
+import { Badge } from '~/components/ui/badge';
+import { CardLabels } from './ui/CardLabels';
+import { Avatar, AvatarFallback } from '~/components/ui/avatar';
 
 // Define the drop result type
 interface CardDropResult {
@@ -148,6 +151,21 @@ export const Card = memo(({
             </div>
           )}
 
+          {card.labels && card.labels.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {card.labels.map((label) => (
+                <Badge
+                  key={label.id}
+                  variant="outline"
+                  className="text-xs"
+                  style={{ borderColor: `${label.color}80`, backgroundColor: `${label.color}30` }}
+                >
+                  {label.name}
+                </Badge>
+              ))}
+            </div>
+          )}
+
           <h3 className="font-semibold text-sm mb-1 text-gray-800 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-[50ms]">{card.title}</h3>
           {card.description && (
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 mb-2 line-clamp-2 h-8">
@@ -174,12 +192,14 @@ export const Card = memo(({
               )}
             </div>
 
-            {/* Show first assignee's initial */}
-            {cardAssignees[0] && (
-              <span className="flex items-center justify-center h-5 w-5 bg-gray-300 dark:bg-gray-600 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300" title={cardAssignees[0]}>
-                {cardAssignees[0].charAt(0).toUpperCase()}
-              </span>
-            )}
+            <div className="flex items-center space-x-1">
+              {cardAssignees.map((userId) => (
+                <Avatar key={userId} className="h-5 w-5 border-2 border-white dark:border-gray-800 text-xs">
+                  <AvatarFallback title={userId}>{userId.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              ))}
+              <CardLabels cardId={card.id} labels={card.labels} />
+            </div>
           </div>
         </div>
       </div>

@@ -1,0 +1,150 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Card Features Implementation Plan
+
+**High-Level Overview**
+- Step-by-step, loosely coupled approach for all card-related enhancements:
+  1. UI bug fixes  (#9, #10)
+  2. Service & type refactor  
+  3. Labels UI & storage  (#15)
+  4. Comments section  (#16)
+  5. Attachments & file uploads  (#17)
+  6. Multi-user board sharing & richer metadata  (#27)
+  7. Floating new-card sheet  (#28)
+  8. Unified card details sheet  (#29)
+- Each step includes a **Status** (`pending` / `in-progress` / `done`) and actionable tasks.
+- Inventory of existing system is included for immediate reference.
+
+## Inventory of Existing Card System
+
+**Components**
+- [Card.tsx](mdc:src/app/components/board/Card.tsx): Summarized card view (title, due date, etc.)
+- [CardAddForm.tsx](mdc:src/app/components/board/CardAddForm.tsx): Inline form to create a card
+- [SortableCard.tsx](mdc:src/app/components/board/SortableCard.tsx): Drag-and-drop wrapper
+- [ExpandedCardModal.tsx](mdc:src/app/components/board/ExpandedCardModal.tsx): Modal for detailed card editing
+
+**API Routes**
+- [src/app/api/cards/route.ts](mdc:src/app/api/cards/route.ts): GET list / POST create cards
+- [src/app/api/cards/[id]/route.ts](mdc:src/app/api/cards/[id]/route.ts): GET/PUT/DELETE single card
+- [src/app/api/cards/[id]/move/route.ts](mdc:src/app/api/cards/[id]/move/route.ts): PATCH move card between columns
+
+**Services & Types**
+- [src/services/board.ts](mdc:src/services/board.ts): Business logic for boards & cards
+- [src/types/cards.ts](mdc:src/types/cards.ts): `Card` interface (`id`, `title`, `description`, `columnId`)
+
+---
+
+## Steps
+
+### Step 1: Fix UI Glitches (#9, #10)
+- Status: done
+- Description: Resolve existing styling bugs before adding features.
+- Actions:
+  - Tweak border-radius and corner styles in [CardAddForm.tsx](mdc:src/app/components/board/CardAddForm.tsx).
+  - Add `rounded-md` to inputs, textareas, and buttons in [ExpandedCardModal.tsx](mdc:src/app/components/board/ExpandedCardModal.tsx) to fix corner and alignment glitches.
+  - Add visual-regression test `tests/ui-regression/card-form.spec.ts` to verify UI styles.
+
+### Step 2: Refactor Service Interfaces & Types
+- Status: done
+- Description: Extend service layer to support labels, comments, attachments, assignees, milestones, and multi-user.
+- Actions:
+  - In [prisma/schema.prisma](mdc:prisma/schema.prisma):
+    - Add `labels`, `comments`, `attachments` relations on `Card` model.
+    - Add `assignees` many-to-many with `User`.
+    - Add `milestone` relation.
+    - Add `BoardMember` join table for `Board`↔`User`.
+    - Add `Group` and `GroupMember` models for organization-level sharing.
+  - Run `npx prisma db push` and `npx prisma generate`.
+  - Update `Card` type in [src/types/cards.ts](mdc:src/types/cards.ts).
+  - In [src/services/board.ts](mdc:src/services/board.ts), implement:
+    - `addLabel(cardId, label)`, `removeLabel(cardId, label)`
+    - `addComment(cardId, text)`, `deleteComment(commentId)`
+    - `addAttachment(cardId, fileOrUrl)`, `deleteAttachment(attachmentId)`
+    - `assignUserToCard(cardId, userId)`
+    - `setCardMilestone(cardId, milestoneId)`
+    - `inviteUserToBoard(boardId, email)`
+    - `createGroup(name)`, `addUserToGroup(groupId, userId)`
+    - `shareBoardWithGroup(boardId, groupId)`
+  - modify seed.ts to populate the db with sample data that includes these new features keeping the user the board is assigned to the same 
+  - Add unit tests in `tests/services/board.test.ts`.
+  - modify the cursor rule called prisma_models to update the schema in context
+
+### Step 3: Implement Card Labels UI & Storage (#15)
+- Status: done
+- Description: Enable colored label management on cards.
+- Actions:
+  - Create `src/app/components/board/ui/CardLabels.tsx`.
+  - Hook into `BoardService.addLabel` / `removeLabel`.
+  - Render labels inside [Card.tsx](mdc:src/app/components/board/Card.tsx).
+  - Integration tests in `tests/components/board/CardLabels.spec.tsx`.
+
+### Step 4: Implement Card Comments Section (#16)
+- Status: done
+- Description: Add threaded comments under card details.
+- Actions:
+  - Build `src/app/components/board/ui/CardComments.tsx`.
+  - Use `BoardService.addComment` / `deleteComment`.
+  - Embed in [ExpandedCardModal.tsx](mdc:src/app/components/board/ExpandedCardModal.tsx).
+  - Tests in `tests/components/board/CardComments.spec.tsx`.
+
+### Step 5: Implement Card Attachments & File Uploads (#17)
+- Status: done
+- Description: Allow file and URL attachments to cards with previews.
+- Actions:
+  - Create `AttachmentPreview` and `CardAttachments` in `src/app/components/board/ui/`.
+  - Integrate `BoardService.addAttachment` / `deleteAttachment`.
+  - Ensure responsive styling matches design system.
+  - Tests in `tests/components/board/CardAttachments.spec.tsx`.
+
+### Step 6: Implement Multi-User Board Sharing & Richer Metadata (#27)
+- Status: done
+- Description: Support multiple users, groups, and extended card metadata (assignees, milestone).
+- Actions:
+  - **Database schema**: Confirm `BoardMember`, `Group`, `GroupMember`, `Card.assignees`, and `Card.milestone` models in [prisma/schema.prisma](mdc:prisma/schema.prisma).
+  - **API routes**:
+    - `GET/POST /api/boards/[id]/members` to list and invite members.
+    - `POST /api/boards/[id]/invite` to generate invite links.
+    - CRUD for `Group` in `/api/groups`.
+  - **Service methods**:
+    - `inviteUserToBoard`, `joinBoard`, `listBoardMembers`.
+    - `assignUserToCard`, `setCardMilestone`, `shareBoardWithGroup`.
+  - **UI components**:
+    - `BoardSettings` in `src/app/components/board/ui/BoardSettings.tsx` (member list, invite input, group management).
+    - Display member avatars in board header.
+    - Render assignee avatars on cards in [Card.tsx](mdc:src/app/components/board/Card.tsx).
+  - **Tests**:
+    - Service-level in `tests/services/board-share.spec.ts`.
+    - Component-level in `tests/components/board/BoardSettings.spec.tsx`.
+
+### Step 7: Replace Inline Card Form with Floating Sheet (#28)
+- Status: pending
+- Description: Shadcn floating Window/Sheet UI for card creation with Markdown support.
+- Actions:
+  - Build `NewCardSheet` in `src/app/components/board/ui/NewCardSheet.tsx`.
+  - Use CSS/Framer Motion animations.
+  - Include title input and Markdown description with links.
+  - Include all currently existing fields for cards - including newly generated ones as part of this plan. 
+  - Parent board toggles sheet state.
+  - GitHub Issues inspired ui.
+  - ensure all new features added 1-6 are represented. 
+  - Dropdown Menu for Assignees (all members who can view the board included in the dropdown with their avatar)
+  - Tests in `tests/components/board/NewCardSheet.spec.tsx`.
+
+### Step 8: Implement Unified Card Details Sheet (#29)
+- Status: pending
+- Description: Side sheet combining all card features in one place.
+- Actions:
+  - Create `CardDetailsSheet` in `src/app/components/board/ui/CardDetailsSheet.tsx`.
+  - Sections for title, description, labels, comments, attachments, assignees, milestone
+  - Connect to `BoardService.updateCard`.
+  - remove old add and edit card ui implementations
+  - E2E test in `tests/e2e/cardDetails.spec.ts`.
+
+---
+
+*Maintain this rule as the single source of truth for all card feature work.*
+*when done with a task, modify the rule to show the task as done*
+

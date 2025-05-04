@@ -1,13 +1,15 @@
 ---
-description:
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
 - **Project model**
   - `id`: String @id @default(cuid())
   - `title`: String
   - `theme`: String?  (optional board theme)
   - `columns`: Relation to [Column](mdc:prisma/schema.prisma) model
+  - `members`: Many-to-many relation via [BoardMember](mdc:prisma/schema.prisma)
+  - `groups`: Many-to-many relation for sharing with [Group](mdc:prisma/schema.prisma)
   - `createdAt`, `updatedAt`: timestamp fields
 
 - **Column model**
@@ -20,10 +22,11 @@ alwaysApply: false
   - `id`, `title`, `description`: core card fields
   - `labels`: Many-to-many with [Label](mdc:prisma/schema.prisma)
   - `dueDate`: DateTime? for optional due date
-  - `assignees`: String[] array of user identifiers (future: link to User model)
+  - `assignees`: Many-to-many relation with [User](mdc:prisma/schema.prisma) model
   - `priority`: uses [Priority enum](mdc:prisma/schema.prisma)
   - `attachments`: One-to-many with [Attachment](mdc:prisma/schema.prisma)
   - `comments`: One-to-many with [Comment](mdc:prisma/schema.prisma)
+  - `milestone`: Optional relation to [Milestone](mdc:prisma/schema.prisma) model
   - `columnId`: foreign key to [Column](mdc:prisma/schema.prisma)
   - `order`: Float (supports decimal ordering)
   - `createdAt`, `updatedAt`: timestamp fields
@@ -38,9 +41,38 @@ alwaysApply: false
   - `createdAt`: timestamp
 
 - **Comment model**
-  - `id`, `author`, `content`
+  - `id`, `authorId`: foreign key to [User](mdc:prisma/schema.prisma)
+  - `content`: String
   - `cardId`: foreign key to [Card](mdc:prisma/schema.prisma)
   - `createdAt`: timestamp
 
 - **Priority enum**
   - Defines card priority levels: `low`, `medium`, `high`
+
+- **User model**
+  - `id`, `name`, `email`, `image`: standard user fields (likely from NextAuth)
+  - `boards`: Many-to-many relation via [BoardMember](mdc:prisma/schema.prisma)
+  - `assignedCards`: Many-to-many relation back to [Card](mdc:prisma/schema.prisma)
+  - `comments`: One-to-many relation back to [Comment](mdc:prisma/schema.prisma)
+  - `groups`: Many-to-many relation via [GroupMember](mdc:prisma/schema.prisma)
+
+- **BoardMember model** (Join table for Project <-> User)
+  - `projectId`: foreign key to [Project](mdc:prisma/schema.prisma)
+  - `userId`: foreign key to [User](mdc:prisma/schema.prisma)
+  - `role`: Enum (e.g., `ADMIN`, `MEMBER`, `VIEWER`)
+  - Assigned `createdAt`, `updatedAt`
+
+- **Milestone model**
+  - `id`, `title`, `description`, `dueDate`
+  - `projectId`: foreign key to [Project](mdc:prisma/schema.prisma) (milestones belong to a project)
+  - `cards`: One-to-many relation back to [Card](mdc:prisma/schema.prisma)
+
+- **Group model**
+  - `id`, `name`: basic group info
+  - `members`: Many-to-many relation via [GroupMember](mdc:prisma/schema.prisma)
+  - `boards`: Many-to-many relation for shared [Project](mdc:prisma/schema.prisma)s
+
+- **GroupMember model** (Join table for Group <-> User)
+  - `groupId`: foreign key to [Group](mdc:prisma/schema.prisma)
+  - `userId`: foreign key to [User](mdc:prisma/schema.prisma)
+  - Assigned `createdAt`

@@ -10,6 +10,12 @@ export interface Board {
   title: string;
   columns: Column[];
   theme: 'light' | 'dark';
+  user: User; // Assuming a Board belongs to a User (creator/owner)
+  userId: string;
+  boardMembers?: BoardMember[]; // Users who are members of the board
+  boardGroups?: BoardGroup[]; // Groups the board is shared with
+  pinned: boolean;
+  isPublic: boolean;
 }
 
 /**
@@ -32,12 +38,15 @@ export interface Card {
   description: string;
   labels: Label[];
   dueDate?: Date;
-  assignees: string[];
+  assignees: string[]; // array of user IDs
   priority: 'low' | 'medium' | 'high';
   attachments: Attachment[];
   comments: Comment[];
   columnId: string;
   order: number; // Position within the column
+  milestoneId?: string;
+  /** Optional milestone associated with the card */
+  milestone?: Milestone;
 }
 
 // Add Priority type alias for Card priority
@@ -71,4 +80,86 @@ export interface Comment {
   author: string;
   content: string;
   createdAt: Date;
+}
+
+/**
+ * Milestone interface for card scheduling
+ */
+export interface Milestone {
+  id: string;
+  name: string;
+  dueDate?: Date;
+}
+
+/**
+ * User interface representing an application user
+ */
+export interface User {
+  id: string;
+  name: string;
+  email?: string | null; // Allow null as per schema
+  image?: string | null; // Allow null as per schema
+  emailVerified?: Date | null; // Allow null as per schema
+  hashedPassword?: string | null; // Allow null as per schema
+  assignedCards?: Card[];
+  boards?: Board[];
+  boardMembers?: BoardMember[];
+  groupMembers?: GroupMember[];
+  accounts?: Account[]; // Assuming Account type exists elsewhere or is defined here
+  sessions?: Session[]; // Assuming Session type exists elsewhere or is defined here
+}
+
+/**
+ * BoardMember interface representing the relationship between a User and a Board
+ */
+export interface BoardMember {
+  id: string;
+  userId: string;
+  boardId: string;
+}
+
+/**
+ * Group interface for organization-level sharing
+ */
+export interface Group {
+  id: string;
+  name: string;
+  members?: GroupMember[];
+  boardGroups?: BoardGroup[];
+}
+
+/**
+ * GroupMember interface representing the relationship between a User and a Group
+ */
+export interface GroupMember {
+  id: string;
+  userId: string;
+  groupId: string;
+}
+
+/**
+ * BoardGroup interface representing the relationship between a Board and a Group
+ */
+export interface BoardGroup {
+  id: string;
+  boardId: string;
+  board: Board;
+  groupId: string;
+  group: Group;
+}
+
+// Minimal definitions for Account and Session if not defined elsewhere
+// These might need more detail depending on your auth implementation
+export interface Account {
+  id: string;
+  userId: string;
+  // ... other NextAuth Account fields
+}
+
+export interface Session {
+  id: string;
+  sessionToken: string;
+  userId: string;
+  expires: Date;
+  // ... other NextAuth Session fields
 } 

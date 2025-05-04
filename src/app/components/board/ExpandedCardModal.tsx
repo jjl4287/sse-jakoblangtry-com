@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, CalendarIcon, Paperclip, Link, Trash2, Save } from 'lucide-react';
+import { X, CalendarIcon, Paperclip, Link, Trash2, Save, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Card as CardType, Priority, Attachment } from '~/types';
 import { Input } from '~/components/ui/input';
@@ -14,6 +14,8 @@ import { Calendar } from "~/components/ui/calendar";
 import { Badge } from "~/components/ui/badge";
 import { cn } from "~/lib/utils";
 import Image from 'next/image';
+import { CardComments } from './ui/CardComments';
+import { CardAttachments } from './ui/CardAttachments';
 
 /**
  * @brief Props for the ExpandedCardModal component.
@@ -294,7 +296,7 @@ const ExpandedCardModalComponent: React.FC<ExpandedCardModalProps> = ({
                 onChange={handleTitleChange}
                 placeholder="Card title"
                 className={cn(
-                  "bg-white/5 border-white/20 placeholder:text-gray-400 focus-visible:ring-offset-0 focus-visible:ring-white/50",
+                  "rounded-md bg-white/5 border-white/20 placeholder:text-gray-400 focus-visible:ring-offset-0 focus-visible:ring-white/50",
                   titleError && "border-red-500 focus-visible:ring-red-500"
                 )} 
               />
@@ -309,7 +311,7 @@ const ExpandedCardModalComponent: React.FC<ExpandedCardModalProps> = ({
                 value={description}
                 onChange={handleDescriptionChange}
                 placeholder="Add a more detailed description..."
-                className="bg-white/5 border-white/20 placeholder:text-gray-400 focus-visible:ring-offset-0 focus-visible:ring-white/50 min-h-[80px]"
+                className="rounded-md bg-white/5 border-white/20 placeholder:text-gray-400 focus-visible:ring-offset-0 focus-visible:ring-white/50 min-h-[80px]"
               />
             </div>
             
@@ -340,7 +342,7 @@ const ExpandedCardModalComponent: React.FC<ExpandedCardModalProps> = ({
                       id="card-dueDate"
                       variant={"outline"}
                       className={cn(
-                        "w-full justify-start text-left font-normal bg-white/5 border-white/20 hover:bg-white/10 hover:text-white",
+                        "rounded-md w-full justify-start text-left font-normal bg-white/5 border-white/20 hover:bg-white/10 hover:text-white",
                         !dueDate && "text-gray-400"
                       )}
                     >
@@ -395,70 +397,22 @@ const ExpandedCardModalComponent: React.FC<ExpandedCardModalProps> = ({
                 <Paperclip className="mr-2 h-4 w-4" /> 
                 {isNewCard ? 'Add Attachment Link' : `Attachments (${attachments.length})`}
               </Label>
-              
-              {/* Add URL Form */}
-              <div className="flex items-end gap-2">
-                <div className="flex-grow">
-                  <Label htmlFor="attachment-url" className="sr-only">URL</Label>
-                  <Input 
-                    id="attachment-url"
-                    value={attachmentUrl}
-                    onChange={handleAttachmentUrlChange}
-                    placeholder="Paste URL link here"
-                    type="url"
-                    className="bg-white/5 border-white/20 h-8 text-sm"
-                  />
-                </div>
-                <Button 
-                  onClick={handleAddAttachment} 
-                  size="sm" 
-                  className="h-8"
-                  disabled={!attachmentUrl.trim() || isNewCard}
-                >
-                  <Link className="h-4 w-4 mr-1" />
-                  Add
-                </Button>
-              </div>
-              
-              {/* URL preview */}
-              {attachmentUrl.trim() && (
-                <div className="mt-2 border border-white/10 rounded-md p-2 bg-black/20">
-                  <div className="text-xs text-gray-400 mb-1">URL Preview</div>
-                  {renderAttachmentEmbed(attachmentUrl)}
-                </div>
-              )}
-              
-              {/* Existing Attachments */}
-              {!isNewCard && attachments.length > 0 && (
-                <div className="space-y-3 mt-3">
-                  {attachments.map((att) => (
-                    <div key={att.id} className="border border-white/10 rounded-md overflow-hidden">
-                      <div className="flex items-center justify-between bg-white/5 px-3 py-1">
-                        <a 
-                          href={att.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-xs hover:underline truncate mr-2 text-blue-300"
-                        >
-                          {att.name || new URL(att.url).hostname}
-                        </a>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6 text-gray-400 hover:text-red-400"
-                          onClick={() => handleDeleteAttachment(att.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="p-2">
-                        {renderAttachmentEmbed(att.url)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            {/* Use new CardAttachments component */}
+            {!isNewCard && (
+              <CardAttachments cardId={card.id} attachments={attachments} />
+            )}
             </div>
+
+            {/* Comments Section */}
+            {card?.comments && (
+              <div className="space-y-3 mt-6">
+                <Label className="text-sm font-medium flex items-center text-gray-300">
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Comments ({card.comments.length})
+                </Label>
+                <CardComments cardId={card.id} comments={card.comments} />
+              </div>
+            )}
           </div>
           
           {/* Save Button */}

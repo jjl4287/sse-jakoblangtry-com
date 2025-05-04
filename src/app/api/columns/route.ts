@@ -1,28 +1,60 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
-import type { NextRequest } from 'next/server';
+import { z } from 'zod';
+
+const ColumnInputSchema = z.object({
+  title: z.string().min(1, "Title cannot be empty"),
+  width: z.number().optional().default(280), // Default width if not provided
+});
 
 // POST /api/columns
 export async function POST(request: NextRequest) {
+  // Use req.nextUrl.searchParams
+  const projectId = request.nextUrl.searchParams.get('projectId'); 
+
+  if (!projectId) {
+    return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+  }
+
+  let data;
   try {
-    // Read title and width
-    const { title, width } = (await request.json()) as { title: string; width: number };
-    // Determine board from query param or fallback
-    const boardId = request.nextUrl.searchParams.get('boardId');
-    let board = boardId
-      ? await prisma.board.findUnique({ where: { id: boardId } })
-      : await prisma.board.findFirst();
-    if (!board) {
-      // Fallback: create default board
-      board = await prisma.board.create({ data: { title: 'Default Board', theme: 'dark', userId: 'admin' } });
-    }
-    // Determine order by counting existing columns
-    const count = await prisma.column.count({ where: { projectId: board.id } });
-    // Create column
-    const column = await prisma.column.create({ data: { title, width, order: count, projectId: board.id } });
-    return NextResponse.json(column);
-  } catch (error: any) {
+    data = await request.json();
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const validation = ColumnInputSchema.safeParse(data);
+  if (!validation.success) {
+    return NextResponse.json(
+      { error: 'Validation failed', issues: validation.error.issues },
+      { status: 400 }
+    );
+  }
+
+  try {
+    // Find the current maximum order for the project
+    const maxOrderColumn = await prisma.column.findFirst({
+      where: { projectId },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+    const nextOrder = (maxOrderColumn?.order ?? 0) + 1;
+
+    // Create the new column
+    const newColumn = await prisma.column.create({
+      data: {
+        ...validation.data,
+        projectId,
+        order: nextOrder,
+      },
+    });
+    return NextResponse.json(newColumn, { status: 201 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('[API POST /api/columns] Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to create column', details: message },
+      { status: 500 }
+    );
   }
 } 
