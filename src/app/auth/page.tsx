@@ -119,6 +119,9 @@ export default function AuthPage() {
               Email
               <input
                 type="email"
+                id="signin-email"
+                name="email"
+                autoComplete="username"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -129,6 +132,9 @@ export default function AuthPage() {
               Password
               <input
                 type="password"
+                id="signin-password"
+                name="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Enter password"
@@ -179,6 +185,9 @@ export default function AuthPage() {
               Username
               <input
                 type="text"
+                id="register-username"
+                name="username"
+                autoComplete="username"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 placeholder="Choose a username"
@@ -189,6 +198,9 @@ export default function AuthPage() {
               Email
               <input
                 type="email"
+                id="register-email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -199,6 +211,9 @@ export default function AuthPage() {
               Password
               <input
                 type="password"
+                id="register-password"
+                name="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Enter a strong password"

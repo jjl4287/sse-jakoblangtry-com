@@ -16,6 +16,10 @@ export interface Board {
   boardGroups?: BoardGroup[]; // Groups the board is shared with
   pinned: boolean;
   isPublic: boolean;
+  /** Flattened list of board members with user data */
+  members?: { id: string; name: string; email?: string | null; joinedAt: string }[];
+  /** Milestones associated with this board */
+  milestones?: Milestone[];
 }
 
 /**
@@ -38,7 +42,7 @@ export interface Card {
   description: string;
   labels: Label[];
   dueDate?: Date;
-  assignees: string[]; // array of user IDs
+  assignees: User[];
   priority: 'low' | 'medium' | 'high';
   attachments: Attachment[];
   comments: Comment[];
@@ -51,6 +55,18 @@ export interface Card {
 
 // Add Priority type alias for Card priority
 export type Priority = Card['priority'];
+
+/**
+ * CardWithIncludes interface representing a card with all its relations loaded
+ */
+export type CardWithIncludes = Card & {
+  labels: Label[];
+  assignees: User[];
+  attachments: Attachment[];
+  comments: Comment[];
+  milestone?: Milestone | null;
+  column?: Column; // Optional: Include the column relationship if needed
+};
 
 /**
  * Label interface for card categorization

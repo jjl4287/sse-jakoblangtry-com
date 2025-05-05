@@ -24,6 +24,7 @@ export function CardLabels({ cardId, labels }: CardLabelsProps) {
       await addLabel(cardId, { name: newLabelName, color: newLabelColor });
       setNewLabelName('');
       setNewLabelColor('#000000');
+      setPopoverOpen(false);
     } catch (error) {
       console.error("Failed to add label:", error);
     }
@@ -50,7 +51,7 @@ export function CardLabels({ cardId, labels }: CardLabelsProps) {
           {label.name}
         </Badge>
       ))}
-      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+      <Popover open={popoverOpen} onOpenChange={setPopoverOpen} modal>
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
@@ -61,7 +62,11 @@ export function CardLabels({ cardId, labels }: CardLabelsProps) {
             <Plus className="h-4 w-4" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="p-2 w-auto space-y-2">
+        <PopoverContent
+          role="dialog"
+          className="p-2 w-auto space-y-2"
+          onInteractOutside={(event) => event.preventDefault()}
+        >
           <div className="flex items-center space-x-1">
             <Input
               type="text"

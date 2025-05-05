@@ -76,13 +76,20 @@ export function CardAttachments({ cardId, attachments }: CardAttachmentsProps) {
         </Button>
       </div>
       <div className="flex items-center space-x-2">
-        <Input
+        {/* Hidden file input; triggered by Choose File button */}
+        <input
           type="file"
           aria-label="Attachment File"
           onChange={handleFileChange}
-          className="rounded-md p-1"
+          className="hidden"
           ref={fileInputRef}
         />
+        <Button onClick={() => fileInputRef.current?.click()} size="sm">
+          Choose File
+        </Button>
+        {selectedFile && (
+          <span className="truncate text-sm">{selectedFile.name}</span>
+        )}
         <Button onClick={handleAddFile} size="sm" disabled={!selectedFile}>
           Add File
         </Button>

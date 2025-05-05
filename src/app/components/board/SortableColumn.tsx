@@ -26,9 +26,11 @@ interface SortableColumnProps {
   dragOverlay?: boolean;
   /** Optional style overrides when rendered in DragOverlay */
   overlayStyle?: React.CSSProperties;
+  /** Callback when a card is clicked */
+  onCardClick?: (cardId: string) => void;
 }
 
-export function SortableColumn({ column, dragOverlay = false, overlayStyle }: SortableColumnProps) {
+export function SortableColumn({ column, dragOverlay = false, overlayStyle, onCardClick }: SortableColumnProps) {
   // Column.id is assumed valid (validated by parent Column wrapper)
   const [isNewCardSheetOpen, setIsNewCardSheetOpen] = useState(false);
   const { 
@@ -225,10 +227,11 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
           {sortedCards.map((card, index) => (
             card?.id && (
               <SortableCard 
-                key={card.id} 
-                card={card} 
-                index={index} 
-                columnId={column.id} 
+                key={card.id}
+                card={card}
+                index={index}
+                columnId={column.id}
+                onClick={() => onCardClick?.(card.id)}
               />
             )
           ))}

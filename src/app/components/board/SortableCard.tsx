@@ -10,9 +10,10 @@ interface SortableCardProps {
   card: CardType;
   index: number;
   columnId: string;
+  onClick?: () => void;
 }
 
-export function SortableCard({ card, index, columnId }: SortableCardProps) {
+export function SortableCard({ card, index, columnId, onClick }: SortableCardProps) {
   const {
     attributes,
     listeners,
@@ -52,11 +53,10 @@ export function SortableCard({ card, index, columnId }: SortableCardProps) {
       className={`card-wrapper${isDragging ? ' dragging' : ''}`}
       {...attributes}
       {...listeners}
+      onClick={onClick}
     >
-      <Card 
-        card={card} 
-        index={index} 
-        columnId={columnId} 
+      <Card
+        card={card}
         isDragging={isDragging}
       />
     </div>

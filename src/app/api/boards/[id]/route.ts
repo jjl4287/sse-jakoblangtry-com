@@ -248,3 +248,99 @@ export async function PATCH(
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+
+// Extend the payload to include board metadata and relations
+type ProjectWithRelations = Prisma.BoardGetPayload<{
+  include: {
+    user: true;
+    boardMembers: { include: { user: true } };
+    boardGroups: { include: { group: true } };
+    pinned: true;
+    isPublic: true;
+    columns: {
+      orderBy: { order: 'asc' };
+      include: {
+        cards: {
+          orderBy: { order: 'asc' };
+          include: { labels: true; attachments: true; comments: true; assignees: true }
+        }
+      }
+    }
+  }
+}>;
+
+const mapToBoard = (project: ProjectWithRelations): Board => ({
+  id: project.id,
+  title: project.title,
+  theme: project.theme === 'light' ? 'light' : 'dark',
+  userId: project.userId,
+  user: { id: project.user.id, name: project.user.name, email: project.user.email, image: project.user.image },
+  boardMembers: project.boardMembers.map(bm => ({ id: bm.id, userId: bm.userId, boardId: bm.boardId })),
+  boardGroups: project.boardGroups.map(bg => ({ id: bg.id, boardId: bg.boardId, groupId: bg.groupId })),
+  pinned: project.pinned,
+  isPublic: project.isPublic,
+  columns: project.columns.map(col => ({
+    id: col.id,
+    title: col.title,
+    width: col.width,
+    order: col.order,
+    cards: col.cards.map(card => ({
+      id: card.id,
+      columnId: col.id,
+      order: card.order,
+      title: card.title,
+      description: card.description,
+      labels: card.labels.map(l => ({ id: l.id, name: l.name, color: l.color })),
+      assignees: card.assignees.map(u => ({ id: u.id, name: u.name, email: u.email, image: u.image })),
+      priority: card.priority,
+      attachments: card.attachments.map(a => ({ id: a.id, name: a.name, url: a.url, type: a.type, createdAt: a.createdAt })),
+      comments: card.comments.map(c => ({ id: c.id, author: c.author, content: c.content, createdAt: c.createdAt })),
+      dueDate: card.dueDate ?? undefined,
+    })),
+  })),
+});
+
+// GET /api/boards/[id]
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  // Await dynamic params per Next.js spec
+  const { id: boardId } = await params;
+  try {
+    // Only fetch if public, owner, or member
+    // @ts-expect-error TS type doesn't include OR in findFirst filters
+    const board = await prisma.board.findFirst({
+      where: {
+        id: boardId,
+        OR: [
+          { isPublic: true },
+          { userId },
+          { boardMembers: { some: { userId } } }
+        ]
+      },
+      include: {
+        columns: {
+          orderBy: { order: 'asc' },
+          include: {
+            cards: {
+              orderBy: { order: 'asc' },
+              include: { labels: true, attachments: true, comments: true, assignees: true }
+            }
+          }
+        }
+      }
+    });
+    if (!board) {
+      return NextResponse.json({ error: 'Board not found' }, { status: 404 });
+    }
+
+    // Convert to frontend Board type
+    const out = mapToBoard(board);
+    return NextResponse.json(out);
+  } catch (error: unknown) {
+    console.error(`[API GET /api/boards/${boardId}] Error:`, error);
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

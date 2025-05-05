@@ -134,7 +134,7 @@ alwaysApply: true
   - Tests in `tests/components/board/NewCardSheet.spec.tsx`.
 
 ### Step 8: Implement Unified Card Details Sheet (#29)
-- Status: pending
+- Status: done
 - Description: Side sheet combining all card features in one place.
 - Actions:
   - Create `CardDetailsSheet` in `src/app/components/board/ui/CardDetailsSheet.tsx`.

@@ -14,6 +14,7 @@ import { useSession } from 'next-auth/react';
 import { v4 as uuidv4 } from 'uuid';
 import { BoardService } from './board-service';
 import debounce from 'lodash/debounce';
+import { createDefaultBoard } from '~/types/defaults';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -30,7 +31,7 @@ type CreateCardData = Partial<Omit<Card, 'id' | 'order' | 'columnId'>> & {
 
 interface BoardContextType {
   board: Board | null;
-  boardMembers: BoardMember[];
+  boardMembers: { id: string; name: string; email?: string; joinedAt: string }[];
   milestones: Milestone[];
   labels: Label[];
   loading: boolean;
@@ -55,13 +56,15 @@ interface BoardContextType {
   deleteComment: (cardId: string, commentId: string) => Promise<void> | void;
   addAttachment: (cardId: string, name: string, url: string, type: string) => Promise<void> | void;
   deleteAttachment: (cardId: string, attachmentId: string) => Promise<void> | void;
+  assignUserToCard: (cardId: string, userId: string) => Promise<void> | void;
+  setCardMilestone: (cardId: string, milestoneId: string) => Promise<void> | void;
 }
 
 const BoardContext = createContext<BoardContextType | undefined>(undefined);
 
 export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [board, setBoard] = useState<Board | null>(null);
-  const [boardMembers, setBoardMembers] = useState<BoardMember[]>([]);
+  const [boardMembers, setBoardMembers] = useState<{ id: string; name: string; email?: string; joinedAt: string }[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,14 +80,19 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setError(null);
     try {
       if (session) {
-        // Assuming getBoard now returns the full structure or we need separate calls
-        // Let's assume getBoard returns everything for now
-        const fullBoardData = await BoardService.getBoard(); 
+        const fullBoardData = await BoardService.getBoard();
         setBoard(fullBoardData);
-        // Assuming fullBoardData contains these arrays, adjust if needed
-        setBoardMembers(fullBoardData.members || []); 
-        setMilestones(fullBoardData.milestones || []); 
-        setLabels(fullBoardData.labels || []); 
+        // Fetch and populate board members explicitly
+        try {
+          const membersList = await BoardService.listBoardMembers(fullBoardData.id);
+          setBoardMembers(membersList);
+        } catch (err) {
+          console.error('Failed to fetch board members:', err);
+          setBoardMembers([]);
+        }
+        // Clear or initialize milestones and labels until Plan A is complete
+        setMilestones([]);
+        setLabels([]);
       } else {
         // Handle local storage / demo board
         const stored = localStorage.getItem('board-local');
@@ -96,8 +104,8 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
            setMilestones([]);
            setLabels([]);
         } else {
-          // Initial demo board structure
-           setBoard({ id: 'demo', title: 'Demo Board', theme: 'light', columns: [] });
+          // Initialize with default board structure for unauthenticated users
+          setBoard(createDefaultBoard());
            setBoardMembers([]);
            setMilestones([]);
            setLabels([]);
@@ -489,6 +497,26 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }));
   }, [updateBoardState]);
 
+  // Assign user to card
+  const assignUserToCard = useCallback(async (cardId: string, userId: string) => {
+    try {
+      const updated = await BoardService.assignUserToCard(cardId, userId);
+      setBoard(updated);
+    } catch (err: unknown) {
+      console.error('Failed to assign user to card:', err);
+    }
+  }, []);
+
+  // Set milestone for card
+  const setCardMilestone = useCallback(async (cardId: string, milestoneId: string) => {
+    try {
+      const updated = await BoardService.setCardMilestone(cardId, milestoneId);
+      setBoard(updated);
+    } catch (err: unknown) {
+      console.error('Failed to set milestone for card:', err);
+    }
+  }, []);
+
   // Update context value
   const contextValue = useMemo(() => ({
     board,
@@ -516,7 +544,9 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     addComment,
     deleteComment,
     addAttachment,
-    deleteAttachment
+    deleteAttachment,
+    assignUserToCard,
+    setCardMilestone,
   }), [
     board,
     boardMembers,
@@ -543,7 +573,9 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     addComment,
     deleteComment,
     addAttachment,
-    deleteAttachment
+    deleteAttachment,
+    assignUserToCard,
+    setCardMilestone,
   ]);
 
   return <BoardContext.Provider value={contextValue}>{children}</BoardContext.Provider>;

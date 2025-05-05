@@ -44,12 +44,16 @@ export function CardComments({ cardId, comments }: CardCommentsProps) {
       <div className="space-y-2">
         <Input
           type="text"
+          id="comment-author"
+          name="author"
           placeholder="Your name"
           value={author}
           onChange={(e) => setAuthor(e.target.value)}
           className="rounded-md"
         />
         <Textarea
+          id="comment-content"
+          name="content"
           placeholder="Write a comment..."
           value={content}
           onChange={(e) => setContent(e.target.value)}

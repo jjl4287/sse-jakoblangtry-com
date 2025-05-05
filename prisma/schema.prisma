@@ -16,6 +16,7 @@ model Board {
   userId    String
   boardMembers BoardMember[] @relation("BoardMemberToBoard")
   boardGroups  BoardGroup[]  @relation("BoardGroupToBoard")
+  milestones Milestone[]
   pinned    Boolean   @default(false)
   isPublic  Boolean   @default(false)
   createdAt DateTime  @default(now())
@@ -146,6 +147,8 @@ model Milestone {
   id        String   @id @default(cuid())
   name      String
   dueDate   DateTime?
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId   String
   cards     Card[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

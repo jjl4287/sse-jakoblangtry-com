@@ -17,6 +17,7 @@ import {
   arrayMove,
   SortableContext,
   horizontalListSortingStrategy,
+  verticalListSortingStrategy,
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { SortableColumn } from './SortableColumn';
@@ -38,6 +39,7 @@ import { BoardSettings } from './ui/BoardSettings';
 import { Settings } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import { BoardService } from '~/services/board-service';
+import { CardDetailsSheet } from './ui/CardDetailsSheet';
 
 // Props for header inline editing and external focus control
 export interface BoardProps {
@@ -90,6 +92,10 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
 
   // Local state for search query filtering
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // State for the new Card Details Sheet
+  const [selectedCardForSheet, setSelectedCardForSheet] = useState<CardType | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   // Track active drag item for DragOverlay
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -245,18 +251,19 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
         }
       }
       
-      // Only move if needed and if we didn't already move during dragOver
-      if (sourceColumnId !== targetColumnId || activeData.index !== targetIndex) {
-        moveCard(activeCardId, targetColumnId ?? '', targetIndex ?? 0);
+      // Perform the move if target identified
+      if (targetColumnId && sourceColumnId && typeof targetIndex === 'number') {
+        // Cast targetIndex to Number to satisfy linter, though it should already be a number
+        moveCard(activeCardId, targetColumnId, Number(targetIndex)); 
       }
     }
     
-    // Clear active items
+    // Reset active item and overlay style after drag
     setActiveId(null);
     setActiveItem(null);
-    // Remove dragging-in-progress class and reset cross-column ref
-    document.documentElement.classList.remove('card-dragging-active');
+    setOverlayStyle({});
     lastCrossColumnMove.current = '';
+    document.documentElement.classList.remove('card-dragging-active');
   }, [board, moveCard, moveColumn]);
 
   // Reset active items if drag is canceled
@@ -327,8 +334,9 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
   // Handler to add a new column with a placeholder name and trigger inline edit
   const handleAddColumnClick = useCallback(() => {
     if (!board) return;
-    const width = board.columns.length ? 100 / (board.columns.length + 1) : 100;
-    void createColumn('New Column', width);
+    const calculatedWidth = board.columns.length ? 100 / (board.columns.length + 1) : 100;
+    // Calling with string title and number width, as per definition
+    void createColumn('New Column', calculatedWidth);
   }, [board, createColumn]);
 
   // Handle inline edit start
@@ -342,6 +350,65 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
       });
     }
   };
+
+  // Map columns and cards by ID for quick lookup
+  const columnsById = useMemo(() => {
+    if (!board) return {};
+    return board.columns.reduce((acc, column) => {
+      acc[column.id] = column;
+      return acc;
+    }, {} as Record<string, ColumnType>);
+  }, [board]);
+
+  const cardsById = useMemo(() => {
+    if (!board) return {};
+    return board.columns.reduce((acc, column) => {
+      column.cards.forEach(card => {
+        acc[card.id] = { ...card, columnId: column.id }; // Ensure columnId is attached
+      });
+      return acc;
+    }, {} as Record<string, CardType & { columnId: string }>);
+  }, [board]);
+
+  // Filtered columns based on search query
+  const filteredColumns = useMemo(() => {
+    if (!board) return [];
+    if (!searchQuery.trim()) return board.columns;
+
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    return board.columns.map(column => ({
+      ...column,
+      cards: column.cards.filter(card =>
+        card.title.toLowerCase().includes(lowerCaseQuery) ||
+        (card.description && card.description.toLowerCase().includes(lowerCaseQuery))
+      ),
+    })).filter(column => column.cards.length > 0 || column.title.toLowerCase().includes(lowerCaseQuery));
+  }, [board, searchQuery]);
+
+  // Callback to open the sheet with a specific card
+  const handleCardClick = useCallback((cardId: string) => {
+    const card = boardRef.current?.columns
+      .flatMap(col => col.cards)
+      .find(c => c.id === cardId);
+    if (card) {
+      setSelectedCardForSheet(card);
+      setIsSheetOpen(true);
+    }
+  }, []); // Dependencies: boardRef (stable), setSelectedCardForSheet, setIsSheetOpen
+
+  // Callback to close the sheet
+  const handleCloseSheet = useCallback(() => {
+    setIsSheetOpen(false);
+    setSelectedCardForSheet(null); // Clear selected card on close
+  }, []); // Dependencies: setIsSheetOpen, setSelectedCardForSheet
+
+  // Callback for creating a new column
+  const handleAddColumn = useCallback(async () => {
+    if (!board?.id) return;
+    const newTitle = `Column ${board.columns.length + 1}`;
+    // Assuming createColumn handles optimistic updates or refetching
+    await createColumn(board.id, newTitle);
+  }, [board, createColumn]);
 
   // Different UI states
   if (loading) {
@@ -445,6 +512,8 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
             <Input
               ref={searchInputRef}
               type="search"
+              id="board-search"
+              name="search"
               placeholder="Search..."
               value={searchQuery}
               onChange={handleSearchChange}
@@ -480,9 +549,26 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
             items={columnsIds} 
             strategy={horizontalListSortingStrategy}
           >
-            {filteredBoard?.columns?.map((column) => (
-              column?.id ? <SortableColumn key={column.id} column={column} /> : null
-            ))}
+            {filteredColumns.map((column) => {
+              // Filter cards for the current column based on search query
+              // Note: Filtering logic remains, but SortableColumn handles rendering its own cards
+              // const filteredCards = column.cards.filter(card => 
+              //   card.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              //   (card.description && card.description.toLowerCase().includes(searchQuery.toLowerCase()))
+              // );
+              
+              return (
+                column?.id ? (
+                  <SortableColumn
+                    key={column.id}
+                    column={column} // Pass the full column object (contains cards)
+                    dragOverlay={false}
+                    onCardClick={handleCardClick} // Pass the handler down
+                    // No children or cards prop needed here
+                  />
+                ) : null
+              );
+            })}
           </SortableContext>
         </div>
         
@@ -496,15 +582,28 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
             <div className="card-wrapper dragging">
               <Card 
                 card={activeItem.card} 
-                index={activeItem.index} 
-                columnId={activeItem.columnId} 
               />
             </div>
           )}
         </DragOverlay>
       </DndContext>
 
-      {/* Board Settings Panel */}
+      {/* Render CardDetailsSheet */}
+      {selectedCardForSheet && (
+          <CardDetailsSheet
+              isOpen={isSheetOpen}
+              onOpenChange={(open) => { // Use onOpenChange
+                if (!open) { // Only trigger close logic when sheet is closing
+                  handleCloseSheet();
+                }
+              }}
+              card={selectedCardForSheet}
+              // Pass other necessary props like board members if needed for assignees etc.
+              // members={members} 
+          />
+      )}
+
+      {/* Render Board Settings Panel */}
       <BoardSettings boardId={board.id} open={openSettings} onClose={() => setOpenSettings(false)} />
     </div>
   );
