@@ -4,7 +4,7 @@ import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
-import { format } from "date-fns"
+import { format, isSameDay, isSameMonth } from "date-fns"
 
 import { cn } from "~/lib/utils"
 import { buttonVariants } from "~/components/ui/button"
@@ -36,16 +36,18 @@ function Calendar({
         disabled={disabled}
         inline
         calendarClassName="bg-transparent"
-        dayClassName={(date) => 
-          cn(
+        dayClassName={(date) => {
+          const today = new Date();
+          return cn(
             buttonVariants({ variant: "ghost" }),
             "size-8 p-0 font-normal aria-selected:opacity-100",
-            date.toDateString() === (selected?.toDateString() || '') ? 
+            "[&.react-datepicker__day--today:not(.react-datepicker__day--selected)]:bg-transparent",
+            selected && isSameDay(date, selected) ?
               "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground" : "",
-            date.toDateString() === new Date().toDateString() ? 
+            isSameDay(date, today) && isSameMonth(date, today) && !(selected && isSameDay(date, selected)) ?
               "bg-accent text-accent-foreground" : ""
-          )
-        }
+          );
+        }}
         renderCustomHeader={({
           date,
           decreaseMonth,

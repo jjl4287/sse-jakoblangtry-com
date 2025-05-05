@@ -6,21 +6,20 @@ import { CSS } from '@dnd-kit/utilities';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Column as ColumnType } from '~/types';
 import { useBoard } from '~/services/board-context';
-import { CardAddForm } from './CardAddForm';
 import { SortableCard } from './SortableCard'; 
 import { Trash2 } from 'lucide-react';
 
 interface SortableColumnProps {
   column: ColumnType;
+  onAddCardClick: (columnId: string) => void;
   /** When true, renders as DragOverlay ghost */
   dragOverlay?: boolean;
   /** Optional style overrides when rendered in DragOverlay */
   overlayStyle?: React.CSSProperties;
 }
 
-export function SortableColumn({ column, dragOverlay = false, overlayStyle }: SortableColumnProps) {
+export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAddCardClick }: SortableColumnProps) {
   // Column.id is assumed valid (validated by parent Column wrapper)
-  const [isAddingCard, setIsAddingCard] = useState(false);
   const { updateColumn, deleteColumn } = useBoard();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(column.title);
@@ -70,10 +69,6 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
         opacity: isDragging ? 0 : 1,
       };
 
-  const handleAddCardClick = useCallback(() => {
-    setIsAddingCard(true);
-  }, []);
-  
   // Ref for column input selection
   const columnInputRef = useRef<HTMLInputElement>(null);
 
@@ -174,8 +169,8 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
           <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
             {column.cards.length}
           </span>
-          <button 
-            onClick={handleAddCardClick}
+          <button
+            onClick={() => onAddCardClick(column.id)}
             className="glass-morph-light text-xs p-1 rounded-full hover:bg-white/10 transition-colors hover-lift"
             aria-label="Add Card"
           >
@@ -211,14 +206,10 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
         </SortableContext>
         
         {/* Empty column drop target to ensure we can drop into empty columns */}
-        {sortedCards.length === 0 && !isAddingCard && (
+        {sortedCards.length === 0 && (
           <div className={`empty-column-drop-area ${isOver ? 'drag-over' : ''}`}>
             <p className="text-sm text-white/50">Drop cards here</p>
           </div>
-        )}
-        
-        {isAddingCard && (
-          <CardAddForm columnId={column.id} onCancel={() => setIsAddingCard(false)} />
         )}
       </div>
     </div>

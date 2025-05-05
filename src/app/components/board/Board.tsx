@@ -33,6 +33,7 @@ import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
 import type { Card as CardType, Column as ColumnType } from '~/types';
+import { NewCardSheet } from './NewCardSheet';
 
 // Props for header inline editing and external focus control
 export interface BoardProps {
@@ -94,6 +95,7 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
   } | null>(null);
   const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({});
   const lastCrossColumnMove = useRef<string>('');
+  const [addingCardToColumnId, setAddingCardToColumnId] = useState<string | null>(null);
 
   // Define sensors
   const sensors = useSensors(
@@ -322,6 +324,11 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
     }
   };
 
+  // Handler to open the New Card dialog for a specific column
+  const handleOpenNewCardDialog = useCallback((columnId: string) => {
+    setAddingCardToColumnId(columnId);
+  }, []);
+
   // Different UI states
   if (loading) {
     return (
@@ -448,7 +455,7 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
             strategy={horizontalListSortingStrategy}
           >
             {filteredBoard?.columns?.map((column) => (
-              column?.id ? <SortableColumn key={column.id} column={column} /> : null
+              column?.id ? <SortableColumn key={column.id} column={column} onAddCardClick={handleOpenNewCardDialog} /> : null
             ))}
           </SortableContext>
         </div>
@@ -470,6 +477,17 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
           )}
         </DragOverlay>
       </DndContext>
+
+      {/* Conditionally Render New Card Sheet/Dialog outside the column context */}
+      {addingCardToColumnId && (
+        <NewCardSheet
+          isOpen={!!addingCardToColumnId}
+          onOpenChange={(open) => {
+            if (!open) setAddingCardToColumnId(null);
+          }}
+          columnId={addingCardToColumnId}
+        />
+      )}
     </div>
   );
 }; 
