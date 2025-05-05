@@ -105,7 +105,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                             {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start" side="bottom" portalled={false}>
+                        <PopoverContent className="w-auto p-0" align="start" side="bottom" avoidCollisions={false} portalled={false}>
                           <Calendar
                             mode="single"
                             selected={dueDate}
