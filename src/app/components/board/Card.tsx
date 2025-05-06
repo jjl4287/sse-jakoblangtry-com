@@ -2,7 +2,7 @@
 
 import React, { useRef, memo, useState, useCallback } from 'react';
 import { useBoard } from '~/services/board-context';
-import { ExpandedCardModal } from './ExpandedCardModal';
+import { CardDetailsSheet } from './CardDetailsSheet';
 import { Button } from '~/components/ui/button';
 import {
   DropdownMenu,
@@ -184,9 +184,8 @@ export const Card = memo(({
         </div>
       </div>
       {isModalOpen && (
-        <ExpandedCardModal
+        <CardDetailsSheet
           card={card}
-          columnId={columnId}
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
         />
