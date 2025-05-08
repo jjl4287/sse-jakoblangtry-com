@@ -54,6 +54,9 @@ function SelectContent({
   className,
   children,
   position = "popper",
+  // Determines whether the content is rendered inside a React portal. 
+  // If true, the content is rendered in a portal, which is useful for 
+  // avoiding clipping issues with parent containers or overflow styles.
   portalled = true,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content> & {
