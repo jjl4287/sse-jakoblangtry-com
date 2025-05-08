@@ -6,21 +6,21 @@ import { CSS } from '@dnd-kit/utilities';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Column as ColumnType } from '~/types';
 import { useBoard } from '~/services/board-context';
-import { CardAddForm } from './CardAddForm';
 import { SortableCard } from './SortableCard'; 
 import { Trash2 } from 'lucide-react';
+import { InlineEdit } from '~/components/ui/InlineEdit';
 
 interface SortableColumnProps {
   column: ColumnType;
+  onAddCardClick: (columnId: string) => void;
   /** When true, renders as DragOverlay ghost */
   dragOverlay?: boolean;
   /** Optional style overrides when rendered in DragOverlay */
   overlayStyle?: React.CSSProperties;
 }
 
-export function SortableColumn({ column, dragOverlay = false, overlayStyle }: SortableColumnProps) {
+export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAddCardClick }: SortableColumnProps) {
   // Column.id is assumed valid (validated by parent Column wrapper)
-  const [isAddingCard, setIsAddingCard] = useState(false);
   const { updateColumn, deleteColumn } = useBoard();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(column.title);
@@ -58,7 +58,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
   } = useSortable({
     id: column.id,
     data: sortableColumnData,
-    disabled: dragOverlay,
+    disabled: dragOverlay || isEditingTitle,
   });
 
   // Compute style: apply transforms only in-list; for overlay, merge optional overlayStyle overrides
@@ -70,37 +70,14 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
         opacity: isDragging ? 0 : 1,
       };
 
-  const handleAddCardClick = useCallback(() => {
-    setIsAddingCard(true);
-  }, []);
-  
   // Ref for column input selection
   const columnInputRef = useRef<HTMLInputElement>(null);
 
   // Handle column inline edit start
   const startColumnEdit = () => {
     setIsEditingTitle(true);
-    // Select text after state update and render
-    requestAnimationFrame(() => {
-      columnInputRef.current?.select();
-    });
+    requestAnimationFrame(() => columnInputRef.current?.select());
   };
-  
-  const handleTitleBlur = useCallback(() => {
-    setIsEditingTitle(false);
-    if (titleInput.trim() && titleInput !== column.title) {
-      // Optimistic update; errors logged and title reset if needed
-      const promise = updateColumn(column.id, { title: titleInput.trim() });
-      if (promise && typeof promise.catch === 'function') {
-        void promise.catch((err: Error) => {
-          console.error('Failed to update column title:', err);
-          setTitleInput(column.title);
-        });
-      }
-    } else {
-      setTitleInput(column.title);
-    }
-  }, [titleInput, column.id, column.title, updateColumn]);
   
   const handleDeleteColumn = useCallback(async () => {
     if (confirm('Are you sure you want to delete this column?')) {
@@ -141,41 +118,44 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
       {...listeners}
     >
       <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full h-7">
-        {isEditingTitle ? (
-          <input
-            type="text"
-            value={titleInput}
-            onChange={e => setTitleInput(e.target.value)}
-            onBlur={handleTitleBlur}
-            onKeyDown={e => {
-              e.stopPropagation();
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                e.currentTarget.blur();
+        <InlineEdit
+          value={titleInput}
+          onChange={val => setTitleInput(val)}
+          isEditing={isEditingTitle}
+          onEditStart={startColumnEdit}
+          onSave={() => {
+            setIsEditingTitle(false);
+            if (titleInput.trim() && titleInput !== column.title) {
+              const promise = updateColumn(column.id, { title: titleInput.trim() });
+              if (promise && typeof promise.catch === 'function') {
+                void promise.catch(err => {
+                  console.error('Failed to update column title:', err);
+                  setTitleInput(column.title); // Revert on error
+                });
               }
-              if (e.key === 'Escape') {
-                setIsEditingTitle(false);
-                setTitleInput(column.title);
-              }
-            }}
-            className="flex-1 min-w-0 text-lg font-semibold bg-transparent border-b-2 border-transparent focus:border-foreground focus:outline-none mr-2 py-0 h-7 leading-tight"
-            autoFocus
-            ref={columnInputRef}
-          />
-        ) : (
-          <h3
-            className="flex-1 min-w-0 text-lg font-semibold border-b-2 border-transparent hover:text-primary-light transition-colors cursor-text mr-2 leading-tight truncate"
-            onDoubleClick={startColumnEdit}
-          >
-            {column.title}
-          </h3>
-        )}
+            } else if (titleInput.trim() === '') {
+              setTitleInput(column.title); // Revert if cleared
+            }
+          }}
+          onCancel={() => {
+            setIsEditingTitle(false);
+            setTitleInput(column.title);
+          }}
+          className="text-lg font-semibold flex-1 min-w-0 mr-2"
+          ref={columnInputRef}
+          inputProps={{
+            onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+              if (!isEditingTitle) e.stopPropagation();
+            }
+          }}
+          placeholder="Column Title"
+        />
         <div className="flex items-center gap-1 ml-auto">
           <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
             {column.cards.length}
           </span>
-          <button 
-            onClick={handleAddCardClick}
+          <button
+            onClick={() => onAddCardClick(column.id)}
             className="glass-morph-light text-xs p-1 rounded-full hover:bg-white/10 transition-colors hover-lift"
             aria-label="Add Card"
           >
@@ -211,14 +191,10 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle }: So
         </SortableContext>
         
         {/* Empty column drop target to ensure we can drop into empty columns */}
-        {sortedCards.length === 0 && !isAddingCard && (
+        {sortedCards.length === 0 && (
           <div className={`empty-column-drop-area ${isOver ? 'drag-over' : ''}`}>
             <p className="text-sm text-white/50">Drop cards here</p>
           </div>
-        )}
-        
-        {isAddingCard && (
-          <CardAddForm columnId={column.id} onCancel={() => setIsAddingCard(false)} />
         )}
       </div>
     </div>

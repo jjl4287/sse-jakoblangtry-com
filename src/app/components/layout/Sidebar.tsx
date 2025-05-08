@@ -92,7 +92,7 @@ export const Sidebar: FC<SidebarProps> = ({
               {/* New Board: one-click create, then inline edit */}
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full rounded-full"
                 onClick={async () => {
                   try {
                     const id = await onCreate('New Board');

@@ -1,0 +1,51 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- **Replace inline CardAddForm with a ShadCN-powered sheet**
+  - Implement `NewCardSheet.tsx` under [src/app/components/board](mdc:src/app/components/board/NewCardSheet.tsx)
+  - Mirror GitHub's New Issue popup style:
+    - Backdrop + centered panel (responsive full width / max-width ~700px)
+    - Single-line title input (`<Input placeholder=\"Title\" />`)
+    - Multi-line description `<Textarea>`
+    - Footer toolbar with `<Select>` (priority) and `<Calendar>` (due date)
+    - Cancel & Add Card buttons
+  - On submit, call `createCard(columnId, { title, description, priority, dueDate })` from [board-context](mdc:src/services/board-context.tsx)
+
+- **Deprecate and remove old CardAddForm**
+  - Delete [CardAddForm.tsx](mdc:src/app/components/board/CardAddForm.tsx)
+  - Remove all imports and references in parent components (e.g. column list view)
+
+- **Replace ExpandedCardModal with a two-column Card Details sheet**
+  - Create `CardDetailsSheet.tsx` in [src/app/components/board](mdc:src/app/components/board/CardDetailsSheet.tsx)
+  - Layout: CSS grid / flexbox:
+    - **Left pane**: title input, description textarea, placeholder "Activity & comments"
+    - **Right pane**: priority `<Select>`, due date `<Calendar>`, labels & assignees multi-select, attachments list + URL uploader
+  - Wire save to `updateCard(card.id, { title, description, priority, dueDate })`, plus `addAttachment`/`deleteAttachment` for attachments
+  - Remove [ExpandedCardModal.tsx](mdc:src/app/components/board/ExpandedCardModal.tsx) and its Dialog imports
+
+- **Iteration Checklist**
+  - [x] NewCardSheet.tsx
+    - [x] Scaffold sheet component and import UI primitives
+    - [x] Form state: title, description, priority, dueDate
+    - [x] Submit → `createCard`
+    - [x] Style matches glass-card + GitHub spacing
+  - [x] Remove CardAddForm.tsx
+  - [x] Update parent column view to open `NewCardSheet`
+  - [ ] CardDetailsSheet.tsx
+    - [ ] Layout grid for two columns
+    - [ ] Title, description inputs
+    - [ ] Sidebar fields (priority, due date, labels, assignees)
+    - [ ] Attachments list + add URL handler
+    - [ ] Stub comments section
+    - [ ] Hook into `updateCard`, `addAttachment`, `deleteAttachment`
+  - [ ] Delete ExpandedCardModal.tsx and Dialog usage
+  - [ ] Manual QA: forms open/close, field validation, save operations
+  - [ ] Automated tests stubs for NewCardSheet and CardDetailsSheet
+
+- **Backlog for next iterations**
+  - Integrate markdown toolbar & live preview (`react-markdown`)
+  - Support issue templates and auto-save drafts
+  - Add Milestone model & API endpoints
+  - Implement threaded comments, reactions

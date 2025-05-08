@@ -17,6 +17,9 @@ const __dirname = path.dirname(__filename);
 async function main() {
   // Clear existing columns, projects, and users to avoid duplicate-ID errors
   console.log('Clearing existing seeded data...');
+  await prisma.attachment.deleteMany();
+  await prisma.comment.deleteMany();
+  await prisma.card.deleteMany();
   await prisma.column.deleteMany();
   await prisma.board.deleteMany();
   await prisma.user.deleteMany();

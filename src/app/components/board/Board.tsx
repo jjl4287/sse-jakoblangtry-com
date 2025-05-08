@@ -33,6 +33,8 @@ import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
 import type { Card as CardType, Column as ColumnType } from '~/types';
+import { NewCardSheet } from './NewCardSheet';
+import { BoardHeader } from './BoardHeader';
 
 // Props for header inline editing and external focus control
 export interface BoardProps {
@@ -51,22 +53,27 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
     saveError,
     moveCard,
     moveColumn,
-    createColumn
+    createColumn,
+    updateTitle
   } = useBoard();
   const { theme, toggleTheme } = useTheme();
   
   // Header inline edit state
   const [isEditingHeader, setIsEditingHeader] = useState(false);
-  const [headerTitle, setHeaderTitle] = useState<string>(() => board?.title ?? '');
+  const [headerTitle, setHeaderTitle] = useState<string>(board?.title ?? '');
   // Ref for header input selection
   const headerInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (board?.title && headerTitle !== board.title) { // Only update if different to avoid re-renders
+      setHeaderTitle(board.title);
+    }
+  }, [board?.title, headerTitle]); // Add headerTitle to dependencies
 
   // If external focus request matches this board, enter edit mode
   useEffect(() => {
     if (board && focusEditTitleBoardId === board.id) {
       setIsEditingHeader(true);
-      setHeaderTitle(board.title);
-      // Select text after state update and render
       requestAnimationFrame(() => {
         headerInputRef.current?.select();
       });
@@ -94,6 +101,7 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
   } | null>(null);
   const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({});
   const lastCrossColumnMove = useRef<string>('');
+  const [addingCardToColumnId, setAddingCardToColumnId] = useState<string | null>(null);
 
   // Define sensors
   const sensors = useSensors(
@@ -314,13 +322,16 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
   const startHeaderEdit = () => {
     if (board) {
       setIsEditingHeader(true);
-      setHeaderTitle(board.title);
-      // Select text after state update and render
       requestAnimationFrame(() => {
         headerInputRef.current?.select();
       });
     }
   };
+
+  // Handler to open the New Card dialog for a specific column
+  const handleOpenNewCardDialog = useCallback((columnId: string) => {
+    setAddingCardToColumnId(columnId);
+  }, []);
 
   // Different UI states
   if (loading) {
@@ -359,70 +370,31 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
   return (
     <div className="relative flex flex-col h-full w-full p-2">
       {/* Board Header */}
-      <header className="glass-card glass-border-animated p-2 mb-1 flex items-center justify-between rounded-lg">
-        {/* Board Title Inline Edit */}
-        {isEditingHeader ? (
-          <motion.input
-            autoFocus
-            ref={headerInputRef}
-            type="text"
-            // Underline only under text, auto-width
-            className="text-2xl font-bold bg-transparent border-b-2 border-transparent focus:border-foreground focus:outline-none h-[2rem] leading-[2rem] truncate w-auto inline-block"
-            value={headerTitle}
-            onChange={(e) => setHeaderTitle(e.target.value)}
-            onBlur={() => {
-              if (board && headerTitle.trim()) onRenameBoard?.(board.id, headerTitle.trim());
-              setIsEditingHeader(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                if (board && headerTitle.trim()) onRenameBoard?.(board.id, headerTitle.trim());
-                setIsEditingHeader(false);
-              }
-            }}
-            initial={{ x: sidebarOpen ? 0 : 40 }}
-            animate={{ x: sidebarOpen ? 0 : 40 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-          />
-        ) : (
-          <motion.h2
-            // Underline only under text, auto-width
-            className="text-2xl font-bold bg-transparent border-b-2 border-transparent h-[2rem] leading-[2rem] truncate text-neutral-900 dark:text-white w-auto inline-block"
-            onDoubleClick={startHeaderEdit}
-            initial={{ x: sidebarOpen ? 0 : 40 }}
-            animate={{ x: sidebarOpen ? 0 : 40 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-          >
-            {board.title}
-          </motion.h2>
-        )}
-        {/* Controls */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
-            {columnCount} Columns
-          </div>
-          <div className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
-            {cardCount} Cards
-          </div>
-          <button onClick={handleAddColumnClick} className="glass-button px-3 py-1 rounded-full text-sm shadow-sm whitespace-nowrap">
-            + Add Column
-          </button>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              ref={searchInputRef}
-              type="search"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="pl-9 pr-3 py-1 h-8 w-48 bg-white/5 border-white/20 focus-visible:ring-offset-0 focus-visible:ring-white/50 rounded-full"
-            />
-          </div>
-          <button onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} className="p-1">
-            {theme === 'dark' ? <Sun className="h-5 w-5 text-yellow-400" /> : <Moon className="h-5 w-5 text-blue-200" />}
-          </button>
-        </div>
-      </header>
+      <BoardHeader
+        title={headerTitle}
+        onChange={setHeaderTitle}
+        isEditing={isEditingHeader}
+        onEditStart={startHeaderEdit}
+        onSave={() => {
+          if (board && headerTitle.trim() && board.title !== headerTitle.trim()) {
+            onRenameBoard?.(board.id, headerTitle.trim());
+          }
+          setIsEditingHeader(false);
+        }}
+        onCancel={() => {
+          setHeaderTitle(board.title);
+          setIsEditingHeader(false);
+        }}
+        sidebarOpen={sidebarOpen}
+        columnCount={columnCount}
+        cardCount={cardCount}
+        onAddColumnClick={handleAddColumnClick}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        theme={theme}
+        toggleTheme={toggleTheme}
+        inputRef={headerInputRef}
+      />
       
       {/* Board Content with dnd-kit */}
       <DndContext
@@ -441,14 +413,14 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
         onDragCancel={handleDragCancel}
       >
         <div 
-          className="flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-1 pb-0 gap-x-1 -mx-1 justify-start"
+          className="flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-2 pb-0 gap-x-2 justify-start"
         >
           <SortableContext 
             items={columnsIds} 
             strategy={horizontalListSortingStrategy}
           >
             {filteredBoard?.columns?.map((column) => (
-              column?.id ? <SortableColumn key={column.id} column={column} /> : null
+              column?.id ? <SortableColumn key={column.id} column={column} onAddCardClick={handleOpenNewCardDialog} /> : null
             ))}
           </SortableContext>
         </div>
@@ -456,7 +428,7 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
         <DragOverlay zIndex={9999}>
           {activeItem?.type === 'column' && activeItem.column && (
             <div style={overlayStyle}>
-              <SortableColumn column={activeItem.column} dragOverlay />
+              <SortableColumn column={activeItem.column} dragOverlay onAddCardClick={handleOpenNewCardDialog} />
             </div>
           )}
           {activeItem?.type === 'card' && activeItem.card && typeof activeItem.index === 'number' && activeItem.columnId && (
@@ -470,6 +442,17 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
           )}
         </DragOverlay>
       </DndContext>
+
+      {/* Conditionally Render New Card Sheet/Dialog outside the column context */}
+      {addingCardToColumnId && (
+        <NewCardSheet
+          isOpen={!!addingCardToColumnId}
+          onOpenChange={(open) => {
+            if (!open) setAddingCardToColumnId(null);
+          }}
+          columnId={addingCardToColumnId}
+        />
+      )}
     </div>
   );
 }; 

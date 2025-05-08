@@ -4,7 +4,7 @@ import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
-import { format } from "date-fns"
+import { format, isSameDay } from "date-fns"
 
 import { cn } from "~/lib/utils"
 import { buttonVariants } from "~/components/ui/button"
@@ -36,16 +36,23 @@ function Calendar({
         disabled={disabled}
         inline
         calendarClassName="bg-transparent"
-        dayClassName={(date) => 
-          cn(
+        dayClassName={(date) => {
+          const isSelected = selected && isSameDay(date, selected);
+          const isTodayExact = isSameDay(date, new Date());
+          return cn(
             buttonVariants({ variant: "ghost" }),
             "size-8 p-0 font-normal aria-selected:opacity-100",
-            date.toDateString() === (selected?.toDateString() || '') ? 
-              "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground" : "",
-            date.toDateString() === new Date().toDateString() ? 
-              "bg-accent text-accent-foreground" : ""
-          )
-        }
+            "[&.react-datepicker__day--today:not(.react-datepicker__day--selected)]:bg-transparent",
+            "[&.react-datepicker__day--today:not(.react-datepicker__day--selected)]:border-none",
+            "[&.react-datepicker__day--today:not(.react-datepicker__day--selected)]:font-normal",
+            isSelected
+              ? "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground"
+              : "",
+            isTodayExact && !isSelected
+              ? "bg-accent text-accent-foreground"
+              : ""
+          );
+        }}
         renderCustomHeader={({
           date,
           decreaseMonth,
