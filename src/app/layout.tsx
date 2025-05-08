@@ -2,6 +2,7 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
+import { Toaster } from 'sonner';
 
 import CursorLightEffect from '~/components/effects/CursorLightEffect';
 import Providers from './providers';
@@ -27,6 +28,7 @@ export default function RootLayout({
           {children}
         </Providers>
         <CursorLightEffect />
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );

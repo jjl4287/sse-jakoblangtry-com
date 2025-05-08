@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { InlineEdit } from '~/components/ui/InlineEdit';
-import { Search } from 'lucide-react';
+import { Search, UserPlus } from 'lucide-react';
 import { Input } from '~/components/ui/input';
 import { Sun, Moon } from 'lucide-react';
 import { Button } from '~/components/ui/button';
@@ -22,6 +22,7 @@ export interface BoardHeaderProps {
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   inputRef: React.Ref<HTMLInputElement>;
+  onOpenShareSheet: () => void;
 }
 
 export const BoardHeader: React.FC<BoardHeaderProps> = ({
@@ -40,6 +41,7 @@ export const BoardHeader: React.FC<BoardHeaderProps> = ({
   theme,
   toggleTheme,
   inputRef,
+  onOpenShareSheet,
 }) => {
   return (
     <header className="glass-column border rounded-lg shadow-md px-4 py-1.5 flex items-center justify-between">
@@ -58,12 +60,16 @@ export const BoardHeader: React.FC<BoardHeaderProps> = ({
           onCancel={onCancel}
           className="text-2xl font-bold inline-block w-max mr-2"
           placeholder="Board Title"
+          ref={inputRef}
         />
       </motion.div>
 
       <div className="flex items-center gap-3">
         <div className="text-sm font-medium">{columnCount} Columns</div>
         <div className="text-sm font-medium">{cardCount} Cards</div>
+        <Button onClick={onOpenShareSheet} variant="outline" size="sm" className="flex items-center gap-1 rounded-full">
+          <UserPlus className="h-4 w-4" /> Share
+        </Button>
         <Button onClick={onAddColumnClick} variant="outline" size="sm" className="border rounded-full">
           + Add Column
         </Button>

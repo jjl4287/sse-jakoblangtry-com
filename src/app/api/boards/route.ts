@@ -60,25 +60,62 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const boardId = url.searchParams.get('boardId');
+
+    // ---- LISTING BOARDS ----
     if (!boardId) {
       const orderBy: Prisma.BoardOrderByWithRelationInput[] = [
         { pinned: 'desc' },
         { updatedAt: 'desc' },
       ];
-      const select = { id: true, title: true, pinned: true };
-      // Return public boards for unauthenticated users
-      if (!userId) {
-        // @ts-expect-error TS type doesn't include isPublic filter
-        const boards = await prisma.board.findMany({ where: { isPublic: true }, orderBy, select });
-        return NextResponse.json(boards);
+      const select = { id: true, title: true, pinned: true, userId: true };
+
+      let whereClause: Prisma.BoardWhereInput = { isPublic: true }; // Default for unauthenticated
+
+      if (userId) { // Authenticated user: public boards, owned boards, or shared boards
+        whereClause = {
+          OR: [
+            { isPublic: true }, 
+            { userId: userId }, 
+            { members: { some: { userId: userId } } }
+          ]
+        };
       }
-      // Return public or user-owned boards for authenticated users
-      // @ts-expect-error TS type doesn't include OR filter on isPublic and userId
-      const boards = await prisma.board.findMany({ where: { OR: [{ isPublic: true }, { userId }] }, orderBy, select });
+      
+      const boards = await prisma.board.findMany({ 
+        where: whereClause, 
+        orderBy, 
+        select 
+      });
       return NextResponse.json(boards);
     }
-    const board = await prisma.board.findUnique({
-      where: { id: boardId },
+
+    // ---- FETCHING A SINGLE BOARD by boardId ----
+    let boardWhereConditions: Prisma.BoardWhereInput = { id: boardId };
+
+    if (userId) { // Authenticated user: must be owner, member, or public
+      boardWhereConditions = {
+        AND: [
+          { id: boardId },
+          {
+            OR: [
+              { userId: userId },
+              { members: { some: { userId: userId } } },
+              { isPublic: true }
+            ]
+          }
+        ]
+      };
+    } else { // Unauthenticated user: must be public
+      boardWhereConditions = {
+        AND: [
+          { id: boardId },
+          { isPublic: true }
+        ]
+      };
+    }
+
+    const board = await prisma.board.findFirst({
+      where: boardWhereConditions,
       include: {
         columns: {
           orderBy: { order: 'asc' },
@@ -91,11 +128,14 @@ export async function GET(request: Request) {
         }
       }
     });
+
     if (!board) {
-      return NextResponse.json({ error: 'No board found' }, { status: 404 });
+      return NextResponse.json({ error: 'Board not found or access denied' }, { status: 404 });
     }
+    
     const out = mapToBoard(board);
     return NextResponse.json(out);
+
   } catch (error: any) {
     console.error('[API GET /api/boards] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
