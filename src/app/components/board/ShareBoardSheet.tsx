@@ -100,7 +100,7 @@ export const ShareBoardSheet: React.FC<ShareBoardSheetProps> = ({
               >
                 <Dialog.Close asChild>
                   <button className="absolute top-3 right-3 p-1 rounded hover:bg-muted/10 text-muted-foreground hover:text-foreground">
-                    <XIcon className="size-4" />
+                    <XIcon className="h-4 w-4" />
                   </button>
                 </Dialog.Close>
                 
