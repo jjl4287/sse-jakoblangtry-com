@@ -1,7 +1,7 @@
 // Add two-column Card Details sheet with right-side slide-in and framer-motion transitions
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { XIcon, CalendarIcon, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -14,6 +14,7 @@ import {
 } from '~/components/ui/sheet';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
+import { InlineEdit } from '~/components/ui/InlineEdit';
 import {
   Select,
   SelectTrigger,
@@ -27,6 +28,7 @@ import { Button } from '~/components/ui/button';
 import { useBoard } from '~/services/board-context';
 import { cn } from '~/lib/utils';
 import type { Card, Priority } from '~/types';
+import * as SheetPrimitive from "@radix-ui/react-dialog";
 
 interface CardDetailsSheetProps {
   card: Card;
@@ -47,8 +49,9 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const cardTitleInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset local state when sheet opens
+  // Reset local state when sheet opens or card changes
   useEffect(() => {
     if (isOpen) {
       setTitle(card.title);
@@ -58,13 +61,21 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
       setCalendarOpen(false);
       setAttachmentUrl('');
       setIsSaving(false);
+      setIsEditingTitle(false);
     }
   }, [isOpen, card]);
 
+  // Auto-save handler for title
+  const handleTitleSave = useCallback(async () => {
+    if (title.trim() === '') {
+      setTitle(card.title);
+      void updateCard(card.id, { title: card.title });
+    } else if (title !== card.title) {
+      void updateCard(card.id, { title });
+    }
+  }, [card.id, card.title, title, updateCard]);
+
   // Auto-save handlers for inline edits
-  const handleTitleBlur = useCallback(async () => {
-    await updateCard(card.id, { title });
-  }, [card.id, title, updateCard]);
   const handleDescriptionBlur = useCallback(async () => {
     await updateCard(card.id, { description });
   }, [card.id, description, updateCard]);
@@ -111,7 +122,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 50, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="bg-background fixed inset-y-0 right-0 w-[70%] p-4 flex flex-col shadow-lg z-50"
+              className="bg-background fixed inset-y-0 right-0 w-[70%] p-4 flex flex-col shadow-lg z-50 isolate"
             >
               {/* Absolute close button top-right */}
               <SheetClose asChild>
@@ -119,35 +130,45 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   <XIcon className="h-5 w-5" />
                 </button>
               </SheetClose>
-              <SheetHeader className="flex items-center border-b p-2">
-                <SheetTitle className="text-2xl font-bold">Card Details</SheetTitle>
+              <SheetHeader className="flex items-center justify-start border-b p-2 w-full">
+                <SheetPrimitive.Title className="sr-only">
+                  {title || 'Card Details'} 
+                </SheetPrimitive.Title>
+                <InlineEdit
+                  value={title}
+                  onChange={val => setTitle(val)}
+                  isEditing={isEditingTitle}
+                  onEditStart={() => {
+                    setIsEditingTitle(true);
+                    requestAnimationFrame(() => cardTitleInputRef.current?.select());
+                  }}
+                  onSave={() => {
+                    setIsEditingTitle(false);
+                    void handleTitleSave();
+                  }}
+                  onCancel={() => {
+                    setIsEditingTitle(false);
+                    setTitle(card.title);
+                  }}
+                  placeholder="Card Title"
+                  className="text-2xl font-bold w-full text-left bg-transparent"
+                  ref={cardTitleInputRef}
+                  // inputProps={{
+                  //   autoFocus: false,
+                  //   className: "bg-transparent"
+                  // }}
+                />
               </SheetHeader>
 
               <div className="flex-1 overflow-auto mt-4 grid grid-cols-3 gap-6">
                 {/* Left pane */}
                 <div className="col-span-2 space-y-4">
-                  {/* Title: inline editable */}
-                  {isEditingTitle ? (
-                    <Input
-                      value={title}
-                      onChange={e => setTitle(e.target.value)}
-                      onBlur={() => { setIsEditingTitle(false); handleTitleBlur(); }}
-                      autoFocus
-                    />
-                  ) : (
-                    <h2
-                      className="text-2xl font-bold cursor-text"
-                      onDoubleClick={() => setIsEditingTitle(true)}
-                    >
-                      {title || <span className="text-muted-foreground">Add a title</span>}
-                    </h2>
-                  )}
                   {/* Description: inline editable */}
                   {isEditingDescription ? (
                     <Textarea
                       value={description}
                       onChange={e => setDescription(e.target.value)}
-                      onBlur={() => { setIsEditingDescription(false); handleDescriptionBlur(); }}
+                      onBlur={() => { setIsEditingDescription(false); void handleDescriptionBlur(); }}
                       autoFocus
                       rows={6}
                     />
@@ -202,10 +223,10 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                           mode="single"
                           selected={dueDate}
                           onSelect={date => {
-                            const d = date || undefined;
+                            const d = date ?? undefined;
                             setDueDate(d);
                             setCalendarOpen(false);
-                            updateCard(card.id, { dueDate: d });
+                            void updateCard(card.id, { dueDate: d });
                           }}
                           initialFocus
                         />
