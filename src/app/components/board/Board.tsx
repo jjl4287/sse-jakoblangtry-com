@@ -35,6 +35,7 @@ import { motion } from 'framer-motion';
 import type { Card as CardType, Column as ColumnType } from '~/types';
 import { NewCardSheet } from './NewCardSheet';
 import { BoardHeader } from './BoardHeader';
+import { ShareBoardSheet } from './ShareBoardSheet';
 
 // Props for header inline editing and external focus control
 export interface BoardProps {
@@ -102,6 +103,7 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
   const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({});
   const lastCrossColumnMove = useRef<string>('');
   const [addingCardToColumnId, setAddingCardToColumnId] = useState<string | null>(null);
+  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
 
   // Define sensors
   const sensors = useSensors(
@@ -394,6 +396,7 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
         theme={theme}
         toggleTheme={toggleTheme}
         inputRef={headerInputRef}
+        onOpenShareSheet={() => setIsShareSheetOpen(true)}
       />
       
       {/* Board Content with dnd-kit */}
@@ -413,7 +416,7 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
         onDragCancel={handleDragCancel}
       >
         <div 
-          className="flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-2 pb-0 gap-x-2 justify-start"
+          className="flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-2 pb-0 gap-x-1 justify-start"
         >
           <SortableContext 
             items={columnsIds} 
@@ -451,6 +454,16 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
             if (!open) setAddingCardToColumnId(null);
           }}
           columnId={addingCardToColumnId}
+        />
+      )}
+
+      {/* Conditionally Render Share Board Sheet */}
+      {board && isShareSheetOpen && (
+        <ShareBoardSheet
+          isOpen={isShareSheetOpen}
+          onOpenChange={setIsShareSheetOpen}
+          boardId={board.id}
+          boardTitle={board.title}
         />
       )}
     </div>

@@ -1,7 +1,7 @@
 ---
-description: 
+description: knowing how the new card and card details sheets were developed
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 - **Replace inline CardAddForm with a ShadCN-powered sheet**
   - Implement `NewCardSheet.tsx` under [src/app/components/board](mdc:src/app/components/board/NewCardSheet.tsx)
@@ -33,14 +33,14 @@ alwaysApply: true
     - [x] Style matches glass-card + GitHub spacing
   - [x] Remove CardAddForm.tsx
   - [x] Update parent column view to open `NewCardSheet`
-  - [ ] CardDetailsSheet.tsx
-    - [ ] Layout grid for two columns
-    - [ ] Title, description inputs
-    - [ ] Sidebar fields (priority, due date, labels, assignees)
-    - [ ] Attachments list + add URL handler
-    - [ ] Stub comments section
-    - [ ] Hook into `updateCard`, `addAttachment`, `deleteAttachment`
-  - [ ] Delete ExpandedCardModal.tsx and Dialog usage
+  - [x] CardDetailsSheet.tsx
+    - [x] Layout grid for two columns
+    - [x] Title, description inputs
+    - [x] Sidebar fields (priority, due date, labels, assignees)
+    - [x] Attachments list + add URL handler
+    - [x] Stub comments section
+    - [x] Hook into `updateCard`, `addAttachment`, `deleteAttachment`
+  - [x] Delete ExpandedCardModal.tsx and Dialog usage
   - [ ] Manual QA: forms open/close, field validation, save operations
   - [ ] Automated tests stubs for NewCardSheet and CardDetailsSheet
 

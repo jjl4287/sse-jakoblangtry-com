@@ -18,6 +18,7 @@ model Board {
   isPublic  Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  members   BoardMembership[]
 }
 
 model Column {
@@ -88,6 +89,7 @@ model User {
   boards        Board[]
   accounts      Account[]
   sessions      Session[]
+  sharedBoards  BoardMembership[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -133,4 +135,18 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Model for Board Sharing
+model BoardMembership {
+  id        String   @id @default(cuid())
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  role      String   @default("member") // e.g., "owner", "editor", "viewer" - starting with "member"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([boardId, userId]) // Ensures a user is only a member of a board once
 } 

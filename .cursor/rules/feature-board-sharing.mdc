@@ -1,0 +1,52 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- **Overview**
+  - This rule captures the end-to-end plan to add board-sharing between users, including database schema changes, API endpoints, email notifications, and UI updates.
+  - Checkboxes provide a single source of truth for implementation progress.
+
+- **Database Schema Modifications**
+  - [ ] Add `BoardMembership` model to [prisma/schema.prisma](mdc:prisma/schema.prisma) for many-to-many relation between `User` and `Board`.
+  - [ ] Add `sharedBoards` relation to the `User` model and `members` relation to the `Board` model in [prisma/schema.prisma](mdc:prisma/schema.prisma).
+  - [ ] Run `npx prisma db push --name add_board_membership` to apply schema changes.
+
+- **Email Service Setup**
+  - [ ] Install `nodemailer` and its TypeScript types (`npm install nodemailer @types/nodemailer`).
+  - [ ] Create `src/lib/email.ts` with a `sendEmail` utility that reads SMTP configuration from environment variables (`EMAIL_SERVER_HOST`, `EMAIL_SERVER_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD`, `EMAIL_FROM`).
+  - [ ] Add email service credentials and defaults to `.env`.
+
+- **API Endpoint for Sharing**
+  - [ ] Create `src/app/api/boards/[id]/share/route.ts`.
+  - [ ] Implement `POST` handler to:
+    - Validate the session and confirm the requester is the board owner.
+    - Accept `emailToShareWith` in the request body.
+    - Lookup the user by email; return 404 if not found.
+    - Prevent duplicate memberships; return 409 if already shared.
+    - Create a `BoardMembership` record via Prisma.
+    - Send a notification email via `sendEmail`, including a link to `/boards/[boardId]`.
+  - [ ] Add API tests or stubs for the share endpoint.
+
+- **Frontend Components**
+  - [ ] Implement `src/app/components/board/ShareBoardSheet.tsx` using ShadCN `Sheet`, `Input`, and `Button`.
+    - Manage internal state: `email`, `isLoading`, `error`, `successMessage`.
+    - On submit, call the share API and display success or error feedback.
+  - [ ] Add a "Share" button in [BoardHeader](mdc:src/app/components/board/BoardHeader.tsx) after the card count and before "+ Add Column".
+  - [ ] In [Board](mdc:src/app/components/board/Board.tsx), manage `isShareSheetOpen` state and render `ShareBoardSheet` when open.
+
+- **Context & Service Updates**
+  - [ ] Update `src/services/board-service.ts`:
+    - Modify `getBoard(boardId)` to allow access if the user is owner or a shared member.
+    - Update list queries to fetch boards where `OR: [{ userId }, { members: { some: { userId } } }]`.
+  - [ ] Adjust `BoardContext` to refresh and include shared boards in relevant views.
+
+- **Error Handling & Security**
+  - [ ] Ensure authorization checks in the share API (only owner can share).
+  - [ ] Implement clear UI feedback for errors (e.g., "User not found", "Access denied") and successes.
+
+- **Future Enhancements**
+  - [ ] Display and manage current board members in the UI.
+  - [ ] Implement unshare/uninvite functionality (`DELETE /api/boards/[id]/share`).
+  - [ ] Introduce role-based access control (`owner`, `editor`, `viewer`) in `BoardMembership`.
+  - [ ] Add automated tests for the share UI component and API endpoint.
