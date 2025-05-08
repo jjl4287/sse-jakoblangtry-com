@@ -126,11 +126,10 @@ export const Card = memo(({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuItem onSelect={handleDuplicate}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  <span>Duplicate Card</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={handleDelete} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                <DropdownMenuItem
+                  onClick={handleDelete}
+                  className="cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50"
+                >
                   <Trash2 className="mr-2 h-4 w-4" />
                   <span>Delete Card</span>
                 </DropdownMenuItem>
