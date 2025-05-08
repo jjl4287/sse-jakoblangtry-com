@@ -60,15 +60,15 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
   
   // Header inline edit state
   const [isEditingHeader, setIsEditingHeader] = useState(false);
-  const [headerTitle, setHeaderTitle] = useState<string>('');
+  const [headerTitle, setHeaderTitle] = useState<string>(board?.title ?? '');
   // Ref for header input selection
   const headerInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (board?.title) {
+    if (board?.title && headerTitle !== board.title) { // Only update if different to avoid re-renders
       setHeaderTitle(board.title);
     }
-  }, [board?.title]);
+  }, [board?.title, headerTitle]); // Add headerTitle to dependencies
 
   // If external focus request matches this board, enter edit mode
   useEffect(() => {
