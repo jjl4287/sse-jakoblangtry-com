@@ -10,6 +10,8 @@ export interface Board {
   title: string;
   columns: Column[];
   theme: 'light' | 'dark';
+  labels: Label[];
+  members: BoardMembership[];
 }
 
 /**
@@ -32,7 +34,7 @@ export interface Card {
   description: string;
   labels: Label[];
   dueDate?: Date;
-  assignees: string[];
+  assignees: User[];
   priority: 'low' | 'medium' | 'high';
   attachments: Attachment[];
   comments: Comment[];
@@ -50,6 +52,7 @@ export interface Label {
   id: string;
   name: string;
   color: string;
+  boardId: string;
 }
 
 /**
@@ -68,7 +71,44 @@ export interface Attachment {
  */
 export interface Comment {
   id: string;
-  author: string;
   content: string;
   createdAt: Date;
+  updatedAt: Date;
+  cardId: string;
+  userId: string;
+  user: User;
+}
+
+/**
+ * Simplified User interface for relations like assignees and board members
+ */
+export interface User {
+  id: string;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+}
+
+/**
+ * BoardMembership interface linking Users to Boards with roles
+ */
+export interface BoardMembership {
+  id: string;
+  role: string;
+  user: User;
+  userId: string;
+  boardId: string;
+}
+
+/**
+ * ActivityLog interface for tracking changes
+ */
+export interface ActivityLog {
+  id: string;
+  actionType: string; // e.g., "CREATE_CARD", "ADD_LABEL_TO_CARD"
+  details?: any; // Prisma Json can be any serializable type
+  createdAt: Date;
+  cardId: string;
+  userId?: string | null; // Optional: action might be by system or user might be deleted
+  user?: User | null; // User who performed the action, matches API response
 } 

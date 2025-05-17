@@ -11,6 +11,7 @@ const nextConfig = {
   ...(isProduction ? {
     distDir: 'out',
   } : {}),
+  devIndicators: false,
   webpack: (config, { isServer }) => {
     // Exclude the scripts directory from webpack processing
     config.externals = [...(config.externals || []), 'scripts'];

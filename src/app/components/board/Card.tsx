@@ -16,8 +16,27 @@ import { MoreHorizontal, Trash2, Copy, Calendar, ArrowUp, ArrowDown, ArrowRight,
 import { format } from 'date-fns';
 import { AttachmentPreview } from './AttachmentPreview';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
-import type { Card as CardType } from '~/types';
+import type { Card as CardType, Label as LabelType } from '~/types';
 import type { CardDragItem } from '~/constants/dnd-types';
+import { Badge } from '~/components/ui/badge';
+import { cn, getContrastingTextColor } from '~/lib/utils';
+
+// Helper function for text color based on background (copied from NewCardSheet)
+// TODO: Move to a shared utils file if used in multiple places
+/*
+function مناسبTextColor(bgColor: string | undefined | null): string {
+    if (!bgColor) return '#000000';
+    try {
+        const color = bgColor.charAt(0) === '#' ? bgColor.substring(1, 7) : bgColor;
+        const r = parseInt(color.substring(0, 2), 16); 
+        const g = parseInt(color.substring(2, 4), 16); 
+        const b = parseInt(color.substring(4, 6), 16); 
+        return (r * 0.299 + g * 0.587 + b * 0.114) > 186 ? '#000000' : '#FFFFFF';
+    } catch (e) {
+        return '#000000';
+    }
+}
+*/
 
 // Define the drop result type
 interface CardDropResult {
@@ -104,6 +123,7 @@ export const Card = memo(({
   const cardPriority = card.priority || 'low';
   const cardAttachments = card.attachments || [];
   const cardAssignees = card.assignees || [];
+  const cardLabels = card.labels || [];
   
   const { Icon: PriorityIcon, color: priorityColor } = getPriorityInfo(cardPriority);
 
@@ -154,16 +174,36 @@ export const Card = memo(({
             </p>
           )}
           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
               <span className={`flex items-center ${priorityColor}`}>
-                <PriorityIcon className="h-3 w-3 mr-1" />
+                <PriorityIcon className="h-3 w-3 mr-0.5" />
               </span>
 
               {card.dueDate && (
                 <span className="flex items-center ">
-                  <Calendar className="h-3 w-3 mr-1" />
+                  <Calendar className="h-3 w-3 mr-0.5" />
                   {format(new Date(card.dueDate), 'MMM d')}
                 </span>
+              )}
+              
+              {cardLabels.slice(0, 3).map(label => (
+                <Badge 
+                  key={label.id} 
+                  variant="outline" 
+                  className="px-1.5 py-0.5 text-[10px] font-normal border"
+                  style={{ 
+                    backgroundColor: label.color, 
+                    color: getContrastingTextColor(label.color),
+                    borderColor: getContrastingTextColor(label.color) === '#000000' ? '#00000030' : '#FFFFFF50',
+                   }}
+                >
+                  {label.name}
+                </Badge>
+              ))}
+              {cardLabels.length > 3 && (
+                <Badge variant="outline" className="px-1.5 py-0.5 text-[10px] font-normal border">
+                  +{cardLabels.length - 3}
+                </Badge>
               )}
               
               {cardAttachments.length > 0 && (
@@ -173,12 +213,30 @@ export const Card = memo(({
               )}
             </div>
 
-            {/* Show first assignee's initial */}
-            {cardAssignees[0] && (
-              <span className="flex items-center justify-center h-5 w-5 bg-gray-300 dark:bg-gray-600 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300" title={cardAssignees[0]}>
-                {cardAssignees[0].charAt(0).toUpperCase()}
-              </span>
-            )}
+            {/* Display stacked assignee avatars */}
+            <div className="flex items-center">
+              {cardAssignees.slice(0, 3).map((assignee, idx) => (
+                assignee && assignee.id && (
+                  <span
+                    key={assignee.id}
+                    className={`flex items-center justify-center h-5 w-5 bg-gray-300 dark:bg-gray-600 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300 border-2 border-background dark:border-gray-800`}
+                    style={{ zIndex: cardAssignees.length - idx, marginLeft: idx > 0 ? '-4px' : '0px' }}
+                    title={assignee.name || assignee.email || 'Assignee'}
+                  >
+                    {(assignee.name || assignee.email)?.charAt(0).toUpperCase() || '?'}
+                  </span>
+                )
+              ))}
+              {cardAssignees.length > 3 && (
+                <span
+                  className="flex items-center justify-center h-5 w-5 bg-gray-200 dark:bg-gray-700 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400 border-2 border-background dark:border-gray-800"
+                  style={{ zIndex: 0, marginLeft: '-4px' }}
+                  title={`${cardAssignees.length - 3} more assignees`}
+                >
+                  +{cardAssignees.length - 3}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Board, Card, Column, Label, Attachment, Comment } from '~/types';
+import type { Board, Card, Column, Label, Attachment, Comment, ActivityLog as ActivityLogType } from '~/types';
 
 // Constants
 const API_ENDPOINT = '/api/boards';
@@ -30,7 +30,7 @@ async function saveBoard(boardData: Board): Promise<void> {
   if (!res.ok) {
     let errMsg = `HTTP ${res.status}`;
     try {
-      const body = await res.json();
+      const body = (await res.json()) as { error?: string };
       if (body.error) errMsg = body.error;
     } catch {}
     throw new Error(errMsg);
@@ -63,6 +63,22 @@ async function fetchBoard(): Promise<Board> {
   }
   return data as Board;
 }
+
+// Define a more specific type for card updates, aligning with API expectations
+type CardUpdatePayload = Partial<
+  Omit<Card, 'id' | 'columnId' | 'order' | 'labels' | 'assignees' | 'comments' | 'attachments'>
+  & {
+    labelIdsToAdd?: string[];
+    labelIdsToRemove?: string[];
+    assigneeIdsToAdd?: string[];
+    assigneeIdsToRemove?: string[];
+    // Include other direct fields from Card that might be updated if not in Omit
+    title?: string;
+    description?: string;
+    priority?: Card['priority']; // Use Card['priority'] to ensure it matches the type
+    dueDate?: Date;
+  }
+>;
 
 // BoardService for managing the kanban board data
 export class BoardService {
@@ -98,7 +114,7 @@ export class BoardService {
     if (!res.ok) {
       let msg = `Failed to create board: ${res.status}`;
       try {
-        const body = await res.json();
+        const body = (await res.json()) as { error?: string };
         if (body.error) msg = body.error;
       } catch {}
       throw new Error(msg);
@@ -126,8 +142,7 @@ export class BoardService {
     if (index === -1) {
       throw new ItemNotFoundError('Column', columnId);
     }
-    
-    const column = board.columns[index];
+    const column = board.columns[index]!;
     return { column, index };
   }
   
@@ -141,12 +156,12 @@ export class BoardService {
     cardIndex: number 
   } {
     for (let i = 0; i < board.columns.length; i++) {
-      const column = board.columns[i];
+      const column = board.columns[i]!;
       const cardIndex = column.cards.findIndex(card => card.id === cardId);
       
       if (cardIndex !== -1) {
         return { 
-          card: column.cards[cardIndex], 
+          card: column.cards[cardIndex]!, 
           column, 
           columnIndex: i, 
           cardIndex 
@@ -204,7 +219,7 @@ export class BoardService {
     columns.splice(newIndex, 0, moved);
     // Persist new orders
     await Promise.all(columns.map((col, idx) =>
-      fetch(`/api/columns/${col.id}`, {
+      fetch(`/api/columns/${col!.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order: idx }),
@@ -239,17 +254,29 @@ export class BoardService {
    */
   static async createCard(
     columnId: string,
-    cardData: Omit<Card, 'id' | 'columnId' | 'order' | 'labels' | 'assignees'>
+    // Use a more specific type for cardData, including optional labelIds and assigneeIds
+    cardData: Partial<Omit<Card, 'id' | 'columnId' | 'order' | 'comments' | 'attachments'>> & {
+      title: string; // Title is non-optional for creation
+      labelIds?: string[];
+      assigneeIds?: string[];
+    }
   ): Promise<Board> {
-    const res = await fetch('/api/cards', {
+    const params = typeof window !== 'undefined' ? window.location.search : '';
+    const res = await fetch(`/api/cards${params}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ columnId, ...cardData }),
+      // Ensure columnId is part of the body, along with other cardData
+      body: JSON.stringify({ ...cardData, columnId }),
     });
     if (!res.ok) {
-      throw new Error(`Failed to create card: ${res.statusText}`);
+      let msg = `Failed to create card: ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new BoardServiceError(msg);
     }
-    return await this.getBoard();
+    return await this.getBoard(); // Re-fetch board to get updated state with new card
   }
 
   /**
@@ -257,7 +284,7 @@ export class BoardService {
    */
   static async updateCard(
     cardId: string,
-    updates: Partial<Omit<Card, 'id' | 'columnId' | 'order' | 'labels' | 'assignees'>> & { labels?: Label[]; assignees?: string[] }
+    updates: CardUpdatePayload
   ): Promise<Board> {
     const res = await fetch(`/api/cards/${cardId}`, {
       method: 'PATCH',
@@ -265,8 +292,16 @@ export class BoardService {
       body: JSON.stringify(updates),
     });
     if (!res.ok) {
-      console.error(`Failed to update card ${cardId}:`, res.statusText);
+      let errMsg = `Failed to update card ${cardId}: ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) errMsg = body.error;
+      } catch {}
+      throw new BoardServiceError(errMsg);
     }
+    // The API returns the updated card, but BoardService typically refetches the whole board.
+    // For now, we'll stick to refetching the board to ensure UI consistency.
+    // Potentially optimize later if this becomes a bottleneck.
     return await this.getBoard();
   }
 
@@ -312,10 +347,10 @@ export class BoardService {
 
     // Find the original card and its column
     for (let i = 0; i < board.columns.length; i++) {
-        const col = board.columns[i];
+        const col = board.columns[i]!;
         const cardIndex = col.cards.findIndex(c => c.id === cardId);
         if (cardIndex !== -1) {
-            originalCard = col.cards[cardIndex];
+            originalCard = col.cards[cardIndex]!;
             originalColumn = col;
             originalColumnIndex = i;
             originalCardIndex = cardIndex;
@@ -333,7 +368,7 @@ export class BoardService {
         throw new Error(`Target column with ID ${finalTargetColumnId} not found.`);
     }
 
-    const targetColumn = board.columns[targetColumnIndex];
+    const targetColumn = board.columns[targetColumnIndex]!;
     
     // Determine the insert index for the new card: after the original card in the same column or at the end of target
     const insertIndex = finalTargetColumnId === originalColumn.id
@@ -371,7 +406,7 @@ export class BoardService {
 
     // If the card was duplicated within the same column, ensure source column is updated
     if (finalTargetColumnId === originalColumn.id) {
-         updatedBoard.columns[originalColumnIndex] = updatedBoard.columns[targetColumnIndex];
+         updatedBoard.columns[originalColumnIndex] = updatedBoard.columns[targetColumnIndex]!;
     }
 
     // Persist changes
@@ -406,6 +441,7 @@ export class BoardService {
         id: uuidv4(),
         name,
         color,
+        boardId: board.id,
       };
       
       const updatedCard = {
@@ -616,5 +652,116 @@ export class BoardService {
       } catch {}
       throw new Error(msg);
     }
+  }
+
+  /**
+   * Creates a new label for a specific board.
+   */
+  static async createBoardLabel(boardId: string, name: string, color: string): Promise<Label> {
+    const res = await fetch(`/api/boards/${boardId}/labels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, color }),
+    });
+    if (!res.ok) {
+      let msg = `Failed to create label: ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new BoardServiceError(msg);
+    }
+    return (await res.json()) as Label;
+  }
+
+  /**
+   * Updates an existing label for a specific board.
+   */
+  static async updateBoardLabel(boardId: string, labelId: string, name: string, color: string): Promise<Label> {
+    const res = await fetch(`/api/boards/${boardId}/labels/${labelId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, color }),
+    });
+    if (!res.ok) {
+      let msg = `Failed to update label ${labelId}: ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new BoardServiceError(msg);
+    }
+    return (await res.json()) as Label;
+  }
+
+  /**
+   * Deletes a label from a specific board.
+   */
+  static async deleteBoardLabel(boardId: string, labelId: string): Promise<void> {
+    const res = await fetch(`/api/boards/${boardId}/labels/${labelId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      let msg = `Failed to delete label ${labelId}: ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new BoardServiceError(msg);
+    }
+    // DELETE typically returns 204 No Content or a success message
+    // If it returns JSON with a message, it can be logged, but function signature is void
+  }
+
+  /**
+   * Fetches comments for a specific card.
+   */
+  static async fetchComments(cardId: string): Promise<Comment[]> {
+    const res = await fetch(`/api/cards/${cardId}/comments`);
+    if (!res.ok) {
+      let msg = `Failed to fetch comments for card ${cardId}: ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new BoardServiceError(msg);
+    }
+    return (await res.json()) as Comment[];
+  }
+
+  /**
+   * Creates a new comment for a specific card via API.
+   */
+  static async createCommentViaApi(cardId: string, content: string): Promise<Comment> {
+    const res = await fetch(`/api/cards/${cardId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok) {
+      let msg = `Failed to create comment for card ${cardId}: ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new BoardServiceError(msg);
+    }
+    return (await res.json()) as Comment;
+  }
+
+  /**
+   * Fetches activity logs for a given card.
+   */
+  static async fetchActivityLogs(cardId: string): Promise<ActivityLogType[]> {
+    const res = await fetch(`/api/cards/${cardId}/activity`);
+    if (!res.ok) {
+      let errMsg = `Failed to fetch activity logs for card ${cardId}: HTTP ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) errMsg = body.error;
+      } catch {}
+      throw new BoardServiceError(errMsg);
+    }
+    return (await res.json()) as ActivityLogType[];
   }
 } 

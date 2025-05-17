@@ -12,13 +12,15 @@ model Board {
   title     String
   theme     String?
   columns   Column[]
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
+  creator   User      @relation("BoardCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  creatorId String
   pinned    Boolean   @default(false)
   isPublic  Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  members   BoardMembership[]
+  members   BoardMembership[] @relation("BoardMembers")
+  labels    Label[]
+  cards     Card[]
 }
 
 model Column {
@@ -36,7 +38,7 @@ model Column {
 model Card {
   id          String       @id @default(cuid())
   title       String
-  description String
+  description String       @db.Text
   labels      Label[]      @relation("CardLabels")
   dueDate     DateTime?
   assignees   User[]       @relation("CardAssignees")
@@ -48,6 +50,12 @@ model Card {
   order       Float
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  board       Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId     String
+  activityLogs ActivityLog[]
+
+  @@index([columnId])
+  @@index([boardId])
 }
 
 model Label {
@@ -55,6 +63,8 @@ model Label {
   name  String
   color String
   cards Card[]  @relation("CardLabels")
+  board Board   @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId String
 }
 
 model Attachment {
@@ -69,29 +79,45 @@ model Attachment {
 
 model Comment {
   id        String   @id @default(cuid())
-  author    String
   content   String
   createdAt DateTime @default(now())
-  card      Card     @relation(fields: [cardId], references: [id])
+  updatedAt DateTime @updatedAt
+
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
   cardId    String
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@index([cardId])
+  @@index([userId])
 }
 
 model User {
-  id            String   @id @default(cuid())
-  name          String
-  email         String?  @unique
-  image         String?
-  emailVerified DateTime?
-  hashedPassword String?
-  resetToken     String?
+  id               String    @id @default(cuid())
+  name             String?
+  email            String?   @unique
+  emailVerified    DateTime?
+  image            String?
+  hashedPassword   String?   @db.Text
+  resetToken       String?   @unique
   resetTokenExpiry DateTime?
-  assignedCards Card[]   @relation("CardAssignees")
-  boards        Board[]
+
   accounts      Account[]
   sessions      Session[]
-  sharedBoards  BoardMembership[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  
+  createdBoards Board[] @relation("BoardCreator")
+
+  assignedCards Card[] @relation("CardAssignees")
+
+  comments Comment[]
+
+  activityLogs ActivityLog[]
+
+  boardMemberships BoardMembership[] @relation("UserMemberships")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum Priority {
@@ -140,13 +166,30 @@ model VerificationToken {
 // Model for Board Sharing
 model BoardMembership {
   id        String   @id @default(cuid())
-  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  board     Board    @relation("BoardMembers", fields: [boardId], references: [id], onDelete: Cascade)
   boardId   String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserMemberships", fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  role      String   @default("member") // e.g., "owner", "editor", "viewer" - starting with "member"
+  role      String   @default("member")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([boardId, userId]) // Ensures a user is only a member of a board once
+  @@unique([boardId, userId])
+}
+
+// New model for ActivityLog
+model ActivityLog {
+  id           String   @id @default(cuid())
+  actionType   String   // e.g., "CREATE_CARD", "ADD_LABEL", "CHANGE_ASSIGNEE"
+  details      Json?    // Store additional information like old/new values, label name, etc.
+  createdAt    DateTime @default(now())
+
+  cardId       String
+  card         Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  userId       String?  // Optional: action might be by system or user might be deleted
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([cardId])
+  @@index([userId])
 } 

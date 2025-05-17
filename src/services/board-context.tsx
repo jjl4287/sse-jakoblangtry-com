@@ -9,11 +9,12 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { Board, Column, Card, Label, Attachment, Comment } from '~/types';
+import type { Board, Column, Card, Label, Attachment, Comment, ActivityLog as ActivityLogType, Priority } from '~/types';
 import { useSession } from 'next-auth/react';
 import { v4 as uuidv4 } from 'uuid';
 import { BoardService } from './board-service';
 import debounce from 'lodash/debounce';
+import { toast } from 'sonner';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -23,6 +24,7 @@ interface BoardContextType {
   error: Error | null;
   saveStatus: SaveStatus;
   saveError: Error | null;
+  boardLabels: Label[];
   refreshBoard: () => Promise<void>;
   updateTheme: (theme: 'light' | 'dark') => Promise<void> | void;
   updateTitle: (title: string) => void;
@@ -30,27 +32,52 @@ interface BoardContextType {
   updateColumn: (columnId: string, updates: Partial<Column>) => Promise<void> | void;
   deleteColumn: (columnId: string) => Promise<void> | void;
   moveColumn: (columnId: string, newIndex: number) => void;
-  createCard: (columnId: string, data: Omit<Card, 'id' | 'columnId' | 'order'>) => Promise<void> | void;
-  updateCard: (cardId: string, updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'>>) => Promise<void> | void;
+  createCard: (
+    columnId: string, 
+    data: Partial<Omit<Card, 'id' | 'columnId' | 'order' | 'comments' | 'attachments'> & { 
+      title: string;
+      labelIds?: string[];
+      assigneeIds?: string[];
+    }>
+  ) => Promise<void> | void;
+  updateCard: (cardId: string, updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'> & {
+    labelIdsToAdd?: string[];
+    labelIdsToRemove?: string[];
+    assigneeIdsToAdd?: string[];
+    assigneeIdsToRemove?: string[];
+    title?: string;
+    description?: string;
+    priority?: Priority;
+    dueDate?: Date;
+  }>) => Promise<void> | void;
   deleteCard: (cardId: string) => Promise<void> | void;
   moveCard: (cardId: string, targetColumnId: string, newOrder: number) => void;
   duplicateCard: (cardId: string, targetColumnId?: string) => Promise<void> | void;
-  addLabel: (cardId: string, name: string, color: string) => Promise<void> | void;
-  removeLabel: (cardId: string, labelId: string) => Promise<void> | void;
   addComment: (cardId: string, author: string, content: string) => Promise<void> | void;
   deleteComment: (cardId: string, commentId: string) => Promise<void> | void;
   addAttachment: (cardId: string, name: string, url: string, type: string) => Promise<void> | void;
   deleteAttachment: (cardId: string, attachmentId: string) => Promise<void> | void;
+  createBoardLabel: (name: string, color: string) => Promise<Label | void>;
+  updateBoardLabel: (labelId: string, name: string, color: string) => Promise<Label | void>;
+  deleteBoardLabel: (labelId: string) => Promise<void>;
+  fetchCommentsForCard: (cardId: string) => Promise<Comment[] | void>;
+  createCommentInCard: (cardId: string, content: string) => Promise<Comment | void>;
+  activityLogs: ActivityLogType[];
+  isLoadingActivityLogs: boolean;
+  fetchActivityLogsForCard: (cardId: string) => Promise<void>;
 }
 
 const BoardContext = createContext<BoardContextType | undefined>(undefined);
 
 export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [board, setBoard] = useState<Board | null>(null);
+  const [boardLabels, setBoardLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<Error | null>(null);
+  const [activityLogs, setActivityLogs] = useState<ActivityLogType[]>([]);
+  const [isLoadingActivityLogs, setIsLoadingActivityLogs] = useState<boolean>(false);
 
   const { data: session, status: sessionStatus } = useSession();
 
@@ -62,10 +89,17 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (session) {
         const b = await BoardService.getBoard();
         setBoard(b);
+        setBoardLabels(b?.labels || []);
       } else {
         const stored = localStorage.getItem('board-local');
-        if (stored) setBoard(JSON.parse(stored));
-        else setBoard({ id: 'demo', title: 'Demo Board', theme: 'light', columns: [] });
+        if (stored) {
+          const localBoard = JSON.parse(stored) as Board;
+          setBoard(localBoard);
+          setBoardLabels(localBoard.labels || []);
+        } else {
+          setBoard({ id: 'demo', title: 'Demo Board', theme: 'light', columns: [], labels: [], members: [] });
+          setBoardLabels([]);
+        }
       }
     } catch (e) {
       setError(e as Error);
@@ -252,31 +286,115 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [session, enqueueMoveColumn, updateBoardState]);
 
-  const createCard = useCallback(async (columnId: string, data: Omit<Card, 'id' | 'columnId' | 'order'>) => {
+  const createCard = useCallback(async (
+    columnId: string, 
+    data: Partial<Omit<Card, 'id' | 'columnId' | 'order' | 'comments' | 'attachments'> & { 
+      title: string;
+      labelIds?: string[];
+      assigneeIds?: string[];
+    }>
+  ) => {
+    const newCardId = uuidv4();
+    // Optimistic update
     updateBoardState(prev => {
-      const cols = prev!.columns.map(c => ({ ...c, cards: [...c.cards] }));
-      const col = cols.find(c => c.id === columnId);
-      if (col) col.cards.push({ id: uuidv4(), columnId, order: col.cards.length, ...data });
-      return { ...prev!, columns: cols };
+      if (!prev) return prev;
+      const newColumns = prev.columns.map(c => {
+        if (c.id === columnId) {
+          // Resolve labels and assignees for optimistic update
+          const labelsForOptimisticUpdate = (data.labelIds || [])
+            .map(id => boardLabels.find(l => l.id === id))
+            .filter(Boolean) as Label[];
+          
+          const assigneesForOptimisticUpdate = (data.assigneeIds || [])
+            .map(id => board?.members?.find(m => m.user.id === id)?.user)
+            .filter(Boolean) as UserType[];
+
+          return {
+            ...c,
+            cards: [
+              ...c.cards,
+              {
+                id: newCardId,
+                columnId,
+                order: c.cards.length,
+                title: data.title, // title is now guaranteed by type
+                description: data.description || '',
+                priority: data.priority || 'medium',
+                dueDate: data.dueDate,
+                labels: labelsForOptimisticUpdate, // Use resolved labels
+                assignees: assigneesForOptimisticUpdate, // Use resolved assignees
+                attachments: [], // Default to empty for new card
+                comments: [],    // Default to empty for new card
+              } as Card, // Cast to Card type
+            ],
+          };
+        }
+        return c;
+      });
+      return { ...prev, columns: newColumns };
     });
-    if (!session) return;
+
+    if (!session || !board || board.id === 'demo') { // If no session or demo board, optimistic update is enough
+        if (board && board.id === 'demo') {
+            // For demo board, ensure local storage is updated (already handled by updateBoardState)
+        }
+        return; 
+    }
+    
     setSaveStatus('saving');
     try {
-      const updated = await BoardService.createCard(columnId, data);
-      setBoard(updated);
+      // Pass labelIds and assigneeIds to the service
+      const updatedBoard = await BoardService.createCard(columnId, data); 
+      setBoard(updatedBoard);
       setSaveStatus('saved');
     } catch (e) {
       setSaveStatus('error');
       setSaveError(e as Error);
+      // TODO: Consider reverting optimistic update if API call fails
+      console.error("Failed to create card via API:", e);
     }
-  }, [session, updateBoardState]);
+  }, [session, updateBoardState, boardLabels, board]); // Added boardLabels and board to dependencies
 
-  const updateCard = useCallback(async (cardId: string, updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'>>) => {
+  const updateCard = useCallback(async (cardId: string, updates: Partial<Omit<Card, 'id' | 'columnId' | 'order'> & {
+    labelIdsToAdd?: string[];
+    labelIdsToRemove?: string[];
+    assigneeIdsToAdd?: string[];
+    assigneeIdsToRemove?: string[];
+    title?: string;
+    description?: string;
+    priority?: Priority;
+    dueDate?: Date;
+  }>) => {
     updateBoardState(prev => ({
       ...prev!,
-      columns: prev!.columns.map(c => ({
-        ...c,
-        cards: c.cards.map(card => card.id === cardId ? { ...card, ...updates } : card)
+      columns: prev!.columns.map(column => ({
+        ...column,
+        cards: column.cards.map(card => {
+          if (card.id !== cardId) return card;
+          let updatedCard = { ...card };
+          // Scalar field updates
+          if (updates.title !== undefined) updatedCard.title = updates.title;
+          if (updates.description !== undefined) updatedCard.description = updates.description;
+          if (updates.priority !== undefined) updatedCard.priority = updates.priority;
+          if (updates.dueDate !== undefined) updatedCard.dueDate = updates.dueDate;
+          // Labels
+          if (updates.labelIdsToAdd && updates.labelIdsToAdd.length) {
+            const labelsToAdd = prev.labels?.filter(l => updates.labelIdsToAdd!.includes(l.id)) || [];
+            updatedCard.labels = [...updatedCard.labels, ...labelsToAdd];
+          }
+          if (updates.labelIdsToRemove && updates.labelIdsToRemove.length) {
+            updatedCard.labels = updatedCard.labels.filter(l => !updates.labelIdsToRemove!.includes(l.id));
+          }
+          // Assignees
+          if (updates.assigneeIdsToAdd && updates.assigneeIdsToAdd.length) {
+            const usersToAdd = prev.members?.filter(m => updates.assigneeIdsToAdd!.includes(m.userId)).map(m => m.user) || [];
+            updatedCard.assignees = [...updatedCard.assignees, ...usersToAdd];
+          }
+          if (updates.assigneeIdsToRemove && updates.assigneeIdsToRemove.length) {
+            updatedCard.assignees = updatedCard.assignees.filter(u => !updates.assigneeIdsToRemove!.includes(u.id));
+          }
+          return updatedCard;
+        })
       }))
     }));
     if (!session) return;
@@ -346,26 +464,6 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
   }, [updateBoardState]);
 
-  const addLabel = useCallback((cardId: string, name: string, color: string) => {
-    updateBoardState(prev => ({
-      ...prev!,
-      columns: prev!.columns.map(c => ({
-        ...c,
-        cards: c.cards.map(card => card.id === cardId ? { ...card, labels: [...card.labels, { id: uuidv4(), name, color }] } : card)
-      }))
-    }));
-  }, [updateBoardState]);
-
-  const removeLabel = useCallback((cardId: string, labelId: string) => {
-    updateBoardState(prev => ({
-      ...prev!,
-      columns: prev!.columns.map(c => ({
-        ...c,
-        cards: c.cards.map(card => card.id === cardId ? { ...card, labels: card.labels.filter(l => l.id !== labelId) } : card)
-      }))
-    }));
-  }, [updateBoardState]);
-
   const addComment = useCallback((cardId: string, author: string, content: string) => {
     updateBoardState(prev => ({
       ...prev!,
@@ -406,35 +504,292 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }));
   }, [updateBoardState]);
 
-  return (
-    <BoardContext.Provider value={{
-      board,
-      loading,
-      error,
-      saveStatus,
-      saveError,
-      refreshBoard,
-      updateTheme,
-      updateTitle,
-      createColumn,
-      updateColumn,
-      deleteColumn,
-      moveColumn,
-      createCard,
-      updateCard,
-      deleteCard,
-      moveCard,
-      duplicateCard,
-      addLabel,
-      removeLabel,
-      addComment,
-      deleteComment,
-      addAttachment,
-      deleteAttachment
-    }}>
-      {children}
-    </BoardContext.Provider>
-  );
+  const createBoardLabel = useCallback(async (name: string, color: string): Promise<Label | void> => {
+    if (!board?.id || board.id === 'demo') { // Don't save for demo board
+      const newLabel = { id: uuidv4(), name, color, boardId: board?.id || 'demo' };
+      updateBoardState(prev => {
+        const updatedLabels = [...(prev?.labels || []), newLabel];
+        setBoardLabels(updatedLabels);
+        return { ...prev!, labels: updatedLabels };
+      });
+      return newLabel;
+    }
+    if (!session) return;
+    setSaveStatus('saving');
+    try {
+      const newLabel = await BoardService.createBoardLabel(board.id, name, color);
+      if (newLabel) {
+        updateBoardState(prev => {
+          const updatedLabels = [...(prev?.labels || []), newLabel];
+          setBoardLabels(updatedLabels);
+          return { ...prev!, labels: updatedLabels };
+        });
+        setSaveStatus('saved');
+        return newLabel;
+      }
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+      console.error("Failed to create label:", e);
+    }
+  }, [session, board?.id, updateBoardState]);
+
+  const updateBoardLabel = useCallback(async (labelId: string, name: string, color: string): Promise<Label | void> => {
+    if (!board?.id || board.id === 'demo') {
+      // Optimistic update for demo board
+      let updatedLabelInstance: Label | undefined;
+      updateBoardState(prev => {
+        const updatedLabels = prev!.labels.map(l => l.id === labelId ? (updatedLabelInstance = { ...l, name, color }) : l);
+        setBoardLabels(updatedLabels);
+        return { ...prev!, labels: updatedLabels };
+      });
+      return updatedLabelInstance;
+    }
+    if (!session) return;
+    setSaveStatus('saving');
+    try {
+      const updatedLabel = await BoardService.updateBoardLabel(board.id, labelId, name, color);
+      if (updatedLabel) {
+        updateBoardState(prev => {
+          const updatedLabels = prev!.labels.map(l => l.id === labelId ? updatedLabel : l);
+          setBoardLabels(updatedLabels);
+          return { ...prev!, labels: updatedLabels };
+        });
+        setSaveStatus('saved');
+        return updatedLabel;
+      }
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+      console.error("Failed to update label:", e);
+      const errMsg = (e as Error).message;
+      if (errMsg.toLowerCase().includes('forbidden')) {
+        toast.error('You do not have permission to modify this board');
+      } else {
+        toast.error(errMsg || 'Failed to update label');
+      }
+    }
+  }, [session, board?.id, updateBoardState]);
+
+  const deleteBoardLabel = useCallback(async (labelId: string): Promise<void> => {
+    if (!board?.id || board.id === 'demo') {
+      // Optimistic update for demo board
+      updateBoardState(prev => {
+        const updatedLabels = prev!.labels.filter(l => l.id !== labelId);
+        const updatedColumns = prev!.columns.map(col => ({
+          ...col,
+          cards: col.cards.map(card => ({
+            ...card,
+            labels: card.labels.filter(l => l.id !== labelId)
+          }))
+        }));
+        setBoardLabels(updatedLabels);
+        return { ...prev!, labels: updatedLabels, columns: updatedColumns };
+      });
+      return;
+    }
+    if (!session) return;
+    setSaveStatus('saving');
+    try {
+      await BoardService.deleteBoardLabel(board.id, labelId);
+      // Optimistic update (remove label from board.labels and from all cards)
+      updateBoardState(prev => {
+        const updatedLabels = prev!.labels.filter(l => l.id !== labelId);
+        const updatedColumns = prev!.columns.map(col => ({
+          ...col,
+          cards: col.cards.map(card => ({
+            ...card,
+            labels: card.labels.filter(l => l.id !== labelId)
+          }))
+        }));
+        setBoardLabels(updatedLabels);
+        return { ...prev!, labels: updatedLabels, columns: updatedColumns };
+      });
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+      console.error("Failed to delete label:", e);
+      const errMsg = (e as Error).message;
+      if (errMsg.toLowerCase().includes('forbidden')) {
+        toast.error('You do not have permission to modify this board');
+      } else {
+        toast.error(errMsg || 'Failed to delete label');
+      }
+    }
+  }, [session, board?.id, updateBoardState]);
+
+  // --- Comment Functions ---
+  const fetchCommentsForCard = useCallback(async (cardId: string): Promise<Comment[] | void> => {
+    if (!session || !board || board.id === 'demo') {
+      // For demo or no session, comments are only local if already part of the card data
+      const card = board?.columns.flatMap(c => c.cards).find(c => c.id === cardId);
+      return card?.comments || [];
+    }
+    setSaveStatus('saving'); // Or a new 'loadingComments' status
+    try {
+      const comments = await BoardService.fetchComments(cardId);
+      // Optionally, update local board state if comments aren't already part of the main board fetch
+      // For now, just returning them. The component will manage its own state for comments.
+      setSaveStatus('idle');
+      return comments;
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+      console.error(`Failed to fetch comments for card ${cardId}:`, e);
+    }
+  }, [session, board]);
+
+  const createCommentInCard = useCallback(async (cardId: string, content: string): Promise<Comment | void> => {
+    if (!session || !board || board.id === 'demo') {
+      // Optimistic update for demo board or no session
+      const newComment = {
+        id: uuidv4(),
+        content,
+        cardId,
+        userId: session?.user?.id || 'demo-user',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        user: { 
+            id: session?.user?.id || 'demo-user', 
+            name: session?.user?.name || 'Demo User', 
+            email: session?.user?.email, 
+            image: session?.user?.image 
+        }
+      } as Comment; // Cast to Comment type (ensure User is part of Comment type)
+      
+      updateBoardState(prev => {
+        if (!prev) return prev;
+        const newColumns = prev.columns.map(col => ({
+          ...col,
+          cards: col.cards.map(c => {
+            if (c.id === cardId) {
+              return { ...c, comments: [...(c.comments || []), newComment] };
+            }
+            return c;
+          })
+        }));
+        return { ...prev, columns: newColumns };
+      });
+      return newComment;
+    }
+
+    setSaveStatus('saving');
+    try {
+      const newComment = await BoardService.createCommentViaApi(cardId, content);
+      if (newComment) {
+        // Optimistic update: add the new comment to the local board state
+        updateBoardState(prev => {
+          if (!prev) return prev;
+          const newColumns = prev.columns.map(col => ({
+            ...col,
+            cards: col.cards.map(c => {
+              if (c.id === cardId) {
+                // Ensure no duplicate comments if API returns the comment already added optimistically
+                const existingComment = c.comments?.find(com => com.id === newComment.id);
+                if (existingComment) return c; // Already there
+                return { ...c, comments: [...(c.comments || []), newComment] };
+              }
+              return c;
+            })
+          }));
+          return { ...prev, columns: newColumns };
+        });
+        setSaveStatus('saved');
+        return newComment;
+      }
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+      console.error(`Failed to create comment for card ${cardId}:`, e);
+    }
+  }, [session, board, updateBoardState]);
+
+  const fetchActivityLogsForCard = useCallback(async (cardId: string) => {
+    if (!session) {
+      // console.log("No session, can't fetch activity logs");
+      // Potentially set to empty or handle for local/demo mode if needed
+      setActivityLogs([]); 
+      return;
+    }
+    setIsLoadingActivityLogs(true);
+    try {
+      const logs = await BoardService.fetchActivityLogs(cardId);
+      setActivityLogs(logs || []);
+    } catch (e) {
+      console.error(`Failed to fetch activity logs for card ${cardId}:`, e);
+      setActivityLogs([]); // Set to empty on error
+      // setError(e as Error); // Or set a specific error state for activity logs
+    } finally {
+      setIsLoadingActivityLogs(false);
+    }
+  }, [session]);
+
+  const contextValue = useMemo(() => ({
+    board,
+    loading,
+    error,
+    saveStatus,
+    saveError,
+    boardLabels,
+    refreshBoard,
+    updateTheme,
+    updateTitle,
+    createColumn,
+    updateColumn,
+    deleteColumn,
+    moveColumn,
+    createCard,
+    updateCard,
+    deleteCard,
+    moveCard,
+    duplicateCard,
+    addComment,
+    deleteComment,
+    addAttachment,
+    deleteAttachment,
+    createBoardLabel,
+    updateBoardLabel,
+    deleteBoardLabel,
+    fetchCommentsForCard,
+    createCommentInCard,
+    activityLogs,
+    isLoadingActivityLogs,
+    fetchActivityLogsForCard,
+  }), [
+    board,
+    loading,
+    error,
+    saveStatus,
+    saveError,
+    boardLabels,
+    refreshBoard,
+    updateTheme,
+    updateTitle,
+    createColumn,
+    updateColumn,
+    deleteColumn,
+    moveColumn,
+    createCard,
+    updateCard,
+    deleteCard,
+    moveCard,
+    duplicateCard,
+    addComment,
+    deleteComment,
+    addAttachment,
+    deleteAttachment,
+    createBoardLabel,
+    updateBoardLabel,
+    deleteBoardLabel,
+    fetchCommentsForCard,
+    createCommentInCard,
+    activityLogs,
+    isLoadingActivityLogs,
+    fetchActivityLogsForCard,
+  ]);
+
+  return <BoardContext.Provider value={contextValue}>{children}</BoardContext.Provider>;
 };
 
 export function useBoard(): BoardContextType {

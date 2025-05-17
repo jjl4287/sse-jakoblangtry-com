@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '~/lib/auth/authOptions';
 import prisma from '~/lib/prisma';
-import type { Board } from '~/types';
+import type { Board, Label as BoardLabelType, BoardMembership, User as UserType } from '~/types';
 import type { Prisma } from '@prisma/client';
 
 // Define typed payload for board with nested relations
@@ -17,7 +17,9 @@ type ProjectWithRelations = Prisma.BoardGetPayload<{
           include: { labels: true; attachments: true; comments: true; assignees: true }
         }
       }
-    }
+    },
+    labels: true,
+    members: { include: { user: true } }
   }
 }>;
 
@@ -38,14 +40,27 @@ const mapToBoard = (project: ProjectWithRelations): Board => ({
       order: card.order,
       title: card.title,
       description: card.description,
-      labels: card.labels.map(l => ({ id: l.id, name: l.name, color: l.color })),
-      assignees: card.assignees.map(u => u.id),
+      labels: card.labels.map(l => ({ id: l.id, name: l.name, color: l.color, boardId: l.boardId })),
+      assignees: card.assignees.map(u => ({ id: u.id, name: u.name, email: u.email, image: u.image })),
       priority: card.priority,
       attachments: card.attachments.map(a => ({ id: a.id, name: a.name, url: a.url, type: a.type, createdAt: a.createdAt })),
       comments: card.comments.map(c => ({ id: c.id, author: c.author, content: c.content, createdAt: c.createdAt })),
       dueDate: card.dueDate ?? undefined,
     })),
   })),
+  labels: project.labels?.map(l => ({ id: l.id, name: l.name, color: l.color, boardId: l.boardId })) ?? [],
+  members: project.members?.map(m => ({
+    id: m.id,
+    role: m.role,
+    userId: m.userId,
+    boardId: m.boardId,
+    user: {
+      id: m.user.id,
+      name: m.user.name,
+      email: m.user.email,
+      image: m.user.image,
+    }
+  })) ?? [],
 });
 
 // Force this API route to always be dynamic (no caching)
@@ -67,24 +82,23 @@ export async function GET(request: Request) {
         { pinned: 'desc' },
         { updatedAt: 'desc' },
       ];
-      const select = { id: true, title: true, pinned: true, userId: true };
+      // No specific select for list, rely on default fields or define minimally if needed
 
-      let whereClause: Prisma.BoardWhereInput = { isPublic: true }; // Default for unauthenticated
+      let whereClause: Prisma.BoardWhereInput = { isPublic: true };
 
-      if (userId) { // Authenticated user: public boards, owned boards, or shared boards
+      if (userId) {
         whereClause = {
           OR: [
             { isPublic: true }, 
-            { userId: userId }, 
+            { creatorId: userId },
             { members: { some: { userId: userId } } }
           ]
         };
-      }
-      
+      }      
       const boards = await prisma.board.findMany({ 
         where: whereClause, 
-        orderBy, 
-        select 
+        orderBy,
+        select: { id: true, title: true, pinned: true, theme: true, creatorId: true, isPublic: true, updatedAt: true }
       });
       return NextResponse.json(boards);
     }
@@ -92,20 +106,20 @@ export async function GET(request: Request) {
     // ---- FETCHING A SINGLE BOARD by boardId ----
     let boardWhereConditions: Prisma.BoardWhereInput = { id: boardId };
 
-    if (userId) { // Authenticated user: must be owner, member, or public
+    if (userId) {
       boardWhereConditions = {
         AND: [
           { id: boardId },
           {
             OR: [
-              { userId: userId },
+              { creatorId: userId },
               { members: { some: { userId: userId } } },
               { isPublic: true }
             ]
           }
         ]
       };
-    } else { // Unauthenticated user: must be public
+    } else {
       boardWhereConditions = {
         AND: [
           { id: boardId },
@@ -125,7 +139,16 @@ export async function GET(request: Request) {
               include: { labels: true, attachments: true, comments: true, assignees: true }
             }
           }
-        }
+        },
+        labels: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            boardId: true
+          }
+        }, 
+        members: { include: { user: true } } 
       }
     });
 
@@ -161,7 +184,7 @@ export async function POST(request: Request) {
   });
   // Now create the board linked to that user
   const board = await prisma.board.create({
-    data: { title, userId },
+    data: { title, creatorId: userId },
   });
   return NextResponse.json(board, { status: 201 });
 } 
