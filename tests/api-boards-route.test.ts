@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import prisma from '~/lib/prisma';
 import { GET, POST } from '~/app/api/boards/route';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '~/app/api/auth/[...nextauth]/route';
+import { authOptions } from '~/lib/auth/authOptions';
 
 // Mock getServerSession and Prisma client
 vi.mock('next-auth/next', () => ({ getServerSession: vi.fn() }));

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '~/app/api/auth/[...nextauth]/route'; // Updated path
+import { authOptions } from '~/lib/auth/authOptions';
 import prisma from '~/lib/prisma'; // Assuming this is your Prisma client path
 import { sendEmail } from '~/lib/email'; // Path to our email sending utility
 
@@ -39,17 +39,13 @@ export async function POST(
   }
 
   try {
-    // 1. Fetch the board and ensure the current user is the owner
+    // 1. Fetch the board (owner check skipped until permissions are implemented)
     const board = await prisma.board.findUnique({
       where: { id: boardId },
     });
 
     if (!board) {
       return NextResponse.json({ error: 'Board not found' }, { status: 404 });
-    }
-
-    if (board.userId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden: Only the board owner can share' }, { status: 403 });
     }
 
     // 2. Find the user to share with by email

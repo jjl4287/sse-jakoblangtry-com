@@ -19,6 +19,7 @@ import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import type { Card as CardType, Label as LabelType } from '~/types';
 import type { CardDragItem } from '~/constants/dnd-types';
 import { Badge } from '~/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar';
 import { cn, getContrastingTextColor } from '~/lib/utils';
 
 // Helper function for text color based on background (copied from NewCardSheet)
@@ -216,25 +217,32 @@ export const Card = memo(({
             {/* Display stacked assignee avatars */}
             <div className="flex items-center">
               {cardAssignees.slice(0, 3).map((assignee, idx) => (
-                assignee && assignee.id && (
-                  <span
-                    key={assignee.id}
-                    className={`flex items-center justify-center h-5 w-5 bg-gray-300 dark:bg-gray-600 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300 border-2 border-background dark:border-gray-800`}
-                    style={{ zIndex: cardAssignees.length - idx, marginLeft: idx > 0 ? '-4px' : '0px' }}
-                    title={assignee.name || assignee.email || 'Assignee'}
-                  >
-                    {(assignee.name || assignee.email)?.charAt(0).toUpperCase() || '?'}
-                  </span>
-                )
+                <Avatar
+                  key={assignee.id}
+                  className="h-5 w-5 border-2 border-background dark:border-gray-800"
+                  style={{ zIndex: cardAssignees.length - idx, marginLeft: idx > 0 ? '-4px' : '0px' }}
+                  title={assignee.name || assignee.email || 'Assignee'}
+                >
+                  {assignee.image ? (
+                    <AvatarImage
+                      src={assignee.image}
+                      alt={assignee.name || assignee.email || 'Assignee avatar'}
+                    />
+                  ) : (
+                    <AvatarFallback>
+                      {(assignee.name || assignee.email)?.charAt(0).toUpperCase() || '?'}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
               ))}
               {cardAssignees.length > 3 && (
-                <span
-                  className="flex items-center justify-center h-5 w-5 bg-gray-200 dark:bg-gray-700 rounded-full text-xs font-medium text-gray-600 dark:text-gray-400 border-2 border-background dark:border-gray-800"
+                <Avatar
+                  className="h-5 w-5 bg-gray-200 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 border-2 border-background dark:border-gray-800"
                   style={{ zIndex: 0, marginLeft: '-4px' }}
                   title={`${cardAssignees.length - 3} more assignees`}
                 >
-                  +{cardAssignees.length - 3}
-                </span>
+                  <AvatarFallback>+{cardAssignees.length - 3}</AvatarFallback>
+                </Avatar>
               )}
             </div>
           </div>

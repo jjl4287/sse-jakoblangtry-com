@@ -156,6 +156,10 @@ async function main() {
     }
   }
   console.log("Updated Admin's board cards with labels and assignees.");
+  console.log('Adding adminUser as owner in BoardMembership...');
+  await prisma.boardMembership.create({
+    data: { boardId: adminBoard.id, userId: adminUser.id, role: 'owner' },
+  });
 
   // --- Create Alice's Board ---
   console.log(`Creating board for ${aliceUser.name}...`);
