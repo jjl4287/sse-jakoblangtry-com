@@ -6,15 +6,25 @@ import type { NextRequest } from 'next/server';
 
 // GET /api/cards/[cardId]/comments
 export async function GET(
-  request: NextRequest, // request is not used yet, but good for consistency
-  { params }: { params: { cardId: string } }
+  request: NextRequest, 
+  context: { params: { cardId: string } }
 ) {
+  let cardId: string;
+  try {
+    cardId = context.params.cardId;
+    if (typeof cardId !== 'string') {
+      throw new Error('cardId is not a string or is undefined');
+    }
+  } catch (e: any) {
+    console.error('[API GET /api/cards/[cardId]/comments] Error accessing cardId from params:', e);
+    return NextResponse.json({ error: "Invalid route parameters", message: e.message }, { status: 400 });
+  }
+
   const session = await getServerSession(authOptions);
+
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-
-  const { cardId } = params;
 
   try {
     // First, check if the card exists and if the user has access to the board it belongs to.
@@ -62,14 +72,24 @@ export async function GET(
 // POST /api/cards/[cardId]/comments
 export async function POST(
   request: NextRequest,
-  { params }: { params: { cardId: string } }
+  context: { params: { cardId: string } }
 ) {
+  let cardId: string;
+  try {
+    cardId = context.params.cardId;
+    if (typeof cardId !== 'string') {
+      throw new Error('cardId is not a string or is undefined');
+    }
+  } catch (e: any) {
+    console.error('[API POST /api/cards/[cardId]/comments] Error accessing cardId from params:', e);
+    return NextResponse.json({ error: "Invalid route parameters", message: e.message }, { status: 400 });
+  }
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { cardId } = params;
   const userId = session.user.id;
 
   try {

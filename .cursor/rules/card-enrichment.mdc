@@ -38,7 +38,7 @@ globs: src/app/components/board/CardDetailsSheet.tsx, src/app/api/cards/**/route
         - [x] Display current assignees as badges (currently initials).
         - [x] Multi-select dropdown (Popover + Command) to add/remove users.
         - [x] Bug: Fix `CommandInput` in assignee picker to allow typing for search.
-        - [ ] Enhancement: Display full user avatars (if available, fallback to initials) in assignee picker and badges.
+        - [x] Enhancement: Display full user avatars (if available, fallback to initials) in assignee picker and badges.
       - [x] On change, call `updateCard(card.id, { labelIdsToAdd, labelIdsToRemove, assigneeIdsToAdd, assigneeIdsToRemove })`.
       - [x] UI: Constrain width of inline-editable card title to prevent overflow.
     - [x] Update `BoardContext` or service layer to fetch available labels and assignees.
@@ -52,10 +52,10 @@ globs: src/app/components/board/CardDetailsSheet.tsx, src/app/api/cards/**/route
       - [x] `GET /api/cards/[cardId]/comments` → list comments.
       - [x] `POST /api/cards/[cardId]/comments` → create comment (body: `content`).
     - [x] `GET /api/cards/[cardId]/activity` → list activity logs.
-  - [ ] In existing card update routes, insert `ActivityLog` entries for actions (label added, assignee changed, etc.).
-  - [ ] **Frontend Implementation**
+  - [x] In existing card update routes, insert `ActivityLog` entries for actions (label added, assignee changed, etc.).
+  - [x] **Frontend Implementation**
     - In `CardDetailsSheet.tsx`:
-      - [ ] Build a scrollable feed combining comments and activity logs.
+      - [x] Build a scrollable feed combining comments and activity logs.
         - Comments: user avatar, name, timestamp, and Markdown content.
         - Activity: formatted text (e.g., "User X added label Bug").
       - [ ] At the bottom of the feed, add a Markdown-enabled textarea and a "Comment" button to post new comments.

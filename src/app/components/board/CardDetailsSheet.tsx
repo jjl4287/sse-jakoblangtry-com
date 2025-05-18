@@ -443,7 +443,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                       Activity & Comments
                     </h3>
                     {/* Combined Feed List */}
-                    <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto pr-2">
+                    <div className="space-y-4 mb-6 max-h-[55vh] overflow-y-auto pr-2">
                       {(isLoadingComments || isLoadingActivityLogs) && <p className="text-xs text-muted-foreground">Loading feed...</p>}
                       {!(isLoadingComments || isLoadingActivityLogs) && combinedFeedItems.length === 0 && <p className="text-xs text-muted-foreground">No activity or comments yet.</p>}
                       {combinedFeedItems.map((item) => {
@@ -498,13 +498,22 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                     {/* New Comment Input */}
                     <div className="mt-auto border-t pt-4">
                       <Textarea
-                        placeholder="Add a comment..."
                         value={newCommentContent}
                         onChange={(e) => setNewCommentContent(e.target.value)}
+                        placeholder="Add a comment..."
                         rows={3}
-                        className="mb-2"
+                        className="w-full mb-2"
+                        onKeyDown={(e) => {
+                          if (e.key === ' ' && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+                            e.stopPropagation();
+                          }
+                          if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                            e.preventDefault();
+                            void handlePostComment();
+                          }
+                        }}
                       />
-                      <Button onClick={handlePostComment} disabled={!newCommentContent.trim()}>
+                      <Button onClick={handlePostComment} disabled={!newCommentContent.trim()} size="sm">
                         Comment
                       </Button>
                     </div>

@@ -175,16 +175,49 @@ export async function POST(request: Request) {
   }
   const userId = session.user.id;
   const userName = session.user.name ?? 'Anonymous';
+  const email = session.user.email;
+
   const { title } = await request.json();
+
   // Ensure the user exists (upsert) before creating the board
   await prisma.user.upsert({
     where: { id: userId },
-    create: { id: userId, name: userName },
-    update: { name: userName },
+    create: { 
+      id: userId, 
+      name: userName,
+      email: email,
+    },
+    update: { 
+      name: userName,
+      email: email,
+    },
   });
+
   // Now create the board linked to that user
-  const board = await prisma.board.create({
-    data: { title, creatorId: userId },
+  const newBoard = await prisma.board.create({
+    data: {
+      title,
+      creatorId: userId,
+      members: {
+        create: [
+          {
+            userId: userId,
+            role: 'owner',
+          },
+        ],
+      },
+    },
+    include: {
+      members: {
+        include: {
+          user: true,
+        },
+      },
+    },
   });
-  return NextResponse.json(board, { status: 201 });
+
+  return NextResponse.json(
+    { id: newBoard.id, title: newBoard.title, pinned: newBoard.pinned, creatorId: newBoard.creatorId }, 
+    { status: 201 }
+  );
 } 

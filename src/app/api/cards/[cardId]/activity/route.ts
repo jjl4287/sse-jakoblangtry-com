@@ -5,10 +5,19 @@ import { authOptions } from "~/lib/auth/authOptions";
 
 // GET /api/cards/[cardId]/activity
 export async function GET(
-  request: Request, // request is not used for GET params here, but good to have for consistency
-  { params }: { params: { cardId: string } }
+  request: Request,
+  context: { params: { cardId: string } }
 ) {
-  const { cardId } = params;
+  let cardId: string;
+  try {
+    cardId = context.params.cardId;
+    if (typeof cardId !== 'string') {
+      throw new Error('cardId is not a string or is undefined');
+    }
+  } catch (e: any) {
+    console.error('[API GET /api/cards/[cardId]/activity] Error accessing cardId from params:', e);
+    return NextResponse.json({ error: "Invalid route parameters", message: e.message }, { status: 400 });
+  }
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

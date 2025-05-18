@@ -192,6 +192,16 @@ async function main() {
   });
   console.log(`Created board: ${aliceBoard.title} with columns.`);
 
+  // Add Alice as an owner member for her board
+  console.log(`Adding ${aliceUser.name} as owner for board: ${aliceBoard.title}`);
+  await prisma.boardMembership.create({
+    data: {
+      boardId: aliceBoard.id,
+      userId: aliceUser.id,
+      role: 'owner',
+    },
+  });
+
   // Create cards for Alice's board
   const aliceCardsToDo = [
     {
@@ -310,6 +320,16 @@ async function main() {
     include: { columns: true } 
   });
   console.log(`Created board: ${bobBoard.title} with columns.`);
+
+  // Add Bob as an owner member for his board
+  console.log(`Adding ${bobUser.name} as owner for board: ${bobBoard.title}`);
+  await prisma.boardMembership.create({
+    data: {
+      boardId: bobBoard.id,
+      userId: bobUser.id,
+      role: 'owner',
+    },
+  });
 
   // Create cards for Bob's board
   const bobCardsPending = [
