@@ -6,11 +6,13 @@ import { authOptions } from "~/lib/auth/authOptions";
 // GET /api/cards/[cardId]/activity
 export async function GET(
   request: Request,
-  context: { params: { cardId: string } }
+  context: any
 ) {
   let cardId: string;
   try {
-    cardId = context.params.cardId;
+    // Await params in App Router dynamic API
+    const { cardId: id } = await context.params;
+    cardId = id;
     if (typeof cardId !== 'string') {
       throw new Error('cardId is not a string or is undefined');
     }

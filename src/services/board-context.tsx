@@ -81,6 +81,10 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const { data: session, status: sessionStatus } = useSession();
 
+  // Add caches for comments and activity logs to speed up repeated loads
+  const commentsCache = useRef<Record<string, Comment[]>>({});
+  const activityLogsCache = useRef<Record<string, ActivityLogType[]>>({});
+
   // Fetch or initialize board
   const refreshBoard = useCallback(async () => {
     setLoading(true);
@@ -621,18 +625,23 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // --- Comment Functions ---
   const fetchCommentsForCard = useCallback(async (cardId: string): Promise<Comment[] | void> => {
-    if (!session || !board || board.id === 'demo') {
-      // For demo or no session, comments are only local if already part of the card data
-      const card = board?.columns.flatMap(c => c.cards).find(c => c.id === cardId);
-      return card?.comments || [];
+    // Return cached comments immediately if available
+    if (commentsCache.current[cardId]) {
+      return commentsCache.current[cardId];
     }
-    setSaveStatus('saving'); // Or a new 'loadingComments' status
+    if (!session || !board || board.id === 'demo') {
+      const card = board?.columns.flatMap(c => c.cards).find(c => c.id === cardId);
+      const localComments = card?.comments || [];
+      commentsCache.current[cardId] = localComments;
+      return localComments;
+    }
+    setSaveStatus('saving');
     try {
       const comments = await BoardService.fetchComments(cardId);
-      // Optionally, update local board state if comments aren't already part of the main board fetch
-      // For now, just returning them. The component will manage its own state for comments.
+      const list = comments || [];
+      commentsCache.current[cardId] = list;
       setSaveStatus('idle');
-      return comments;
+      return list;
     } catch (e) {
       setSaveStatus('error');
       setSaveError(e as Error);
@@ -671,6 +680,9 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }));
         return { ...prev, columns: newColumns };
       });
+      // Update cache
+      const prev = commentsCache.current[cardId] || [];
+      commentsCache.current[cardId] = [...prev, newComment];
       return newComment;
     }
 
@@ -706,20 +718,25 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [session, board, updateBoardState]);
 
   const fetchActivityLogsForCard = useCallback(async (cardId: string) => {
+    // Return cached logs if available
+    if (activityLogsCache.current[cardId]) {
+      setActivityLogs(activityLogsCache.current[cardId]);
+      setIsLoadingActivityLogs(false);
+      return;
+    }
     if (!session) {
-      // console.log("No session, can't fetch activity logs");
-      // Potentially set to empty or handle for local/demo mode if needed
-      setActivityLogs([]); 
+      setActivityLogs([]);
       return;
     }
     setIsLoadingActivityLogs(true);
     try {
       const logs = await BoardService.fetchActivityLogs(cardId);
-      setActivityLogs(logs || []);
+      const list = logs || [];
+      activityLogsCache.current[cardId] = list;
+      setActivityLogs(list);
     } catch (e) {
       console.error(`Failed to fetch activity logs for card ${cardId}:`, e);
-      setActivityLogs([]); // Set to empty on error
-      // setError(e as Error); // Or set a specific error state for activity logs
+      setActivityLogs([]);
     } finally {
       setIsLoadingActivityLogs(false);
     }
