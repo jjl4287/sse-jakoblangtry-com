@@ -275,11 +275,16 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   }, [card.id, title, description, priority, dueDate, updateCard, onOpenChange]);
 
   const handleAddAttachment = useCallback(async () => {
-    if (!attachmentUrl.trim()) return;
+    const rawUrl = attachmentUrl.trim();
+    if (!rawUrl) return;
     try {
-      const url = new URL(attachmentUrl.trim());
+      // Ensure URL has protocol; default to https if missing
+      const formattedUrl = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(rawUrl)
+        ? rawUrl
+        : `https://${rawUrl}`;
+      const url = new URL(formattedUrl);
       const name = url.hostname.replace('www.', '') + url.pathname;
-      await addAttachment(card.id, name, attachmentUrl.trim(), url.protocol);
+      await addAttachment(card.id, name, formattedUrl, url.protocol);
       setAttachmentUrl('');
     } catch (error) {
       console.error('Failed to add attachment:', error);

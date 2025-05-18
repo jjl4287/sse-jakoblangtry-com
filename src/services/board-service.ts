@@ -39,9 +39,20 @@ async function saveBoard(boardData: Board): Promise<void> {
 
 // Fetch a single board by ID, or default to first board if no ID provided
 async function fetchBoard(): Promise<Board> {
-  const rawParams = typeof window !== 'undefined' ? window.location.search : '';
-  const params = rawParams.replace('projectId', 'boardId');
-  const url = `${API_ENDPOINT}${params}`;
+  // Determine boardId from URL search or path (for app router /boards/[boardId])
+  let boardIdParam = '';
+  if (typeof window !== 'undefined') {
+    const search = window.location.search;
+    const sp = new URLSearchParams(search.replace('projectId', 'boardId'));
+    boardIdParam = sp.get('boardId') || '';
+    // If no search param, try to extract from pathname (/boards/:boardId)
+    if (!boardIdParam) {
+      const match = window.location.pathname.match(/\/boards\/([^\/]+)/);
+      boardIdParam = match ? match[1] : '';
+    }
+  }
+  const paramString = boardIdParam ? `?boardId=${boardIdParam}` : '';
+  const url = `${API_ENDPOINT}${paramString}`;
   let res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch boards list: ${res.status}`);
@@ -51,9 +62,9 @@ async function fetchBoard(): Promise<Board> {
   if (Array.isArray(data)) {
     if (data.length === 0) throw new Error('No boards available');
     const firstId = data[0].id;
-    // Replace URL param for consistency
-    if (typeof window !== 'undefined') {
-      const sp = new URLSearchParams(window.location.search);
+    // If path-based boardId wasn't set, update URL to use first board
+    if (typeof window !== 'undefined' && !boardIdParam) {
+      const sp = new URLSearchParams();
       sp.set('boardId', firstId);
       window.history.replaceState({}, '', `?${sp.toString()}`);
     }

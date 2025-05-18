@@ -42,8 +42,12 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.sub!;
         // Potentially fetch user from DB here to ensure fresh data if needed
-        // const dbUser = await prisma.user.findUnique({ where: { id: token.sub! } });
-        // if (dbUser) { session.user.name = dbUser.name; session.user.image = dbUser.image; }
+        const dbUser = await prisma.user.findUnique({ where: { id: token.sub! } });
+        if (dbUser) { 
+          session.user.name = dbUser.name; 
+          session.user.image = dbUser.image; 
+          session.user.email = dbUser.email; // Also ensure email is fresh
+        }
       }
       return session;
     },
@@ -52,7 +56,7 @@ export const authOptions: NextAuthOptions = {
         token.sub = user.id;
         token.name = user.name;
         token.email = user.email;
-        // token.picture = user.image; // if image is part of user object from provider
+        token.image = user.image; // Add image to the token
       }
       return token;
     }

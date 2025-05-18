@@ -117,7 +117,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAd
       {...attributes}
       {...listeners}
     >
-      <div className="flex items-center justify-between mb-4 flex-shrink-0 w-full h-7">
+      <div className="flex items-center justify-between flex-shrink-0 mb-1 w-full h-7 px-1">
         <InlineEdit
           value={titleInput}
           onChange={val => setTitleInput(val)}
@@ -173,7 +173,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAd
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto overflow-x-visible min-h-[100px] p-2">
+      <div className="flex-1 overflow-y-auto overflow-x-visible min-h-[50px]">
         <SortableContext 
           items={cardIds}
           strategy={verticalListSortingStrategy}

@@ -12,9 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { MoreHorizontal, Trash2, Copy, Calendar, ArrowUp, ArrowDown, ArrowRight, Paperclip } from 'lucide-react';
+import { MoreHorizontal, Trash2, Copy, Calendar, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { AttachmentPreview } from './AttachmentPreview';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import type { Card as CardType, Label as LabelType } from '~/types';
 import type { CardDragItem } from '~/constants/dnd-types';
@@ -160,14 +159,6 @@ export const Card = memo(({
         )}
 
         <div className="flex-grow p-1">
-          {cardAttachments.length > 0 && (
-            <div className="mb-2">
-              {cardAttachments.map((attachment) => (
-                <AttachmentPreview key={attachment.id} url={attachment.url} />
-              ))}
-            </div>
-          )}
-
           <h3 className="font-semibold text-sm mb-1 text-gray-800 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-[50ms]">{card.title}</h3>
           {card.description && (
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 mb-2 line-clamp-2 h-8">
@@ -206,12 +197,6 @@ export const Card = memo(({
                   +{cardLabels.length - 3}
                 </Badge>
               )}
-              
-              {cardAttachments.length > 0 && (
-                 <span className="flex items-center ">
-                  <Paperclip className="h-3 w-3" />
-                </span>
-              )}
             </div>
 
             {/* Display stacked assignee avatars */}
@@ -219,7 +204,7 @@ export const Card = memo(({
               {cardAssignees.slice(0, 3).map((assignee, idx) => (
                 <Avatar
                   key={assignee.id}
-                  className="h-5 w-5 border-2 border-background dark:border-gray-800"
+                  className="h-5 w-5"
                   style={{ zIndex: cardAssignees.length - idx, marginLeft: idx > 0 ? '-4px' : '0px' }}
                   title={assignee.name || assignee.email || 'Assignee'}
                 >
@@ -237,7 +222,7 @@ export const Card = memo(({
               ))}
               {cardAssignees.length > 3 && (
                 <Avatar
-                  className="h-5 w-5 bg-gray-200 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 border-2 border-background dark:border-gray-800"
+                  className="h-5 w-5 bg-gray-200 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400"
                   style={{ zIndex: 0, marginLeft: '-4px' }}
                   title={`${cardAssignees.length - 3} more assignees`}
                 >

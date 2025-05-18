@@ -28,30 +28,31 @@ globs: src/app/components/board/CardDetailsSheet.tsx, src/app/api/cards/**/route
     - In `CardDetailsSheet.tsx` ([CardDetailsSheet.tsx](mdc:src/app/components/board/CardDetailsSheet.tsx)):
       - [x] Display current labels as colored badges.
       - [~] **Label Picker & Management**
-        - [ ] Bug: Fix `CommandInput` in label picker to allow typing for search.
-        - [ ] UX: Decouple label creation from search. Add "Manage Labels" button/section with:
-            - [ ] Simple form to create new labels (name, color).
-            - [ ] Ability to edit existing board labels (name, color).
-            - [ ] Display all board labels in this management view.
+        - [x] Bug: Fix `CommandInput` in label picker to allow typing for search.
+        - [x] UX: Decouple label creation from search. Add "Manage Labels" button/section with:
+            - [x] Simple form to create new labels (name, color).
+            - [x] Ability to edit existing board labels (name, color).
+            - [x] Display all board labels in this management view.
         - [x] Multi-select existing labels for the card using Popover + Command.
       - [~] **Assignee Picker & Display**
         - [x] Display current assignees as badges (currently initials).
         - [x] Multi-select dropdown (Popover + Command) to add/remove users.
-        - [ ] Bug: Fix `CommandInput` in assignee picker to allow typing for search.
+        - [x] Bug: Fix `CommandInput` in assignee picker to allow typing for search.
         - [ ] Enhancement: Display full user avatars (if available, fallback to initials) in assignee picker and badges.
       - [x] On change, call `updateCard(card.id, { labelIdsToAdd, labelIdsToRemove, assigneeIdsToAdd, assigneeIdsToRemove })`.
-      - [ ] UI: Constrain width of inline-editable card title to prevent overflow.
+      - [x] UI: Constrain width of inline-editable card title to prevent overflow.
     - [x] Update `BoardContext` or service layer to fetch available labels and assignees.
 
 - **Phase 2: Comments & Activity Feed**
-  - [ ] **Database Schema**
-    - [~] Add `Comment` model: `id`, `content`, `cardId`, `userId`, `createdAt`, `updatedAt`. (Confirm `userId` relation and `updatedAt` field).
-    - [ ] Optional: Add `ActivityLog` model: `id`, `cardId`, `userId`, `actionType`, `details`, `createdAt`.
-  - [ ] **API Endpoints**
-    - [ ] Under `src/app/api/cards/[cardId]/comments/route.ts`:
-      - [ ] `GET /api/cards/[cardId]/comments` → list comments.
-      - [ ] `POST /api/cards/[cardId]/comments` → create comment (body: `content`).
-    - [ ] In existing card update routes, insert `ActivityLog` entries for actions (label added, assignee changed, etc.).
+  - [x] **Database Schema**
+    - [x] Add `Comment` model: `id`, `content`, `cardId`, `userId`, `createdAt`, `updatedAt`.
+    - [x] Add `ActivityLog` model: `id`, `actionType`, `details`, `createdAt`, `cardId`, `userId`.
+  - [x] **API Endpoints**
+    - [x] Under `src/app/api/cards/[cardId]/comments/route.ts`:
+      - [x] `GET /api/cards/[cardId]/comments` → list comments.
+      - [x] `POST /api/cards/[cardId]/comments` → create comment (body: `content`).
+    - [x] `GET /api/cards/[cardId]/activity` → list activity logs.
+  - [ ] In existing card update routes, insert `ActivityLog` entries for actions (label added, assignee changed, etc.).
   - [ ] **Frontend Implementation**
     - In `CardDetailsSheet.tsx`:
       - [ ] Build a scrollable feed combining comments and activity logs.
