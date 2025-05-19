@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { XIcon, CalendarIcon, Trash2, Edit3Icon, MessageSquareText, History, Type, Bold, Italic, Link, List, ListOrdered, Quote, Code, CheckSquare, CircleSlash } from 'lucide-react';
+import { XIcon, CalendarIcon, Trash2, Edit3Icon, MessageSquareText, History, Type, CheckSquare, CircleSlash } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Sheet,
@@ -44,8 +44,8 @@ import {
 } from '~/components/ui/command';
 import { PlusCircleIcon, CheckIcon, XIcon as CloseIconLucide } from 'lucide-react';
 import { getContrastingTextColor } from '~/lib/utils';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import Markdown from '~/components/ui/Markdown';
+import MarkdownEditor from '~/components/ui/MarkdownEditor';
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/prefer-nullish-coalescing */
 // Helper function to format activity log entries
@@ -118,7 +118,6 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const cardTitleInputRef = useRef<HTMLInputElement>(null);
-  const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // State for Label Picker
   const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
@@ -148,7 +147,6 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   const [comments, setComments] = useState<CommentType[]>([]);
   const [newCommentContent, setNewCommentContent] = useState('');
   const [isLoadingComments, setIsLoadingComments] = useState(false);
-  const [isPreviewingComment, setIsPreviewingComment] = useState(false); // New state for comment preview
 
   // State for combined feed
   type FeedItem = (CommentType & { itemType: 'comment' }) | (ActivityLogType & { itemType: 'activity' });
@@ -283,9 +281,13 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   }, [card.id, card.title, title, updateCard]);
 
   // Auto-save handlers for inline edits
-  const handleDescriptionBlur = useCallback(async () => {
-    await updateCard(card.id, { description });
-  }, [card.id, description, updateCard]);
+  const handleSaveDescription = async () => {
+    if (description !== card.description) {
+      await updateCard(card.id, { description: description ?? null });
+    }
+    setIsEditingDescription(false);
+  };
+
   const handlePriorityChange = useCallback(async (newPriority: Priority) => {
     setPriority(newPriority);
     await updateCard(card.id, { priority: newPriority });
@@ -379,92 +381,63 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
 
   // --- Comment Logic ---
   const handlePostComment = async () => {
-    if (!newCommentContent.trim() || !createCommentInCard) return;
+    if (!newCommentContent.trim()) return;
     try {
-      const createdComment = await createCommentInCard(card.id, newCommentContent.trim());
-      if (createdComment) {
-        setComments(prevComments => [...prevComments, createdComment]); // Optimistically add to local state
-        setNewCommentContent(''); // Clear textarea
-        setIsPreviewingComment(false); // Switch back to write mode
-      }
+      await createCommentInCard(card.id, newCommentContent);
+      setNewCommentContent('');
     } catch (error) {
       console.error('Failed to post comment:', error);
-      // Optionally, show an error message to the user
     }
   };
   // --- End Comment Logic ---
 
-  // --- Toolbar Button Handlers ---
-  const applyMarkdown = (syntax: 'bold' | 'italic' | 'code' | 'strikethrough' | 'link' | 'quote' | 'ul' | 'ol' | 'task') => {
-    const textarea = commentTextareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = textarea.value.substring(start, end);
-    let newText = '';
-
-    switch (syntax) {
-      case 'bold':
-        newText = `**${selectedText || 'bold text'}**`;
-        break;
-      case 'italic':
-        newText = `*${selectedText || 'italic text'}*`;
-        break;
-      case 'code': // Inline code
-        newText = `\`${selectedText || 'code'}\``;
-        break;
-      // Add more cases for other toolbar buttons (link, quote, lists, etc.)
-      // For link:
-      // const url = prompt("Enter the URL for the link:", "https://");
-      // if (url) newText = `[${selectedText || 'link text'}](${url})`;
-      // else return; // Don't change text if URL prompt is cancelled
-      // For quote:
-      // newText = `> ${selectedText || 'quoted text'}`;
-      // For lists, it's more complex if we want to indent or handle multi-line selections.
-      // Simple approach for now: prepend list marker.
-      case 'ul':
-        newText = `- ${selectedText || 'list item'}`;
-        break;
-      case 'ol':
-        newText = `1. ${selectedText || 'list item'}`;
-        break;
-      default:
-        return;
-    }
-
-    const before = textarea.value.substring(0, start);
-    const after = textarea.value.substring(end);
-    
-    setNewCommentContent(before + newText + after);
-
-    // Adjust cursor position after inserting
-    requestAnimationFrame(() => {
-      textarea.focus();
-      if (selectedText) {
-        textarea.selectionStart = start + newText.length;
-        textarea.selectionEnd = start + newText.length;
-      } else {
-        // If no text was selected, try to place cursor in the middle of the inserted syntax or at the end
-        if (syntax === 'bold') textarea.selectionStart = textarea.selectionEnd = start + 2;
-        else if (syntax === 'italic') textarea.selectionStart = textarea.selectionEnd = start + 1;
-        else if (syntax === 'code') textarea.selectionStart = textarea.selectionEnd = start + 1;
-        else textarea.selectionStart = textarea.selectionEnd = start + newText.length;
-      }
-    });
-  };
+  if (!card) return null; // Should not happen if isOpen is true and card is passed
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <AnimatePresence>
         {isOpen && (
-          <SheetContent asChild side="right" forceMount>
+          <SheetContent 
+            asChild 
+            side="right" 
+            forceMount
+            // Radix Dialog/Sheet manages focus and overlay interaction blocking.
+            // We are adding specific handlers to the content div for dnd-kit.
+          >
             <motion.div
               initial={{ x: '100%', opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: '100%', opacity: 0 }}
               transition={{ duration: 0.15 }}
               className="bg-background fixed inset-y-0 right-0 w-[70%] flex flex-col shadow-lg z-50 isolate"
+              onPointerDownCapture={(e: React.PointerEvent<HTMLDivElement>) => {
+                // Stop all pointer down events within the sheet from propagating further.
+                // This should prevent dnd-kit's PointerSensor from activating on underlying elements.
+                e.stopPropagation();
+              }}
+              onKeyDownCapture={(e: React.KeyboardEvent<HTMLDivElement>) => {
+                const target = e.target as HTMLElement;
+                const isTargetInputOrEditable = target.tagName === 'INPUT' || 
+                                              target.tagName === 'TEXTAREA' || 
+                                              target.isContentEditable;
+
+                // Check for common dnd-kit keyboard activators (Space, Enter)
+                if (e.key === ' ' || e.key === 'Enter') {
+                  if (isTargetInputOrEditable) {
+                    // If the event is on an input/editable field where Space/Enter have meaning (typing, submitting),
+                    // stop propagation to prevent DnD, but allow the default action for the input if needed.
+                    // For Space in an input, it types a space. For Enter, it might submit or add a newline.
+                    // The MarkdownEditor itself should handle Enter for newlines correctly.
+                    e.stopPropagation(); 
+                  } else {
+                    // If not an input (e.g., a button, or the sheet panel itself),
+                    // and Space/Enter is pressed, stop it to prevent potential DnD activation.
+                    // This assumes Space/Enter might be used by KeyboardSensor for dnd-kit.
+                    e.stopPropagation();
+                  }
+                }
+                // For other keys, or if not Space/Enter, allow default behavior within the sheet.
+              }}
             >
               <SheetHeader className="flex-row items-center justify-between border-b">
                 <div className="flex items-center gap-3 min-w-0">
@@ -510,18 +483,43 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                 
                 <div className="col-span-2 flex flex-col overflow-hidden p-4">
                   <div className="flex-1 space-y-4 overflow-y-auto pr-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-foreground/90">Description</h3>
+                      {!isEditingDescription && (
+                        <Button variant="ghost" size="sm" onClick={() => setIsEditingDescription(true)} className="text-sm">
+                          <Edit3Icon className="w-4 h-4 mr-1" /> Edit
+                        </Button>
+                      )}
+                    </div>
                     {isEditingDescription ? (
-                      <Textarea
-                        value={description}
-                        onChange={e => setDescription(e.target.value)}
-                        onBlur={() => { setIsEditingDescription(false); void handleDescriptionBlur(); }}
-                        autoFocus
-                        rows={6}
-                      />
-                    ) : (
-                      <div className="text-sm text-muted-foreground cursor-text prose prose-sm dark:prose-invert max-w-none">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{description ?? '<span class="text-muted-foreground">Add a description</span>'}</ReactMarkdown>
+                      <div className="mt-2">
+                        <MarkdownEditor
+                          value={description ?? ''}
+                          onChange={(value) => setDescription(value ?? '')}
+                          placeholder="Add a more detailed description..."
+                          height={150}
+                        />
+                        <div className="flex justify-end gap-2 mt-2">
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setDescription(card.description); // Reset to original
+                            setIsEditingDescription(false);
+                          }}>Cancel</Button>
+                          <Button size="sm" onClick={handleSaveDescription}>Save</Button>
+                        </div>
                       </div>
+                    ) : (
+                      description ? (
+                        <div className="mt-2 text-foreground/80">
+                          <Markdown content={description} className="prose-sm" />
+                        </div>
+                      ) : (
+                        <div
+                          className="mt-2 text-sm text-muted-foreground italic cursor-pointer hover:text-foreground/70"
+                          onClick={() => setIsEditingDescription(true)}
+                        >
+                          Add a more detailed description...
+                        </div>
+                      )
                     )}
                     <div className="mt-6 text-sm">
                       <h3 className="text-base font-semibold mb-3 flex items-center text-foreground">
@@ -550,8 +548,8 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                                       commented {format(new Date(comment.createdAt), 'MMM d, yyyy h:mm a')}
                                     </span>
                                   </div>
-                                  <div className="text-sm text-foreground whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.content ?? ''}</ReactMarkdown>
+                                  <div className="text-sm text-foreground whitespace-pre-wrap">
+                                    <Markdown content={comment.content} className="prose-sm" />
                                   </div>
                                 </div>
                               </div>
@@ -584,45 +582,13 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   </div>
                   
                   <div className="border-t pt-3 bg-background flex-shrink-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Button variant={!isPreviewingComment ? "secondary" : "ghost"} size="sm" onClick={() => setIsPreviewingComment(false)}>Write</Button>
-                      <Button variant={isPreviewingComment ? "secondary" : "ghost"} size="sm" onClick={() => setIsPreviewingComment(true)}>Preview</Button>
-                    </div>
                     <div className="border rounded-md">
-                      {!isPreviewingComment && (
-                        <div className="p-1.5 border-b flex items-center gap-0.5 flex-wrap">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Bold" onClick={() => applyMarkdown('bold')}><Bold className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Italic" onClick={() => applyMarkdown('italic')}><Italic className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Link" onClick={() => applyMarkdown('link')}><Link className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Quote" onClick={() => applyMarkdown('quote')}><Quote className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Code" onClick={() => applyMarkdown('code')}><Code className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Bulleted List" onClick={() => applyMarkdown('ul')}><List className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Numbered List" onClick={() => applyMarkdown('ol')}><ListOrdered className="h-4 w-4" /></Button>
-                        </div>
-                      )}
-                      {isPreviewingComment ? (
-                        <div className="p-3 min-h-[100px] text-sm prose prose-sm dark:prose-invert max-w-none">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{newCommentContent || 'Nothing to preview.'}</ReactMarkdown>
-                        </div>
-                      ) : (
-                        <Textarea
-                          ref={commentTextareaRef}
-                          value={newCommentContent}
-                          onChange={(e) => setNewCommentContent(e.target.value)}
-                          placeholder="Add a comment..."
-                          rows={4}
-                          className="w-full p-3 border-0 focus-visible:ring-0 resize-none"
-                          onKeyDown={(e) => {
-                            if (e.key === ' ' && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
-                              e.stopPropagation();
-                            }
-                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                              e.preventDefault();
-                              void handlePostComment();
-                            }
-                          }}
-                        />
-                      )}
+                      <MarkdownEditor
+                        value={newCommentContent}
+                        onChange={(value) => setNewCommentContent(value ?? '')}
+                        placeholder="Write a comment..."
+                        height={120}
+                      />
                     </div>
                     <div className="mt-3 flex justify-end">
                       <Button onClick={handlePostComment} disabled={!newCommentContent.trim()} size="sm">

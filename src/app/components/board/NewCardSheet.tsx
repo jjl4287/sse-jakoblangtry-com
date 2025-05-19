@@ -27,6 +27,7 @@ import {
 } from '~/components/ui/command';
 import { Badge } from '~/components/ui/badge';
 import type { Label as LabelType, User as UserType, Priority } from '~/types';
+import MarkdownEditor from '~/components/ui/MarkdownEditor';
 
 interface NewCardSheetProps {
   columnId: string;
@@ -141,11 +142,11 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                     onChange={e => setTitle(e.target.value)}
                     className="text-lg"
                   />
-                  <Textarea
-                    placeholder="Description (optional)"
+                  <MarkdownEditor
                     value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    rows={6}
+                    onChange={(value) => setDescription(value ?? '')}
+                    placeholder="Description (optional)"
+                    height={180}
                   />
                   <div className="space-y-2">
                     {selectedLabelIds.size > 0 && (
