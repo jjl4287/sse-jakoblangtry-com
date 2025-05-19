@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { XIcon, CalendarIcon, Trash2, Edit3Icon, MessageSquareText, History } from 'lucide-react';
+import { XIcon, CalendarIcon, Trash2, Edit3Icon, MessageSquareText, History, Type, Bold, Italic, Link, List, ListOrdered, Quote, Code, CheckSquare, CircleSlash } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Sheet,
@@ -44,6 +44,8 @@ import {
 } from '~/components/ui/command';
 import { PlusCircleIcon, CheckIcon, XIcon as CloseIconLucide } from 'lucide-react';
 import { getContrastingTextColor } from '~/lib/utils';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/prefer-nullish-coalescing */
 // Helper function to format activity log entries
@@ -102,6 +104,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
     activityLogs: rawActivityLogs,
     isLoadingActivityLogs,
     fetchActivityLogsForCard,
+    board,
   } = useBoard();
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description);
@@ -115,6 +118,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const cardTitleInputRef = useRef<HTMLInputElement>(null);
+  const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // State for Label Picker
   const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
@@ -144,10 +148,26 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   const [comments, setComments] = useState<CommentType[]>([]);
   const [newCommentContent, setNewCommentContent] = useState('');
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [isPreviewingComment, setIsPreviewingComment] = useState(false); // New state for comment preview
 
   // State for combined feed
   type FeedItem = (CommentType & { itemType: 'comment' }) | (ActivityLogType & { itemType: 'activity' });
   const [combinedFeedItems, setCombinedFeedItems] = useState<FeedItem[]>([]);
+
+  // Determine card status (Open/Closed)
+  const [isCardClosed, setIsCardClosed] = useState(false);
+  useEffect(() => {
+    if (board && board.columns && card) {
+      const currentColumn = board.columns.find(col => col.id === card.columnId);
+      if (currentColumn) {
+        const isLastColumn = board.columns[board.columns.length - 1]?.id === currentColumn.id;
+        const isClosedColumn = currentColumn.title.toLowerCase().includes('closed');
+        setIsCardClosed(isLastColumn || isClosedColumn);
+      } else {
+        setIsCardClosed(false); // Default to open if column not found
+      }
+    }
+  }, [board, card]);
 
   // When the card changes while the sheet is open, clear previous comments and feed
   useEffect(() => {
@@ -352,9 +372,9 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
     void updateCard(card.id, { assigneeIdsToAdd: idsToAdd, assigneeIdsToRemove: idsToRemove });
   };
 
-  const boardMembers = useBoard().board?.members || [];
+  const boardMembers = useBoard().board?.members ?? [];
   // Display assignees directly from the card prop, assuming it's populated with UserType[]
-  const cardAssigneesToDisplay: UserType[] = card.assignees || [];
+  const cardAssigneesToDisplay: UserType[] = card.assignees ?? [];
   // --- End Assignee Logic ---
 
   // --- Comment Logic ---
@@ -365,6 +385,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
       if (createdComment) {
         setComments(prevComments => [...prevComments, createdComment]); // Optimistically add to local state
         setNewCommentContent(''); // Clear textarea
+        setIsPreviewingComment(false); // Switch back to write mode
       }
     } catch (error) {
       console.error('Failed to post comment:', error);
@@ -373,150 +394,237 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   };
   // --- End Comment Logic ---
 
+  // --- Toolbar Button Handlers ---
+  const applyMarkdown = (syntax: 'bold' | 'italic' | 'code' | 'strikethrough' | 'link' | 'quote' | 'ul' | 'ol' | 'task') => {
+    const textarea = commentTextareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    let newText = '';
+
+    switch (syntax) {
+      case 'bold':
+        newText = `**${selectedText || 'bold text'}**`;
+        break;
+      case 'italic':
+        newText = `*${selectedText || 'italic text'}*`;
+        break;
+      case 'code': // Inline code
+        newText = `\`${selectedText || 'code'}\``;
+        break;
+      // Add more cases for other toolbar buttons (link, quote, lists, etc.)
+      // For link:
+      // const url = prompt("Enter the URL for the link:", "https://");
+      // if (url) newText = `[${selectedText || 'link text'}](${url})`;
+      // else return; // Don't change text if URL prompt is cancelled
+      // For quote:
+      // newText = `> ${selectedText || 'quoted text'}`;
+      // For lists, it's more complex if we want to indent or handle multi-line selections.
+      // Simple approach for now: prepend list marker.
+      case 'ul':
+        newText = `- ${selectedText || 'list item'}`;
+        break;
+      case 'ol':
+        newText = `1. ${selectedText || 'list item'}`;
+        break;
+      default:
+        return;
+    }
+
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+    
+    setNewCommentContent(before + newText + after);
+
+    // Adjust cursor position after inserting
+    requestAnimationFrame(() => {
+      textarea.focus();
+      if (selectedText) {
+        textarea.selectionStart = start + newText.length;
+        textarea.selectionEnd = start + newText.length;
+      } else {
+        // If no text was selected, try to place cursor in the middle of the inserted syntax or at the end
+        if (syntax === 'bold') textarea.selectionStart = textarea.selectionEnd = start + 2;
+        else if (syntax === 'italic') textarea.selectionStart = textarea.selectionEnd = start + 1;
+        else if (syntax === 'code') textarea.selectionStart = textarea.selectionEnd = start + 1;
+        else textarea.selectionStart = textarea.selectionEnd = start + newText.length;
+      }
+    });
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <AnimatePresence>
         {isOpen && (
           <SheetContent asChild side="right" forceMount>
             <motion.div
-              initial={{ x: 50, opacity: 0 }}
+              initial={{ x: '100%', opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 50, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="bg-background fixed inset-y-0 right-0 w-[70%] p-4 flex flex-col shadow-lg z-50 isolate"
+              exit={{ x: '100%', opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="bg-background fixed inset-y-0 right-0 w-[70%] flex flex-col shadow-lg z-50 isolate"
             >
-              {/* Absolute close button top-right */}
-              <SheetClose asChild>
-                <button className="absolute top-4 right-4 p-2 rounded hover:bg-muted/10 z-50">
-                  <XIcon className="h-5 w-5" />
-                </button>
-              </SheetClose>
-              <SheetHeader className="flex items-center justify-start border-b p-2 w-full">
-                <SheetPrimitive.Title className="sr-only">
-                  {title || 'Card Details'} 
-                </SheetPrimitive.Title>
-                <InlineEdit
-                  value={title}
-                  onChange={val => setTitle(val)}
-                  isEditing={isEditingTitle}
-                  onEditStart={() => {
-                    setIsEditingTitle(true);
-                    requestAnimationFrame(() => cardTitleInputRef.current?.select());
-                  }}
-                  onSave={() => {
-                    setIsEditingTitle(false);
-                    void handleTitleSave();
-                  }}
-                  onCancel={() => {
-                    setIsEditingTitle(false);
-                    setTitle(card.title);
-                  }}
-                  placeholder="Card Title"
-                  className="text-2xl font-bold w-full text-left bg-transparent"
-                  ref={cardTitleInputRef}
-                  // inputProps={{
-                  //   autoFocus: false,
-                  //   className: "bg-transparent"
-                  // }}
-                />
-              </SheetHeader>
-
-              <div className="flex-1 overflow-auto mt-4 grid grid-cols-3 gap-6">
-                {/* Left pane */}
-                <div className="col-span-2 space-y-4">
-                  {/* Description: inline editable */}
-                  {isEditingDescription ? (
-                    <Textarea
-                      value={description}
-                      onChange={e => setDescription(e.target.value)}
-                      onBlur={() => { setIsEditingDescription(false); void handleDescriptionBlur(); }}
-                      autoFocus
-                      rows={6}
-                    />
+              <SheetHeader className="flex-row items-center justify-between border-b">
+                <div className="flex items-center gap-3 min-w-0">
+                  <InlineEdit
+                    value={title}
+                    onChange={val => setTitle(val)}
+                    isEditing={isEditingTitle}
+                    onEditStart={() => {
+                      setIsEditingTitle(true);
+                      requestAnimationFrame(() => cardTitleInputRef.current?.select());
+                    }}
+                    onSave={() => {
+                      setIsEditingTitle(false);
+                      void handleTitleSave();
+                    }}
+                    onCancel={() => {
+                      setIsEditingTitle(false);
+                      setTitle(card.title);
+                    }}
+                    placeholder="Card Title"
+                    className="text-xl font-semibold text-left bg-transparent truncate flex-shrink flex-1"
+                    ref={cardTitleInputRef}
+                  />
+                  {isCardClosed ? (
+                    <Badge variant="destructive" className="flex-shrink-0">
+                      <CircleSlash className="h-3 w-3 mr-1" /> Closed
+                    </Badge>
                   ) : (
-                    <div
-                      className="text-sm text-muted-foreground cursor-text"
-                      onDoubleClick={() => setIsEditingDescription(true)}
-                    >
-                      {description || <span className="text-muted-foreground">Add a description</span>}
-                    </div>
+                    <Badge variant="outline" className="border-green-500 text-green-500 flex-shrink-0">
+                      <CheckSquare className="h-3 w-3 mr-1" /> Open
+                    </Badge>
                   )}
-                  <div className="mt-6 text-sm text-muted-foreground">
-                    <h3 className="text-lg font-semibold mb-3 flex items-center">
-                      <MessageSquareText className="h-5 w-5 mr-2" />
-                      Activity & Comments
-                    </h3>
-                    {/* Combined Feed List */}
-                    <div className="space-y-4 mb-6 max-h-[55vh] overflow-y-auto pr-2">
-                      {(isLoadingComments || isLoadingActivityLogs) && <p className="text-xs text-muted-foreground">Loading feed...</p>}
-                      {!(isLoadingComments || isLoadingActivityLogs) && combinedFeedItems.length === 0 && <p className="text-xs text-muted-foreground">No activity or comments yet.</p>}
-                      {combinedFeedItems.map((item) => {
-                        if (item.itemType === 'comment') {
-                          const comment = item; // item is a CommentType
-                          return (
-                            <div key={`comment-${comment.id}`} className="flex items-start space-x-3">
-                              {comment.user?.image ? (
-                                <img src={comment.user.image} alt={comment.user.name || 'User avatar'} className="w-8 h-8 rounded-full" />
-                              ) : (
-                                <span className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">
-                                  {(comment.user?.name || comment.user?.email || 'U').substring(0, 2).toUpperCase()}
-                                </span>
-                              )}
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2">
-                                  <span className="font-semibold text-sm text-foreground">{comment.user?.name || comment.user?.email}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    commented {format(new Date(comment.createdAt), 'MMM d, yyyy h:mm a')}
+                  <SheetTitle className="sr-only">{title ?? 'Card Details'} - {isCardClosed ? 'Closed' : 'Open'}</SheetTitle>
+                </div>
+                <SheetClose asChild className="flex-shrink-0">
+                  <button className="p-1 rounded hover:bg-muted/10">
+                    <XIcon className="h-5 w-5" />
+                  </button>
+                </SheetClose>
+              </SheetHeader>
+              
+              <div className="flex-1 grid grid-cols-3 gap-6 overflow-hidden">
+                
+                <div className="col-span-2 flex flex-col overflow-hidden p-4">
+                  <div className="flex-1 space-y-4 overflow-y-auto pr-2">
+                    {isEditingDescription ? (
+                      <Textarea
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        onBlur={() => { setIsEditingDescription(false); void handleDescriptionBlur(); }}
+                        autoFocus
+                        rows={6}
+                      />
+                    ) : (
+                      <div className="text-sm text-muted-foreground cursor-text prose prose-sm dark:prose-invert max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{description ?? '<span class="text-muted-foreground">Add a description</span>'}</ReactMarkdown>
+                      </div>
+                    )}
+                    <div className="mt-6 text-sm">
+                      <h3 className="text-base font-semibold mb-3 flex items-center text-foreground">
+                        <MessageSquareText className="h-5 w-5 mr-2" />
+                        Activity & Comments
+                      </h3>
+                      <div className="space-y-4 mb-6">
+                        {(isLoadingComments || isLoadingActivityLogs) && <p className="text-xs text-muted-foreground">Loading feed...</p>}
+                        {!(isLoadingComments || isLoadingActivityLogs) && combinedFeedItems.length === 0 && <p className="text-xs text-muted-foreground">No activity or comments yet.</p>}
+                        {combinedFeedItems.map((item) => {
+                          if (item.itemType === 'comment') {
+                            const comment = item;
+                            return (
+                              <div key={`comment-${comment.id}`} className="flex items-start space-x-3">
+                                {comment.user?.image ? (
+                                  <img src={comment.user.image} alt={comment.user.name ?? 'User avatar'} className="w-7 h-7 rounded-full mt-1" />
+                                ) : (
+                                  <span className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-semibold mt-1">
+                                    {(comment.user?.name ?? comment.user?.email ?? 'U').substring(0, 2).toUpperCase()}
+                                  </span>
+                                )}
+                                <div className="flex-1 bg-muted/30 p-3 rounded-lg border border-muted/50">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <span className="font-semibold text-sm text-foreground">{comment.user?.name ?? comment.user?.email}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      commented {format(new Date(comment.createdAt), 'MMM d, yyyy h:mm a')}
+                                    </span>
+                                  </div>
+                                  <div className="text-sm text-foreground whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.content ?? ''}</ReactMarkdown>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          } else if (item.itemType === 'activity') {
+                            const activity = item;
+                            return (
+                              <div key={`activity-${activity.id}`} className="flex items-start space-x-3 text-xs py-1">
+                                 {activity.user?.image ? (
+                                  <img src={activity.user.image} alt={activity.user.name ?? 'User avatar'} className="w-7 h-7 rounded-full" />
+                                ) : (
+                                  <span className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold">
+                                    {(activity.user?.name ?? activity.user?.email ?? 'S').substring(0, 1).toUpperCase()}
+                                  </span>
+                                )}
+                                <div className="flex-1 pt-1 text-muted-foreground">
+                                  <span className="font-semibold">{activity.user?.name ?? activity.user?.email ?? 'System'}</span>
+                                  <span> {formatActivity(activity)} </span>
+                                  <span className="opacity-80 ml-1">
+                                    ({format(new Date(activity.createdAt), 'MMM d, h:mm a')})
                                   </span>
                                 </div>
-                                <p className="text-sm text-foreground whitespace-pre-wrap">{comment.content}</p>
                               </div>
-                            </div>
-                          );
-                        } else if (item.itemType === 'activity') {
-                          const activity = item; // item is an ActivityLogType
-                          // Basic display for activity, to be enhanced with a formatter function
-                          return (
-                            <div key={`activity-${activity.id}`} className="flex items-start space-x-3 text-xs">
-                               {activity.user?.image ? (
-                                <img src={activity.user.image} alt={activity.user.name || 'User avatar'} className="w-6 h-6 rounded-full" />
-                              ) : (
-                                <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold">
-                                  {(activity.user?.name || activity.user?.email || 'S').substring(0, 1).toUpperCase()}
-                                </span>
-                              )}
-                              <div className="flex-1 pt-1">
-                                <span className="font-semibold text-muted-foreground">{activity.user?.name || activity.user?.email || 'System'}</span>
-                                <span className="text-muted-foreground"> {formatActivity(activity)} </span>
-                                <span className="text-muted-foreground/80 ml-1">
-                                  ({format(new Date(activity.createdAt), 'MMM d, h:mm a')})
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })}
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
                     </div>
-
-                    {/* New Comment Input */}
-                    <div className="mt-auto border-t pt-4">
-                      <Textarea
-                        value={newCommentContent}
-                        onChange={(e) => setNewCommentContent(e.target.value)}
-                        placeholder="Add a comment..."
-                        rows={3}
-                        className="w-full mb-2"
-                        onKeyDown={(e) => {
-                          if (e.key === ' ' && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
-                            e.stopPropagation();
-                          }
-                          if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                            e.preventDefault();
-                            void handlePostComment();
-                          }
-                        }}
-                      />
+                  </div>
+                  
+                  <div className="border-t pt-3 bg-background flex-shrink-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Button variant={!isPreviewingComment ? "secondary" : "ghost"} size="sm" onClick={() => setIsPreviewingComment(false)}>Write</Button>
+                      <Button variant={isPreviewingComment ? "secondary" : "ghost"} size="sm" onClick={() => setIsPreviewingComment(true)}>Preview</Button>
+                    </div>
+                    <div className="border rounded-md">
+                      {!isPreviewingComment && (
+                        <div className="p-1.5 border-b flex items-center gap-0.5 flex-wrap">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Bold" onClick={() => applyMarkdown('bold')}><Bold className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Italic" onClick={() => applyMarkdown('italic')}><Italic className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Link" onClick={() => applyMarkdown('link')}><Link className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Quote" onClick={() => applyMarkdown('quote')}><Quote className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Code" onClick={() => applyMarkdown('code')}><Code className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Bulleted List" onClick={() => applyMarkdown('ul')}><List className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Numbered List" onClick={() => applyMarkdown('ol')}><ListOrdered className="h-4 w-4" /></Button>
+                        </div>
+                      )}
+                      {isPreviewingComment ? (
+                        <div className="p-3 min-h-[100px] text-sm prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{newCommentContent || 'Nothing to preview.'}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <Textarea
+                          ref={commentTextareaRef}
+                          value={newCommentContent}
+                          onChange={(e) => setNewCommentContent(e.target.value)}
+                          placeholder="Add a comment..."
+                          rows={4}
+                          className="w-full p-3 border-0 focus-visible:ring-0 resize-none"
+                          onKeyDown={(e) => {
+                            if (e.key === ' ' && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+                              e.stopPropagation();
+                            }
+                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                              e.preventDefault();
+                              void handlePostComment();
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                    <div className="mt-3 flex justify-end">
                       <Button onClick={handlePostComment} disabled={!newCommentContent.trim()} size="sm">
                         Comment
                       </Button>
@@ -524,9 +632,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   </div>
                 </div>
 
-                {/* Right pane */}
-                <div className="col-span-1 space-y-6">
-                  {/* Priority */}
+                <div className="col-span-1 space-y-6 overflow-y-auto p-4">
                   <div>
                     <h3 className="text-sm font-semibold mb-1">Priority</h3>
                     <Select value={priority} onValueChange={handlePriorityChange}>
@@ -541,7 +647,6 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                     </Select>
                   </div>
 
-                  {/* Due Date */}
                   <div>
                     <h3 className="text-sm font-semibold mb-1">Due Date</h3>
                     <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -573,7 +678,6 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                     </Popover>
                   </div>
 
-                  {/* Labels Section */}
                   <div>
                     <h3 className="text-sm font-semibold mb-2 flex justify-between items-center">
                       Labels
@@ -751,7 +855,6 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                     </div>
                   </div>
 
-                  {/* Assignees Section */}
                   <div className="mb-4">
                     <div className="flex justify-between items-center mb-2">
                       <h4 className="font-semibold text-sm">Assignees</h4>
@@ -766,7 +869,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                           align="start"
                           onPointerDownOutside={(event) => {
                             const target = event.target as HTMLElement;
-                            if (target.closest('[aria-controls="radix-"]')) { // Heuristic for trigger
+                            if (target.closest('[aria-controls="radix-"]')) {
                               event.preventDefault();
                             }
                           }}
@@ -785,6 +888,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                                     (member) =>
                                       member.user && (
                                       !assigneeSearchText ||
+                                      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
                                       member.user.name?.toLowerCase().includes(assigneeSearchText.toLowerCase()) ||
                                       member.user.email?.toLowerCase().includes(assigneeSearchText.toLowerCase())
                                       )
@@ -792,19 +896,19 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                                   .map((member) => (
                                     <CommandItem
                                       key={member.user.id}
-                                      value={member.user.name || member.user.email || member.user.id} // Value for search/filter
+                                      value={member.user.name ?? member.user.email ?? member.user.id}
                                       onSelect={() => handleToggleAssignee(member.user.id)}
                                       className="cursor-pointer flex justify-between items-center"
                                     >
                                       <div className="flex items-center">
                                         {member.user.image ? (
-                                          <img src={member.user.image} alt={member.user.name || member.user.email || 'User avatar'} className="w-6 h-6 rounded-full mr-2" />
+                                          <img src={member.user.image} alt={member.user.name ?? member.user.email ?? 'User avatar'} className="w-6 h-6 rounded-full mr-2" />
                                         ) : (
                                           <span className="w-6 h-6 rounded-full mr-2 bg-muted flex items-center justify-center text-xs">
-                                            {(member.user.name || member.user.email || 'U').substring(0, 2).toUpperCase()}
+                                            {(member.user.name ?? member.user.email ?? 'U').substring(0, 2).toUpperCase()}
                                           </span>
                                         )}
-                                        {member.user.name || member.user.email}
+                                        {member.user.name ?? member.user.email}
                                       </div>
                                       {currentCardAssigneeIds.has(member.user.id) && (
                                         <CheckIcon className="ml-2 h-4 w-4" />
@@ -822,13 +926,13 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                         {cardAssigneesToDisplay.map((assignee) => (
                           <Badge key={assignee.id} variant="secondary" className="flex items-center gap-1 pr-1">
                             {assignee.image ? (
-                              <img src={assignee.image} alt={assignee.name || assignee.email || 'User avatar'} className="w-4 h-4 rounded-full" />
+                              <img src={assignee.image} alt={assignee.name ?? assignee.email ?? 'User avatar'} className="w-4 h-4 rounded-full" />
                             ) : (
                               <span className="w-4 h-4 rounded-full bg-muted flex items-center justify-center text-xs">
-                                {(assignee.name || assignee.email || 'U').substring(0, 1).toUpperCase()}
+                                {(assignee.name ?? assignee.email ?? 'U').substring(0, 1).toUpperCase()}
                               </span>
                             )}
-                            <span className="ml-1">{assignee.name || assignee.email}</span>
+                            <span className="ml-1">{assignee.name ?? assignee.email}</span>
                             <button
                               onClick={() => handleToggleAssignee(assignee.id)}
                               className="ml-1 opacity-75 hover:opacity-100 p-0.5 rounded-full hover:bg-muted-foreground/20"
@@ -843,7 +947,6 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                     )}
                   </div>
 
-                  {/* Attachments */}
                   <div>
                     <h3 className="text-sm font-semibold mb-1">Attachments</h3>
                     <div className="space-y-2">
@@ -872,8 +975,6 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   </div>
                 </div>
               </div>
-
-              {/* End of content (footer removed) */}
             </motion.div>
           </SheetContent>
         )}
