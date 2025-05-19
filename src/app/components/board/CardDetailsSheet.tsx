@@ -648,61 +648,9 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                     <h3 className="text-sm font-semibold mb-2 flex justify-between items-center">
                       Labels
                       <div className="flex items-center">
-                        <Popover open={isLabelPickerOpen} onOpenChange={setIsLabelPickerOpen} modal={true}>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="sm" title="Add label to card">
-                              <PlusCircleIcon className="h-4 w-4" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent portalled={false} 
-                            className="w-[250px] p-0" 
-                            align="start"
-                            onPointerDownOutside={(event) => {
-                              // Prevent closing if the click is on the trigger button itself
-                              // This can happen if the trigger is part of what's considered "outside"
-                              const target = event.target as HTMLElement;
-                              if (target.closest('[aria-controls="radix-"]')) { // Heuristic for trigger
-                                event.preventDefault();
-                              }
-                            }}
-                          >
-                            <Command>
-                              <CommandInput 
-                                placeholder="Search or create label..." 
-                                value={labelSearchText}
-                                onValueChange={setLabelSearchText}
-                              />
-                              <CommandList>
-                                <CommandEmpty>
-                                  {showNewLabelForm ? '' : (labelSearchText.length > 0 ? 'No labels found.' : 'Type to search or create.')}
-                                </CommandEmpty>
-                                <CommandGroup>
-                                  {availableBoardLabels
-                                    .filter(label => label.name.toLowerCase().includes(labelSearchText.toLowerCase()))
-                                    .map((label) => (
-                                      <CommandItem
-                                        key={label.id}
-                                        value={label.name}
-                                        onSelect={() => {
-                                          handleToggleLabel(label.id);
-                                          // Consider closing popover or not based on UX preference
-                                          // setIsLabelPickerOpen(false);
-                                        }}
-                                        className="flex justify-between items-center"
-                                      >
-                                        <span style={{ backgroundColor: label.color }} className="inline-block w-3 h-3 rounded-sm mr-2"></span>
-                                        {label.name}
-                                        {currentCardLabelIds.has(label.id) && <CheckIcon className="h-4 w-4 ml-auto" />}
-                                      </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
                         <Popover open={isManageLabelsOpen} onOpenChange={setIsManageLabelsOpen} modal={true}>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="ml-2" title="Manage board labels">
+                            <Button variant="outline" size="sm" title="Manage board labels">
                               Manage
                             </Button>
                           </PopoverTrigger>
@@ -739,7 +687,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                                         </Button>
                                         <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" title="Delete label" onClick={async (e) => { 
                                           e.stopPropagation(); 
-                                          if (window.confirm(`Are you sure you want to delete label "${label.name}"? This will remove it from all cards.`)) {
+                                          if (window.confirm(`Are you sure you want to delete label \"${label.name}\"? This will remove it from all cards.`)) {
                                             await deleteBoardLabel(label.id);
                                             // If this was the label being edited, reset the edit form
                                             if (editingLabel?.id === label.id) {
@@ -798,6 +746,58 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                                       )}
                                     </div>
                                   </div>
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <Popover open={isLabelPickerOpen} onOpenChange={setIsLabelPickerOpen} modal={true}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="sm" className="ml-2" title="Add label to card">
+                              <PlusCircleIcon className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent portalled={false} 
+                            className="w-[250px] p-0" 
+                            align="start"
+                            onPointerDownOutside={(event) => {
+                              // Prevent closing if the click is on the trigger button itself
+                              // This can happen if the trigger is part of what's considered "outside"
+                              const target = event.target as HTMLElement;
+                              if (target.closest('[aria-controls="radix-"]')) { // Heuristic for trigger
+                                event.preventDefault();
+                              }
+                            }}
+                          >
+                            <Command>
+                              <CommandInput 
+                                placeholder="Search or create label..." 
+                                value={labelSearchText}
+                                onValueChange={setLabelSearchText}
+                              />
+                              <CommandList>
+                                <CommandEmpty>
+                                  {showNewLabelForm ? '' : (labelSearchText.length > 0 ? 'No labels found.' : 'Type to search or create.')}
+                                </CommandEmpty>
+                                <CommandGroup>
+                                  {availableBoardLabels
+                                    .filter(label => label.name.toLowerCase().includes(labelSearchText.toLowerCase()))
+                                    .map((label) => (
+                                      <CommandItem
+                                        key={label.id}
+                                        value={label.name}
+                                        onSelect={() => {
+                                          handleToggleLabel(label.id);
+                                          // Consider closing popover or not based on UX preference
+                                          // setIsLabelPickerOpen(false);
+                                        }}
+                                        className="flex justify-between items-center"
+                                      >
+                                        <span style={{ backgroundColor: label.color }} className="inline-block w-3 h-3 rounded-sm mr-2"></span>
+                                        {label.name}
+                                        {currentCardLabelIds.has(label.id) && <CheckIcon className="h-4 w-4 ml-auto" />}
+                                      </CommandItem>
+                                    ))}
                                 </CommandGroup>
                               </CommandList>
                             </Command>
