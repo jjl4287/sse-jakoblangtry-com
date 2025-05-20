@@ -145,7 +145,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAd
           ref={columnInputRef}
           inputProps={{
             onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-              if (!isEditingTitle) e.stopPropagation();
+              e.stopPropagation();
             }
           }}
           placeholder="Column Title"

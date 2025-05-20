@@ -1,5 +1,5 @@
 import React, { ReactNode, useRef } from 'react';
-import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
+import { useMousePositionStyle } from '@/hooks/useMousePositionStyle';
 import './HoverGlowWrapper.css';
 
 interface HoverGlowWrapperProps {

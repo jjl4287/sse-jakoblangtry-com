@@ -20,11 +20,11 @@ import { Textarea } from '~/components/ui/textarea';
 import { InlineEdit } from '~/components/ui/InlineEdit';
 import {
   Select,
-  SelectTrigger,
   SelectContent,
-  SelectValue,
   SelectItem,
-} from '~/components/ui/select';
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { Calendar } from '~/components/ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '~/components/ui/popover';
 import { Button } from '~/components/ui/button';
@@ -417,26 +417,14 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
               }}
               onKeyDownCapture={(e: React.KeyboardEvent<HTMLDivElement>) => {
                 const target = e.target as HTMLElement;
-                const isTargetInputOrEditable = target.tagName === 'INPUT' || 
-                                              target.tagName === 'TEXTAREA' || 
-                                              target.isContentEditable;
-
-                // Check for common dnd-kit keyboard activators (Space, Enter)
-                if (e.key === ' ' || e.key === 'Enter') {
-                  if (isTargetInputOrEditable) {
-                    // If the event is on an input/editable field where Space/Enter have meaning (typing, submitting),
-                    // stop propagation to prevent DnD, but allow the default action for the input if needed.
-                    // For Space in an input, it types a space. For Enter, it might submit or add a newline.
-                    // The MarkdownEditor itself should handle Enter for newlines correctly.
-                    e.stopPropagation(); 
-                  } else {
-                    // If not an input (e.g., a button, or the sheet panel itself),
-                    // and Space/Enter is pressed, stop it to prevent potential DnD activation.
-                    // This assumes Space/Enter might be used by KeyboardSensor for dnd-kit.
-                    e.stopPropagation();
-                  }
+                // Allow Enter to reach the card title input when editing
+                if (e.key === 'Enter' && isEditingTitle && target === cardTitleInputRef.current) {
+                  return;
                 }
-                // For other keys, or if not Space/Enter, allow default behavior within the sheet.
+                // Stop propagation for Space or Enter elsewhere to prevent DnD activation
+                if (e.key === ' ' || e.key === 'Enter') {
+                  e.stopPropagation();
+                }
               }}
             >
               <SheetHeader className="flex-row items-center justify-between border-b">
@@ -588,6 +576,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                         onChange={(value) => setNewCommentContent(value ?? '')}
                         placeholder="Write a comment..."
                         height={120}
+                        theme="dark"
                       />
                     </div>
                     <div className="mt-3 flex justify-end">

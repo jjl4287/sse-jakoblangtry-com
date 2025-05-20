@@ -151,7 +151,7 @@ export async function PATCH(
           actionType: "ADD_LABEL_TO_CARD",
           cardId,
           userId,
-          details: { labelId, labelName: label?.name || 'Unknown Label' },
+          details: { labelId, labelName: label?.name ?? 'Unknown Label' },
         });
       }
     }
@@ -162,7 +162,7 @@ export async function PATCH(
           actionType: "REMOVE_LABEL_FROM_CARD",
           cardId,
           userId,
-          details: { labelId, labelName: label?.name || 'Unknown Label' },
+          details: { labelId, labelName: label?.name ?? 'Unknown Label' },
         });
       }
     }
@@ -174,7 +174,7 @@ export async function PATCH(
           actionType: "ADD_ASSIGNEE_TO_CARD",
           cardId,
           userId,
-          details: { assigneeId, assigneeName: assignee?.name || assignee?.email || 'Unknown User' },
+          details: { assigneeId, assigneeName: assignee?.name ?? assignee?.email ?? 'Unknown User' },
         });
       }
     }
@@ -185,7 +185,7 @@ export async function PATCH(
           actionType: "REMOVE_ASSIGNEE_FROM_CARD",
           cardId,
           userId,
-          details: { assigneeId, assigneeName: assignee?.name || assignee?.email || 'Unknown User' },
+          details: { assigneeId, assigneeName: assignee?.name ?? assignee?.email ?? 'Unknown User' },
         });
       }
     }
@@ -243,7 +243,7 @@ export async function DELETE(
         cardId, // cardId itself is the main info, as the card record is gone
         userId,
         details: {
-          title: cardToDelete.title || 'Untitled Card',
+          title: cardToDelete.title ?? 'Untitled Card',
         }
       }
     });

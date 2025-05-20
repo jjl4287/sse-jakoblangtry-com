@@ -37,7 +37,7 @@ interface NewCardSheetProps {
 
 export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, onOpenChange }) => {
   const { createCard, boardLabels, board } = useBoard();
-  const boardMembers = board?.members || [];
+  const boardMembers = board?.members ?? [];
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -75,7 +75,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
 
   const handleSubmit = () => {
     if (!title.trim()) return;
-    createCard(columnId, { 
+    void createCard(columnId, { 
       title, 
       description, 
       priority, 
@@ -107,7 +107,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
     setSelectedAssigneeIds(newSelectedIds);
   };
   
-  const availableBoardLabels = boardLabels || [];
+  const availableBoardLabels = boardLabels ?? [];
 
   return (
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
@@ -147,6 +147,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                     onChange={(value) => setDescription(value ?? '')}
                     placeholder="Description (optional)"
                     height={180}
+                    theme="dark"
                   />
                   <div className="space-y-2">
                     {selectedLabelIds.size > 0 && (
@@ -165,8 +166,8 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                                 const member = boardMembers.find(m => m.user.id === id);
                                 return member ? (
                                     <Badge key={id} variant="secondary" className="flex items-center gap-1">
-                                        {member.user.image ? <img src={member.user.image} alt={member.user.name || ''} className="w-3 h-3 rounded-full" /> : <UsersIcon className="w-3 h-3" />}
-                                        {member.user.name || member.user.email}
+                                        {member.user.image ? <img src={member.user.image} alt={member.user.name ?? ''} className="w-3 h-3 rounded-full" /> : <UsersIcon className="w-3 h-3" />}
+                                        {member.user.name ?? member.user.email}
                                     </Badge>
                                 ) : null;
                             })}
@@ -206,7 +207,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                           mode="single"
                           selected={dueDate}
                           onSelect={(date) => {
-                            setDueDate(date || undefined);
+                            setDueDate(date ?? undefined);
                             setCalendarOpen(false);
                           }}
                           initialFocus
@@ -261,6 +262,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                                     <CommandEmpty>No users found.</CommandEmpty>
                                     <CommandGroup>
                                         {boardMembers
+                                            /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
                                             .filter(member => 
                                                 member.user && (
                                                     !assigneeSearchText ||
@@ -268,22 +270,23 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                                                     member.user.email?.toLowerCase().includes(assigneeSearchText.toLowerCase())
                                                 )
                                             )
+                                            /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
                                             .map((member) => (
                                             <CommandItem
                                                 key={member.user.id}
-                                                value={member.user.name || member.user.email || member.user.id}
+                                                value={member.user.name ?? member.user.email ?? member.user.id}
                                                 onSelect={() => handleToggleAssignee(member.user.id)}
                                                 className="flex justify-between items-center"
                                             >
                                                 <div className="flex items-center">
                                                     {member.user.image ? (
-                                                        <img src={member.user.image} alt={member.user.name || ''} className="w-5 h-5 rounded-full mr-2" />
+                                                        <img src={member.user.image} alt={member.user.name ?? ''} className="w-5 h-5 rounded-full mr-2" />
                                                     ) : (
                                                         <span className="w-5 h-5 rounded-full mr-2 bg-muted flex items-center justify-center text-xs">
-                                                            {(member.user.name || member.user.email || 'U').substring(0, 2).toUpperCase()}
+                                                            {(member.user.name ?? member.user.email ?? 'U').substring(0, 2).toUpperCase()}
                                                         </span>
                                                     )}
-                                                    {member.user.name || member.user.email}
+                                                    {member.user.name ?? member.user.email}
                                                 </div>
                                                 {selectedAssigneeIds.has(member.user.id) && <CheckIcon className="h-4 w-4 ml-auto" />}
                                             </CommandItem>

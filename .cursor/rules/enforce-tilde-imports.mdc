@@ -1,0 +1,20 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- **Path Alias Convention: Use `~/`**
+  - All internal imports within the `src` directory that use a path alias MUST start with `~/`.
+  - The `~/` alias points to the `src` directory.
+  - **Example:**
+    ```typescript
+    // ✅ DO: Use ~/ for imports from the src directory
+    import { MyComponent } from '~/components/MyComponent';
+    import { myUtil } from '~/lib/utils';
+
+    // ❌ DON'T: Use @/ for imports
+    // import { MyComponent } from '@/components/MyComponent';
+    ```
+- **Reasoning:**
+  - This rule ensures consistency in import paths across the project.
+  - It aligns with the project's `tsconfig.json` which should define `~/*` as `src/*`.

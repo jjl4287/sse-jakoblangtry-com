@@ -5,6 +5,8 @@ import { Search, UserPlus } from 'lucide-react';
 import { Input } from '~/components/ui/input';
 import { Sun, Moon } from 'lucide-react';
 import { Button } from '~/components/ui/button';
+import { useTheme } from '~/app/contexts/ThemeContext';
+import { useBoard } from '~/services/board-context';
 
 export interface BoardHeaderProps {
   title: string;

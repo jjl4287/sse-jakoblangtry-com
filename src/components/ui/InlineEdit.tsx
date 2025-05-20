@@ -42,6 +42,8 @@ export const InlineEdit = forwardRef<HTMLInputElement, InlineEditProps>((
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
       e.currentTarget.blur();
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -51,6 +53,13 @@ export const InlineEdit = forwardRef<HTMLInputElement, InlineEditProps>((
     }
   };
 
+  // Separate user-provided props to avoid override
+  const {
+    onKeyDown: userOnKeyDown,
+    className: userClassName,
+    ...restInputProps
+  } = inputProps ?? {};
+
   const commonBehaviorClasses = 'border-b-2 border-transparent transition-colors duration-200 ease-in-out';
   const inputSpecificClasses = 'focus:border-foreground focus:outline-none';
   const displaySpecificClasses = 'hover:border-foreground cursor-text';
@@ -58,17 +67,18 @@ export const InlineEdit = forwardRef<HTMLInputElement, InlineEditProps>((
   if (isEditing) {
     return (
       <input
+        // Spread other props first so event handlers below are not overridden
+        {...restInputProps}
         ref={ref}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={handleBlur}
         onKeyDown={(e) => {
           handleKeyDown(e);
-          inputProps?.onKeyDown?.(e);
+          userOnKeyDown?.(e);
         }}
         placeholder={placeholder}
-        className={cn(commonBehaviorClasses, inputSpecificClasses, className, inputProps?.className)}
-        {...inputProps}
+        className={cn(commonBehaviorClasses, inputSpecificClasses, className, userClassName)}
       />
     );
   }

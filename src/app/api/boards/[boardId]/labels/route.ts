@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from '~/lib/auth/authOptions';
 import prisma from '~/lib/prisma';
-import type { Label } from '@prisma/client';
+import type { Label } from '~prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 interface LabelPostBody {

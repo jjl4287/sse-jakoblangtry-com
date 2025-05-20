@@ -69,7 +69,7 @@ export const Board: React.FC<BoardProps> = ({ focusEditTitleBoardId, clearFocusE
     if (board?.title && headerTitle !== board.title) { // Only update if different to avoid re-renders
       setHeaderTitle(board.title);
     }
-  }, [board?.title, headerTitle]); // Add headerTitle to dependencies
+  }, [board?.title]);
 
   // If external focus request matches this board, enter edit mode
   useEffect(() => {
