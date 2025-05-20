@@ -60,9 +60,10 @@ export const InlineEdit = forwardRef<HTMLInputElement, InlineEditProps>((
     ...restInputProps
   } = inputProps ?? {};
 
-  const commonBehaviorClasses = 'border-b-2 border-transparent transition-colors duration-200 ease-in-out';
-  const inputSpecificClasses = 'focus:border-foreground focus:outline-none';
-  const displaySpecificClasses = 'hover:border-foreground cursor-text';
+  // Use box-shadow for underline (inset) so it doesn't affect layout height
+  const commonBehaviorClasses = 'transition-shadow duration-200 ease-in-out';
+  const inputSpecificClasses = 'focus:shadow-[inset_0_-2px_0_0_currentColor] focus:outline-none';
+  const displaySpecificClasses = 'hover:shadow-[inset_0_-2px_0_0_currentColor] cursor-text';
 
   if (isEditing) {
     return (
@@ -78,7 +79,7 @@ export const InlineEdit = forwardRef<HTMLInputElement, InlineEditProps>((
           userOnKeyDown?.(e);
         }}
         placeholder={placeholder}
-        className={cn(commonBehaviorClasses, inputSpecificClasses, className, userClassName)}
+        className={cn(className, userClassName, commonBehaviorClasses, inputSpecificClasses)}
       />
     );
   }
@@ -86,7 +87,7 @@ export const InlineEdit = forwardRef<HTMLInputElement, InlineEditProps>((
   return (
     <span
       onDoubleClick={onEditStart}
-      className={cn(commonBehaviorClasses, displaySpecificClasses, className)}
+      className={cn(className, commonBehaviorClasses, displaySpecificClasses)}
     >
       {value || placeholder}
     </span>
