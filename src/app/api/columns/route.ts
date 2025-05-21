@@ -1,12 +1,22 @@
 import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
+
+const ColumnCreateSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  width: z.number().min(1, 'Width must be a positive number'),
+});
 
 // POST /api/columns
 export async function POST(request: NextRequest) {
   try {
-    // Read title and width
-    const { title, width } = (await request.json()) as { title: string; width: number };
+    // Validate request body
+    const parsed = ColumnCreateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
+    }
+    const { title, width } = parsed.data;
     // Determine board from query param or fallback
     const boardId = request.nextUrl.searchParams.get('boardId');
     let board = boardId

@@ -2,13 +2,16 @@ import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "~/lib/auth/authOptions";
+import { z } from 'zod';
+
+const CardMoveSchema = z.object({ targetColumnId: z.string().min(1), order: z.number().int().nonnegative() });
 
 // POST /api/cards/[cardId]/move
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ cardId: string }> }
+  { params }: { params: { cardId: string } }
 ) {
-  const { cardId } = await params;
+  const { cardId } = params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -18,10 +21,11 @@ export async function POST(
 
   try {
     // Parse request body once
-    const { targetColumnId, order: newOrder } = await request.json() as {
-      targetColumnId: string;
-      order: number;
-    };
+    const parsed = CardMoveSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
+    }
+    const { targetColumnId, order: newOrder } = parsed.data;
 
     // Retry on transaction conflicts
     const MAX_RETRIES = 5;
@@ -93,9 +97,9 @@ export async function POST(
                 details: {
                   cardTitle: originalCard.title,
                   oldColumnId,
-                  oldColumnName: oldColumn?.title || 'Unknown Column',
+                  oldColumnName: oldColumn?.title ?? 'Unknown Column',
                   newColumnId: targetColumnId,
-                  newColumnName: newColumn?.title || 'Unknown Column',
+                  newColumnName: newColumn?.title ?? 'Unknown Column',
                   oldOrder: oldOrder,
                   newOrder: newOrder,
                 }
@@ -120,8 +124,9 @@ export async function POST(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[API POST /api/cards/${cardId}/move] Error:`, error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to move card';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 } 

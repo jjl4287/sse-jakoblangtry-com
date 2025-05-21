@@ -3,24 +3,14 @@ import prisma from '~/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
 
 // GET /api/cards/[cardId]/comments
 export async function GET(
   request: NextRequest,
-  context: any
+  { params }: { params: { cardId: string } }
 ) {
-  let cardId: string;
-  try {
-    // Await params in App Router dynamic API
-    const { cardId: id } = await context.params;
-    cardId = id;
-    if (typeof cardId !== 'string') {
-      throw new Error('cardId is not a string or is undefined');
-    }
-  } catch (e: any) {
-    console.error('[API GET /api/cards/[cardId]/comments] Error accessing cardId from params:', e);
-    return NextResponse.json({ error: "Invalid route parameters", message: e.message }, { status: 400 });
-  }
+  const { cardId } = params;
 
   const session = await getServerSession(authOptions);
 
@@ -65,29 +55,21 @@ export async function GET(
       },
     });
     return NextResponse.json(comments);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[API GET /api/cards/${cardId}/comments] Error:`, error);
-    return NextResponse.json({ error: error.message || 'Failed to fetch comments' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to fetch comments';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+const CommentCreateSchema = z.object({ content: z.string().min(1, 'Comment content is required') });
 
 // POST /api/cards/[cardId]/comments
 export async function POST(
   request: NextRequest,
-  context: any
+  { params }: { params: { cardId: string } }
 ) {
-  let cardId: string;
-  try {
-    // Await params in App Router dynamic API
-    const { cardId: id } = await context.params;
-    cardId = id;
-    if (typeof cardId !== 'string') {
-      throw new Error('cardId is not a string or is undefined');
-    }
-  } catch (e: any) {
-    console.error('[API POST /api/cards/[cardId]/comments] Error accessing cardId from params:', e);
-    return NextResponse.json({ error: "Invalid route parameters", message: e.message }, { status: 400 });
-  }
+  const { cardId } = params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -97,12 +79,11 @@ export async function POST(
   const userId = session.user.id;
 
   try {
-    const body = await request.json();
-    const { content } = body as { content: string };
-
-    if (!content || typeof content !== 'string' || content.trim() === '') {
-      return NextResponse.json({ error: 'Comment content is required' }, { status: 400 });
+    const parsed = CommentCreateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
     }
+    const { content } = parsed.data;
 
     // Similar access check as in GET before creating comment
     const cardCheck = await prisma.card.findUnique({
@@ -132,8 +113,9 @@ export async function POST(
     });
 
     return NextResponse.json(newComment, { status: 201 }); // 201 Created
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[API POST /api/cards/${cardId}/comments] Error:`, error);
-    return NextResponse.json({ error: error.message || 'Failed to create comment' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to create comment';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 } 

@@ -6,20 +6,9 @@ import { authOptions } from "~/lib/auth/authOptions";
 // GET /api/cards/[cardId]/activity
 export async function GET(
   request: Request,
-  context: any
+  { params }: { params: { cardId: string } }
 ) {
-  let cardId: string;
-  try {
-    // Await params in App Router dynamic API
-    const { cardId: id } = await context.params;
-    cardId = id;
-    if (typeof cardId !== 'string') {
-      throw new Error('cardId is not a string or is undefined');
-    }
-  } catch (e: any) {
-    console.error('[API GET /api/cards/[cardId]/activity] Error accessing cardId from params:', e);
-    return NextResponse.json({ error: "Invalid route parameters", message: e.message }, { status: 400 });
-  }
+  const { cardId } = params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -75,8 +64,9 @@ export async function GET(
 
     return NextResponse.json(activityLogs);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[API GET /api/cards/${cardId}/activity] Error:`, error);
-    return NextResponse.json({ error: error.message || 'Failed to fetch activity logs' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to fetch activity logs';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 } 

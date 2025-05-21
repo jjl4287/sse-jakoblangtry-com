@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         title,
         description,
         dueDate: dueDate ? new Date(dueDate) : undefined,
-        priority: priority || 'medium',
+        priority: priority ?? 'medium',
         order,
         column: { connect: { id: columnId } },
         board: { connect: { id: boardId } }, // Connect to the board
@@ -97,8 +97,9 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(newCard);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API POST /api/cards] Error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to create card' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to create card';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 } 

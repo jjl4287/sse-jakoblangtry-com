@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '~/lib/auth/authOptions'; // Assuming authOptions are here
+import { authOptions } from '~/lib/auth/authOptions';
+import { z } from 'zod';
 
 // Helper function to check board ownership or membership (can be expanded)
 async function canManageBoard(userId: string, boardId: string): Promise<boolean> {
@@ -11,6 +12,11 @@ async function canManageBoard(userId: string, boardId: string): Promise<boolean>
   });
   return board?.creatorId === userId;
 }
+
+const LabelUpdateSchema = z.object({
+  name: z.string().min(1, 'Label name is required'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex code'),
+});
 
 // PATCH handler to update a label
 export async function PATCH(
@@ -30,8 +36,11 @@ export async function PATCH(
   }
 
   try {
-    const body = await request.json();
-    const { name, color } = body;
+    const parsed = LabelUpdateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
+    }
+    const { name, color } = parsed.data;
 
     if (!name || typeof name !== 'string' || name.trim() === '') {
       return NextResponse.json({ error: 'Label name is required' }, { status: 400 });

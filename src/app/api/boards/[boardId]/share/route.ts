@@ -3,10 +3,13 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
 import prisma from '~/lib/prisma'; // Assuming this is your Prisma client path
 import { sendEmail } from '~/lib/email'; // Path to our email sending utility
+import { z } from 'zod';
 
 interface ShareRequestBody {
   emailToShareWith?: string;
 }
+
+const ShareRequestSchema = z.object({ emailToShareWith: z.string().email('Invalid email address') });
 
 export async function POST(
   request: Request,
@@ -22,8 +25,13 @@ export async function POST(
   let body: ShareRequestBody;
 
   try {
-    body = await request.json();
-  } catch (error) {
+    const parsed = ShareRequestSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
+    }
+    body = parsed.data;
+  } catch (error: unknown) {
+    console.error('[API POST /api/boards/[boardId]/share] Invalid request body:', error);
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
@@ -87,9 +95,9 @@ export async function POST(
     // 5. Send email notification
     const emailSubject = `You've been invited to the board: ${board.title}`;
     const emailHtml = `
-      <p>Hello ${userToShareWith.name || userToShareWith.email},</p>
+      <p>Hello ${userToShareWith.name ?? userToShareWith.email},</p>
       <p>
-        User <strong>${session.user.name || session.user.email}</strong> 
+        User <strong>${session.user.name ?? session.user.email}</strong> 
         has shared the board "<strong>${board.title}</strong>" with you.
       </p>
       <p>
@@ -113,8 +121,8 @@ export async function POST(
 
     return NextResponse.json({ message: 'Board shared successfully' }, { status: 200 });
 
-  } catch (error) {
-    console.error('Error sharing board:', error);
+  } catch (error: unknown) {
+    console.error('[API POST /api/boards/[boardId]/share] Error sharing board:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

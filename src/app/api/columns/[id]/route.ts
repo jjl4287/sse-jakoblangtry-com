@@ -4,9 +4,9 @@ import prisma from '~/lib/prisma';
 // PATCH /api/columns/[id]
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
+  const { id } = params;
   try {
     const updates = await request.json();
     const column = await prisma.column.update({

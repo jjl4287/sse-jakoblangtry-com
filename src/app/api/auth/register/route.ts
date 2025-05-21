@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
 import bcrypt from 'bcrypt';
+import { z } from 'zod';
+
+const RegisterSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
 
 /**
  * POST /api/auth/register
@@ -8,10 +15,11 @@ import bcrypt from 'bcrypt';
  */
 export async function POST(request: Request) {
   try {
-    const { username, email, password } = await request.json();
-    if (!username?.trim() || !email?.trim() || !password) {
-      return NextResponse.json({ error: 'Username, email, and password are required' }, { status: 400 });
+    const parsed = RegisterSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
     }
+    const { username, email, password } = parsed.data;
     // Prevent duplicate username or email
     const existing = await prisma.user.findFirst({
       where: { OR: [{ name: username }, { email }] }
@@ -31,7 +39,7 @@ export async function POST(request: Request) {
       }
     });
     return NextResponse.json({ id: user.id, name: user.name, email: user.email }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[API POST /api/auth/register] Error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

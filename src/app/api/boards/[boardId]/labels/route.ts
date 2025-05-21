@@ -2,13 +2,19 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from '~/lib/auth/authOptions';
 import prisma from '~/lib/prisma';
-import type { Label } from '~prisma/client';
+import type { Label } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { z } from 'zod';
 
 interface LabelPostBody {
   name: string;
   color: string;
 }
+
+const LabelCreateSchema = z.object({
+  name: z.string().min(1, 'Label name is required'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex code'),
+});
 
 // GET /api/boards/[boardId]/labels - List labels for a board
 export async function GET(
@@ -40,7 +46,7 @@ export async function GET(
     });
 
     return NextResponse.json(labels);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[GET /api/boards/[boardId]/labels] Error:', error);
     const message = error instanceof Error ? error.message : 'Internal Server Error';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -59,7 +65,11 @@ export async function POST(
     }
 
     const { boardId } = params;
-    const body = (await request.json()) as LabelPostBody;
+    const parsed = LabelCreateSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
+    }
+    const { name, color } = parsed.data;
 
     if (!boardId) {
       return NextResponse.json(
@@ -68,23 +78,16 @@ export async function POST(
       );
     }
 
-    if (!body.name || !body.color) {
-      return NextResponse.json(
-        { error: 'Label name and color are required' },
-        { status: 400 }
-      );
-    }
-
     const newLabel = await prisma.label.create({
       data: {
-        name: body.name,
-        color: body.color,
+        name: name,
+        color: color,
         boardId: boardId,
       },
     });
 
     return NextResponse.json(newLabel, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[POST /api/boards/[boardId]/labels] Error:', error);
     if (error instanceof PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {

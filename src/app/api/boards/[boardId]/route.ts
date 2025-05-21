@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
 import prisma from '~/lib/prisma';
+import { z } from 'zod';
+
+const BoardPatchSchema = z.object({ title: z.string().min(1, 'Title is required') });
 
 export async function PATCH(
   request: Request,
@@ -19,14 +22,11 @@ export async function PATCH(
   }
 
   try {
-    const body = await request.json();
-    const { title } = body;
-
-    if (!title || typeof title !== 'string' || title.trim() === '') {
-      return new NextResponse('Title is required and must be a non-empty string', {
-        status: 400,
-      });
+    const parsed = BoardPatchSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return new NextResponse('Invalid title', { status: 400 });
     }
+    const { title } = parsed.data;
 
     const updatedBoard = await prisma.board.updateMany({
       where: {
