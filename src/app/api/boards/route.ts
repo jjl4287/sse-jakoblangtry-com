@@ -1,9 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
 import prisma from '~/lib/prisma';
-import type { Board, Label as BoardLabelType, BoardMembership, User as UserType } from '~/types';
+import type { Board } from '~/types';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 

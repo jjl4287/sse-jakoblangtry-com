@@ -1,13 +1,10 @@
- 
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession, signIn, signOut } from 'next-auth/react';
-import { clsx } from 'clsx';
+import { useSession, signIn } from 'next-auth/react';
 import { Board } from '../board/Board';
 import { BoardProvider, useBoard } from '~/services/board-context';
 import { ThemeProvider } from '~/app/contexts/ThemeContext';
-import { Plus, Pin, Trash2 } from 'lucide-react';
 import { BoardService } from '~/services/board-service';
 import { v4 as uuidv4 } from 'uuid';
 import { Sidebar } from '~/app/components/layout/Sidebar';
@@ -28,8 +25,6 @@ const InnerBoardLayout: React.FC = () => {
   const { data: session } = useSession();
   const [projects, setProjects] = useState<{ id: string; title: string; pinned: boolean }[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newBoardTitle, setNewBoardTitle] = useState('');
   const [showSignInBanner, setShowSignInBanner] = useState(false);
   const [focusRenameId, setFocusRenameId] = useState<string | null>(null);
 
@@ -45,7 +40,7 @@ const InnerBoardLayout: React.FC = () => {
   };
 
   // Pin or unpin a board by ID
-  const handlePinBoard = (id: string) => {
+  const handlePinBoard = () => {
     // TODO: Implement pin/unpin via BoardService.updateTheme or a dedicated endpoint
   };
 
@@ -95,7 +90,7 @@ const InnerBoardLayout: React.FC = () => {
       }
     };
     void fetchBoards();
-  }, []);
+  }, [handleSelectBoard]);
 
   // Create a new board using BoardService, return its ID
   const createBoard = async (title: string): Promise<string> => {

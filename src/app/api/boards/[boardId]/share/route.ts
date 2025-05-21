@@ -30,8 +30,8 @@ export async function POST(
       return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
     }
     body = parsed.data;
-  } catch (error: unknown) {
-    console.error('[API POST /api/boards/[boardId]/share] Invalid request body:', error);
+  } catch (_error: unknown) {
+    console.error('[API POST /api/boards/[boardId]/share] Invalid request body:', _error);
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
@@ -121,8 +121,8 @@ export async function POST(
 
     return NextResponse.json({ message: 'Board shared successfully' }, { status: 200 });
 
-  } catch (error: unknown) {
-    console.error('[API POST /api/boards/[boardId]/share] Error sharing board:', error);
+  } catch (_error: unknown) {
+    console.error('[API POST /api/boards/[boardId]/share] Error sharing board:', _error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

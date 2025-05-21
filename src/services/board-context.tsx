@@ -510,9 +510,9 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const createBoardLabel = useCallback(async (name: string, color: string): Promise<Label | void> => {
     if (!board?.id || board.id === 'demo') { // Don't save for demo board
-      const newLabel = { id: uuidv4(), name, color, boardId: board?.id || 'demo' };
+      const newLabel = { id: uuidv4(), name, color, boardId: board?.id ?? 'demo' };
       updateBoardState(prev => {
-        const updatedLabels = [...(prev?.labels || []), newLabel];
+        const updatedLabels = [...(prev?.labels ?? []), newLabel];
         setBoardLabels(updatedLabels);
         return { ...prev, labels: updatedLabels };
       });

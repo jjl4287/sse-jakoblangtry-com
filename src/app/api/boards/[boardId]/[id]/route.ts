@@ -97,7 +97,7 @@ export async function PATCH(
   let rawBody: unknown;
   try {
     rawBody = await request.json();
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Invalid request body: Expected JSON' }, { status: 400 });
   }
 
@@ -201,7 +201,7 @@ export async function PATCH(
             await tx.label.upsert({
               where: { id: label.id },
               update: ldata,
-              create: { id: label.id, name: label.name ?? '', color: label.color ?? '' }
+              create: { id: label.id, name: label.name ?? '', color: label.color ?? '', boardId: boardId }
             });
           }
         }

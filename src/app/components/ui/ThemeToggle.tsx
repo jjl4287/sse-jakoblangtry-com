@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '~/app/contexts/ThemeContext';
 import { motion } from 'framer-motion';
 
 // Extracted constant styles

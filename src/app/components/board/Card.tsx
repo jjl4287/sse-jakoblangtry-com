@@ -8,43 +8,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { MoreHorizontal, Trash2, Copy, Calendar, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
+import { MoreHorizontal, Trash2, Calendar, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
-import type { Card as CardType, Label as LabelType } from '~/types';
+import type { Card as CardType } from '~/types';
 import type { CardDragItem } from '~/constants/dnd-types';
 import { Badge } from '~/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar';
-import { cn, getContrastingTextColor } from '~/lib/utils';
-
-// Helper function for text color based on background (copied from NewCardSheet)
-// TODO: Move to a shared utils file if used in multiple places
-/*
-function مناسبTextColor(bgColor: string | undefined | null): string {
-    if (!bgColor) return '#000000';
-    try {
-        const color = bgColor.charAt(0) === '#' ? bgColor.substring(1, 7) : bgColor;
-        const r = parseInt(color.substring(0, 2), 16); 
-        const g = parseInt(color.substring(2, 4), 16); 
-        const b = parseInt(color.substring(4, 6), 16); 
-        return (r * 0.299 + g * 0.587 + b * 0.114) > 186 ? '#000000' : '#FFFFFF';
-    } catch (e) {
-        return '#000000';
-    }
-}
-*/
-
-// Define the drop result type
-interface CardDropResult {
-  droppedOnCard: boolean;
-  targetCardId: string;
-  targetColumnId: string;
-  targetOrder: number;
-}
+import { getContrastingTextColor } from '~/lib/utils';
 
 interface CardProps {
   card: CardType;
@@ -58,12 +31,7 @@ interface CardProps {
 
 export const Card = memo(({ 
   card, 
-  index, 
-  columnId,
-  isDragging,
-  onMoveCard,
-  onDragStart,
-  onDragEnd
+  isDragging
 }: CardProps) => {
   // Log invalid data but maintain hook order
   if (!card?.id) {
@@ -71,7 +39,7 @@ export const Card = memo(({
   }
 
   const ref = useRef<HTMLDivElement>(null);
-  const { moveCard, deleteCard, duplicateCard } = useBoard();
+  const { deleteCard } = useBoard();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
@@ -100,11 +68,6 @@ export const Card = memo(({
     }
   }, [card.id, card.title, deleteCard]);
 
-  const handleDuplicate = useCallback((e: Event) => {
-    e.stopPropagation();
-    duplicateCard(card.id, columnId).catch(err => console.error("Error duplicating card:", err));
-  }, [card.id, columnId, duplicateCard]);
-
   // Helper function to get priority icon and color
   const getPriorityInfo = (priority: 'low' | 'medium' | 'high') => {
     switch (priority) {
@@ -120,7 +83,6 @@ export const Card = memo(({
 
   // Safely access card properties
   const cardPriority = card.priority || 'low';
-  const cardAttachments = card.attachments || [];
   const cardAssignees = card.assignees || [];
   const cardLabels = card.labels || [];
   

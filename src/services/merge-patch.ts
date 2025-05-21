@@ -1,5 +1,5 @@
 // Generate minimal JSON Merge Patch for the Board shape
-import type { Board, Column, Card } from '@/types';
+import type { Board, Column, Card } from '~/types';
 
 interface ColumnPatch {
   id: string;

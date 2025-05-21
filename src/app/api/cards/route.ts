@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
-import type { NextRequest } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "~/lib/auth/authOptions";
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '~/lib/auth/authOptions';
 
 // POST /api/cards
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -97,9 +96,9 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(newCard);
-  } catch (error: unknown) {
-    console.error('[API POST /api/cards] Error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to create card';
+  } catch (_error: unknown) {
+    console.error('[API POST /api/cards] Error:', _error);
+    const message = _error instanceof Error ? _error.message : 'Failed to create card';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 } 
