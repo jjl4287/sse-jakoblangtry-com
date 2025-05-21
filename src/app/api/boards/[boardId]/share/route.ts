@@ -10,16 +10,15 @@ interface ShareRequestBody {
 
 export async function POST(
   request: Request,
-  context: { params: { boardId: string } } // Changed from { params } to context
+  { params }: { params: { boardId: string } }
 ) {
   const session = await getServerSession(authOptions);
 
-  if (!session || !session.user?.id) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const routeParams = await Promise.resolve(context.params); // "await" params
-  const { boardId } = routeParams;
+  const { boardId } = params;
   let body: ShareRequestBody;
 
   try {

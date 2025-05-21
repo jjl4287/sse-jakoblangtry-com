@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
         const user = await prisma.user.findUnique({ where: { email: credentials.email } });
-        if (!user || !user.hashedPassword) return null;
+        if (!user?.hashedPassword) return null;
         const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
         if (!isValid) return null;
         return { id: user.id, name: user.name, email: user.email, image: user.image }; // Added image here as well for consistency

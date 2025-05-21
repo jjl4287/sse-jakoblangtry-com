@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         select: { projectId: true } // projectId in Column is the boardId for the Card
     });
 
-    if (!column || !column.projectId) {
+    if (!column?.projectId) {
         return NextResponse.json({ error: 'Column not found or does not belong to a board' }, { status: 404 });
     }
     const boardId = column.projectId;

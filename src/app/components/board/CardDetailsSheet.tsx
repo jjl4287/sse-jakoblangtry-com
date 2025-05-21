@@ -47,7 +47,7 @@ import { getContrastingTextColor } from '~/lib/utils';
 import Markdown from '~/components/ui/Markdown';
 import MarkdownEditor from '~/components/ui/MarkdownEditor';
 
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/prefer-nullish-coalescing */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 // Helper function to format activity log entries
 const formatActivity = (activity: ActivityLogType): string => {
   const details = activity.details; // details may be any JSON from the server
@@ -569,16 +569,15 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                     </div>
                   </div>
                   
-                  <div className="border-t pt-3 bg-background flex-shrink-0">
-                    <div className="border rounded-md">
-                      <MarkdownEditor
-                        value={newCommentContent}
-                        onChange={(value) => setNewCommentContent(value ?? '')}
-                        placeholder="Write a comment..."
-                        height={120}
-                        theme="dark"
-                      />
-                    </div>
+                  <div className="bg-background flex-shrink-0">
+                    <MarkdownEditor
+                      className="rounded-b-md"
+                      value={newCommentContent}
+                      onChange={(value) => setNewCommentContent(value ?? '')}
+                      placeholder="Write a comment..."
+                      height={120}
+                      theme="dark"
+                    />
                     <div className="mt-3 flex justify-end">
                       <Button onClick={handlePostComment} disabled={!newCommentContent.trim()} size="sm">
                         Comment

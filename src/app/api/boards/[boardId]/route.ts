@@ -13,7 +13,7 @@ export async function PATCH(
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
-  const { boardId } = await params;
+  const { boardId } = params;
   if (!boardId) {
     return new NextResponse('Board ID is required', { status: 400 });
   }

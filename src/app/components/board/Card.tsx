@@ -65,10 +65,9 @@ export const Card = memo(({
   onDragStart,
   onDragEnd
 }: CardProps) => {
-  // Early return with fallback if card is undefined
-  if (!card || !card.id) {
+  // Log invalid data but maintain hook order
+  if (!card?.id) {
     console.warn('Card component received undefined or invalid card data');
-    return null;
   }
 
   const ref = useRef<HTMLDivElement>(null);

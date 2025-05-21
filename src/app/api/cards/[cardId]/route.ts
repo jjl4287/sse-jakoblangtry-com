@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
 import { z } from 'zod';
-import { type Card, Prisma } from '@prisma/client'; // Use type-only import for Card
+import { type Card, type Prisma } from '@prisma/client'; // Use type-only import for Card
 import { getServerSession } from "next-auth/next"; // Added for session
 import { authOptions } from "~/lib/auth/authOptions"; // Added for session
 
@@ -29,10 +29,9 @@ type CardUpdateData = Omit<Prisma.CardUpdateInput, 'labels' | 'assignees'> & {
 // PATCH /api/cards/[cardId]
 export async function PATCH(
   request: Request,
-  context: { params: { cardId: string } } // Parameter name updated
+  { params }: { params: { cardId: string } }
 ) {
-  const routeParams = await Promise.resolve(context.params);
-  const { cardId } = routeParams; // Parameter name updated
+  const { cardId } = params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -211,10 +210,9 @@ export async function PATCH(
 // DELETE /api/cards/[cardId]
 export async function DELETE(
   request: Request, // request is not used, but required for Next.js route handlers
-  context: { params: { cardId: string } } // Parameter name updated
+  { params }: { params: { cardId: string } }
 ) {
-  const routeParams = await Promise.resolve(context.params);
-  const { cardId } = routeParams; // Parameter name updated
+  const { cardId } = params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

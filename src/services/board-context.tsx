@@ -131,7 +131,7 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Update only the title locally
   const updateTitle = useCallback((title: string) => {
-    updateBoardState(prev => ({ ...prev!, title }));
+    updateBoardState(prev => ({ ...prev, title }));
   }, [updateBoardState]);
 
   const moveCardDebouncers = useRef<Record<string, ReturnType<typeof debounce>>>({});
@@ -206,7 +206,7 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Mutators:
   const updateTheme = useCallback(async (theme: 'light' | 'dark') => {
-    updateBoardState(prev => ({ ...prev!, theme }));
+    updateBoardState(prev => ({ ...prev, theme }));
     if (!session) return;
     setSaveStatus('saving');
     try {
@@ -221,10 +221,10 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const createColumn = useCallback(async (title: string, width: number) => {
     updateBoardState(prev => ({
-      ...prev!,
+      ...prev,
       columns: [
-        ...prev!.columns,
-        { id: uuidv4(), title, width, order: prev!.columns.length, cards: [] }
+        ...prev.columns,
+        { id: uuidv4(), title, width, order: prev.columns.length, cards: [] }
       ]
     }));
     if (!session) return;
@@ -241,8 +241,8 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const updateColumn = useCallback(async (columnId: string, updates: Partial<Column>) => {
     updateBoardState(prev => ({
-      ...prev!,
-      columns: prev!.columns.map(c => c.id === columnId ? { ...c, ...updates } : c)
+      ...prev,
+      columns: prev.columns.map(c => c.id === columnId ? { ...c, ...updates } : c)
     }));
     if (!session) return;
     setSaveStatus('saving');
@@ -258,8 +258,8 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const deleteColumn = useCallback(async (columnId: string) => {
     updateBoardState(prev => ({
-      ...prev!,
-      columns: prev!.columns.filter(c => c.id !== columnId)
+      ...prev,
+      columns: prev.columns.filter(c => c.id !== columnId)
     }));
     if (!session) return;
     setSaveStatus('saving');
@@ -275,14 +275,14 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const moveColumn = useCallback((columnId: string, newIndex: number) => {
     updateBoardState(prev => {
-      const cols = [...prev!.columns];
+      const cols = [...prev.columns];
       const i = cols.findIndex(c => c.id === columnId);
-      if (i < 0) return prev!;
+      if (i < 0) return prev;
       const [m] = cols.splice(i, 1);
       if (m) {
         cols.splice(newIndex, 0, m);
       }
-      return { ...prev!, columns: cols };
+      return { ...prev, columns: cols };
     });
     if (session) {
       setSaveStatus('saving');
@@ -370,31 +370,31 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     dueDate?: Date;
   }>) => {
     updateBoardState(prev => ({
-      ...prev!,
-      columns: prev!.columns.map(column => ({
+      ...prev,
+      columns: prev.columns.map(column => ({
         ...column,
         cards: column.cards.map(card => {
           if (card.id !== cardId) return card;
-          let updatedCard = { ...card };
+          const updatedCard = { ...card };
           // Scalar field updates
           if (updates.title !== undefined) updatedCard.title = updates.title;
           if (updates.description !== undefined) updatedCard.description = updates.description;
           if (updates.priority !== undefined) updatedCard.priority = updates.priority;
           if (updates.dueDate !== undefined) updatedCard.dueDate = updates.dueDate;
           // Labels
-          if (updates.labelIdsToAdd && updates.labelIdsToAdd.length) {
+          if (updates.labelIdsToAdd?.length) {
             const labelsToAdd = prev.labels?.filter(l => updates.labelIdsToAdd!.includes(l.id)) || [];
             updatedCard.labels = [...updatedCard.labels, ...labelsToAdd];
           }
-          if (updates.labelIdsToRemove && updates.labelIdsToRemove.length) {
+          if (updates.labelIdsToRemove?.length) {
             updatedCard.labels = updatedCard.labels.filter(l => !updates.labelIdsToRemove!.includes(l.id));
           }
           // Assignees
-          if (updates.assigneeIdsToAdd && updates.assigneeIdsToAdd.length) {
+          if (updates.assigneeIdsToAdd?.length) {
             const usersToAdd = prev.members?.filter(m => updates.assigneeIdsToAdd!.includes(m.userId)).map(m => m.user) || [];
             updatedCard.assignees = [...updatedCard.assignees, ...usersToAdd];
           }
-          if (updates.assigneeIdsToRemove && updates.assigneeIdsToRemove.length) {
+          if (updates.assigneeIdsToRemove?.length) {
             updatedCard.assignees = updatedCard.assignees.filter(u => !updates.assigneeIdsToRemove!.includes(u.id));
           }
           return updatedCard;
@@ -415,8 +415,8 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const deleteCard = useCallback(async (cardId: string) => {
     updateBoardState(prev => ({
-      ...prev!,
-      columns: prev!.columns.map(c => ({
+      ...prev,
+      columns: prev.columns.map(c => ({
         ...c,
         cards: c.cards.filter(card => card.id !== cardId)
       }))
@@ -435,20 +435,20 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const moveCard = useCallback((cardId: string, targetColumnId: string, newOrder: number) => {
     updateBoardState(prev => {
-      const cols = prev!.columns.map(c => ({ ...c, cards: [...c.cards] }));
+      const cols = prev.columns.map(c => ({ ...c, cards: [...c.cards] }));
       let moved: Card | undefined;
       let fromId: string | undefined;
       for (const c of cols) {
         const idx = c.cards.findIndex(card => card.id === cardId);
         if (idx >= 0) { [moved] = c.cards.splice(idx, 1); fromId = c.id; break; }
       }
-      if (!moved) return prev!;
+      if (!moved) return prev;
       const dest = cols.find(c => c.id === targetColumnId);
-      if (!dest) return prev!;
+      if (!dest) return prev;
       moved.columnId = targetColumnId;
       dest.cards.splice(newOrder, 0, moved);
       const recalc = (arr: Card[]) => arr.map((card, i) => ({ ...card, order: i }));
-      return { ...prev!, columns: cols.map(c => c.id === fromId || c.id === targetColumnId ? { ...c, cards: recalc(c.cards) } : c) };
+      return { ...prev, columns: cols.map(c => c.id === fromId || c.id === targetColumnId ? { ...c, cards: recalc(c.cards) } : c) };
     });
     if (session) {
       setSaveStatus('saving');
@@ -458,20 +458,20 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const duplicateCard = useCallback((cardId: string, targetColumnId?: string) => {
     updateBoardState(prev => {
-      const cols = prev!.columns.map(c => ({ ...c, cards: [...c.cards] }));
+      const cols = prev.columns.map(c => ({ ...c, cards: [...c.cards] }));
       const src = cols.find(c => c.cards.some(card => card.id === cardId));
       const orig = src?.cards.find(card => card.id === cardId);
-      if (!orig) return prev!;
+      if (!orig) return prev;
       const dest = cols.find(c => c.id === (targetColumnId ?? orig.columnId));
       if (dest) dest.cards.push({ ...orig, id: uuidv4() });
-      return { ...prev!, columns: cols };
+      return { ...prev, columns: cols };
     });
   }, [updateBoardState]);
 
   const addComment = useCallback((cardId: string, author: string, content: string) => {
     updateBoardState(prev => ({
-      ...prev!,
-      columns: prev!.columns.map(c => ({
+      ...prev,
+      columns: prev.columns.map(c => ({
         ...c,
         cards: c.cards.map(card => card.id === cardId ? { ...card, comments: [...card.comments, { id: uuidv4(), author, content, createdAt: new Date() }] } : card)
       }))
@@ -480,8 +480,8 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const deleteComment = useCallback((cardId: string, commentId: string) => {
     updateBoardState(prev => ({
-      ...prev!,
-      columns: prev!.columns.map(c => ({
+      ...prev,
+      columns: prev.columns.map(c => ({
         ...c,
         cards: c.cards.map(card => card.id === cardId ? { ...card, comments: card.comments.filter(cm => cm.id !== commentId) } : card)
       }))
@@ -490,8 +490,8 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const addAttachment = useCallback((cardId: string, name: string, url: string, type: string) => {
     updateBoardState(prev => ({
-      ...prev!,
-      columns: prev!.columns.map(c => ({
+      ...prev,
+      columns: prev.columns.map(c => ({
         ...c,
         cards: c.cards.map(card => card.id === cardId ? { ...card, attachments: [...card.attachments, { id: uuidv4(), name, url, type, createdAt: new Date() }] } : card)
       }))
@@ -500,8 +500,8 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const deleteAttachment = useCallback((cardId: string, attachmentId: string) => {
     updateBoardState(prev => ({
-      ...prev!,
-      columns: prev!.columns.map(c => ({
+      ...prev,
+      columns: prev.columns.map(c => ({
         ...c,
         cards: c.cards.map(card => card.id === cardId ? { ...card, attachments: card.attachments.filter(a => a.id !== attachmentId) } : card)
       }))
@@ -514,7 +514,7 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       updateBoardState(prev => {
         const updatedLabels = [...(prev?.labels || []), newLabel];
         setBoardLabels(updatedLabels);
-        return { ...prev!, labels: updatedLabels };
+        return { ...prev, labels: updatedLabels };
       });
       return newLabel;
     }
@@ -526,7 +526,7 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         updateBoardState(prev => {
           const updatedLabels = [...(prev?.labels || []), newLabel];
           setBoardLabels(updatedLabels);
-          return { ...prev!, labels: updatedLabels };
+          return { ...prev, labels: updatedLabels };
         });
         setSaveStatus('saved');
         return newLabel;
@@ -543,9 +543,9 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // Optimistic update for demo board
       let updatedLabelInstance: Label | undefined;
       updateBoardState(prev => {
-        const updatedLabels = prev!.labels.map(l => l.id === labelId ? (updatedLabelInstance = { ...l, name, color }) : l);
+        const updatedLabels = prev.labels.map(l => l.id === labelId ? (updatedLabelInstance = { ...l, name, color }) : l);
         setBoardLabels(updatedLabels);
-        return { ...prev!, labels: updatedLabels };
+        return { ...prev, labels: updatedLabels };
       });
       return updatedLabelInstance;
     }
@@ -555,9 +555,9 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const updatedLabel = await BoardService.updateBoardLabel(board.id, labelId, name, color);
       if (updatedLabel) {
         updateBoardState(prev => {
-          const updatedLabels = prev!.labels.map(l => l.id === labelId ? updatedLabel : l);
+          const updatedLabels = prev.labels.map(l => l.id === labelId ? updatedLabel : l);
           setBoardLabels(updatedLabels);
-          return { ...prev!, labels: updatedLabels };
+          return { ...prev, labels: updatedLabels };
         });
         setSaveStatus('saved');
         return updatedLabel;
@@ -579,8 +579,8 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!board?.id || board.id === 'demo') {
       // Optimistic update for demo board
       updateBoardState(prev => {
-        const updatedLabels = prev!.labels.filter(l => l.id !== labelId);
-        const updatedColumns = prev!.columns.map(col => ({
+        const updatedLabels = prev.labels.filter(l => l.id !== labelId);
+        const updatedColumns = prev.columns.map(col => ({
           ...col,
           cards: col.cards.map(card => ({
             ...card,
@@ -588,7 +588,7 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }))
         }));
         setBoardLabels(updatedLabels);
-        return { ...prev!, labels: updatedLabels, columns: updatedColumns };
+        return { ...prev, labels: updatedLabels, columns: updatedColumns };
       });
       return;
     }
@@ -598,8 +598,8 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       await BoardService.deleteBoardLabel(board.id, labelId);
       // Optimistic update (remove label from board.labels and from all cards)
       updateBoardState(prev => {
-        const updatedLabels = prev!.labels.filter(l => l.id !== labelId);
-        const updatedColumns = prev!.columns.map(col => ({
+        const updatedLabels = prev.labels.filter(l => l.id !== labelId);
+        const updatedColumns = prev.columns.map(col => ({
           ...col,
           cards: col.cards.map(card => ({
             ...card,
@@ -607,7 +607,7 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }))
         }));
         setBoardLabels(updatedLabels);
-        return { ...prev!, labels: updatedLabels, columns: updatedColumns };
+        return { ...prev, labels: updatedLabels, columns: updatedColumns };
       });
       setSaveStatus('saved');
     } catch (e) {

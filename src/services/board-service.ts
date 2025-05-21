@@ -47,7 +47,7 @@ async function fetchBoard(): Promise<Board> {
     boardIdParam = sp.get('boardId') || '';
     // If no search param, try to extract from pathname (/boards/:boardId)
     if (!boardIdParam) {
-      const match = window.location.pathname.match(/\/boards\/([^\/]+)/);
+      const match = /\/boards\/([^\/]+)/.exec(window.location.pathname);
       boardIdParam = match ? match[1] : '';
     }
   }
@@ -230,7 +230,7 @@ export class BoardService {
     columns.splice(newIndex, 0, moved);
     // Persist new orders
     await Promise.all(columns.map((col, idx) =>
-      fetch(`/api/columns/${col!.id}`, {
+      fetch(`/api/columns/${col.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order: idx }),
@@ -398,7 +398,7 @@ export class BoardService {
         comments: originalCard.comments.map(com => ({ ...com, id: uuidv4() })), // New IDs
     };
 
-    let updatedBoard = { ...board, columns: [...board.columns] };
+    const updatedBoard = { ...board, columns: [...board.columns] };
 
     // Insert the duplicated card into the target column
     const updatedTargetCards = [
@@ -570,7 +570,7 @@ export class BoardService {
       if (cardIndex === -1) return column;
       const updatedCards = [...column.cards];
       const card = updatedCards[cardIndex];
-      if (!card || !card.comments) return column;
+      if (!card?.comments) return column;
       updatedCards[cardIndex] = {
         ...card,
         comments: card.comments.filter(c => c.id !== commentId),
@@ -636,7 +636,7 @@ export class BoardService {
       if (cardIndex === -1) return column;
       const updatedCards = [...column.cards];
       const card = updatedCards[cardIndex];
-      if (!card || !card.attachments) return column;
+      if (!card?.attachments) return column;
       updatedCards[cardIndex] = {
         ...card,
         attachments: card.attachments.filter(a => a.id !== attachmentId),

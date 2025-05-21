@@ -81,7 +81,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       )}
     >
       {/* Toolbar row: tabs on left, commands on right */}
-      <div className="flex items-center justify-between border-b border-input px-2">
+      <div className="flex items-center justify-between border-b border-input">
         <div className="flex">
           <button
             type="button"
@@ -113,7 +113,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                 key={index}
                 type="button"
                 onClick={() => {
-                  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+                  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
                   editorContext?.execCommand(cmd);
                 }}
                 className="p-1 text-gray-400 hover:text-white hover:bg-[#161b22] rounded"
