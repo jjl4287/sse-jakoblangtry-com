@@ -118,7 +118,7 @@ export const Card = memo(({
     <>
       <div
         ref={ref}
-        className="relative glass-card p-2 cursor-pointer group border rounded-lg card-content"
+        className="relative glass-card p-1 cursor-pointer group border rounded-lg card-content"
         data-card-id={card.id}
         onClick={handleOpenModal}
         style={{ pointerEvents: 'auto' }}
@@ -152,7 +152,7 @@ export const Card = memo(({
                 <StyledLabelBadge key={label.id} label={label} />
               ))}
               {cardLabels.length > 3 && (
-                <Badge variant="outline" className="px-1.5 py-0.5 text-[10px] font-normal border">
+                <Badge variant="outline" className="px-2 py-1 text-[10px] font-normal border">
                   +{cardLabels.length - 3}
                 </Badge>
               )}
@@ -163,7 +163,7 @@ export const Card = memo(({
               {/* Weight Display */}
               {card.weight !== undefined && card.weight > 0 && (
                 <span className="flex items-center">
-                  <Weight className="h-3 w-3 mr-0.5" />
+                  <Weight className="h-3 w-3 mr-1" />
                   {card.weight}
                 </span>
               )}
@@ -171,14 +171,14 @@ export const Card = memo(({
               {/* Due Date Display */}
               {card.dueDate && (
                 <span className="flex items-center ">
-                  <Calendar className="h-3 w-3 mr-0.5" />
+                  <Calendar className="h-3 w-3 mr-1" />
                   {format(new Date(card.dueDate), 'MMM d')}
                 </span>
               )}
               
               {/* Priority Display (moved to last in this group) */}
               <span className={`flex items-center ${priorityColor}`}>
-                <PriorityIcon className="h-3 w-3 mr-0.5" />
+                <PriorityIcon className="h-3 w-3 mr-1" />
               </span>
             </div>
 

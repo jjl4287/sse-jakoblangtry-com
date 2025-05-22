@@ -14,7 +14,7 @@ export const StyledLabelBadge: React.FC<StyledLabelBadgeProps> = ({ label, onRem
   return (
     <Badge
       key={label.id}
-      className="px-2 py-0.5 text-xs font-normal rounded-full border items-center"
+      className="px-2 py-1 text-xs font-normal rounded-full border items-center"
       style={{
         backgroundColor: label.color,
         color: getContrastingTextColor(label.color),
@@ -28,7 +28,7 @@ export const StyledLabelBadge: React.FC<StyledLabelBadgeProps> = ({ label, onRem
             e.stopPropagation(); // Prevent card click or other parent actions
             onRemove(label.id);
           }}
-          className="ml-1.5 -mr-0.5 p-0.5 rounded-full inline-flex items-center justify-center opacity-75 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-offset-1"
+          className="ml-1 -mr-1 p-1 rounded-full inline-flex items-center justify-center opacity-75 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-offset-1"
           style={{ 
             color: getContrastingTextColor(label.color),
             // Basic focus ring color, can be improved
