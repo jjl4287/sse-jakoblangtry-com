@@ -798,32 +798,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   <div>
                     <h3 className="text-sm font-semibold mb-2">Actions</h3>
                     <div className="space-y-2">
-                      <Select value={priority} onValueChange={(value) => handlePriorityChange(value as Priority)}>
-                        <SelectTrigger className="w-full justify-start text-left font-normal [&>*:last-child]:hidden">
-                          <SelectValue placeholder="Priority" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">
-                            <div className="flex items-center">
-                              <ArrowDown className="h-4 w-4 mr-2 text-green-500" />
-                              <span>Low</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="medium">
-                            <div className="flex items-center">
-                              <ArrowRight className="h-4 w-4 mr-2 text-yellow-500" />
-                              <span>Medium</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="high">
-                            <div className="flex items-center">
-                              <ArrowUp className="h-4 w-4 mr-2 text-red-500" />
-                              <span>High</span>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      
+                      {/* Weight Input */}
                       <div className="flex items-center w-full justify-start text-left font-normal gap-2 rounded-md border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-3">
                         <Weight className="h-4 w-4 mr-2" />
                         <Input
@@ -845,17 +820,18 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                         />
                       </div>
 
-                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                            variant={"outline"}
-                          className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !dueDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dueDate ? format(dueDate, "PPP") : <span>Add due date</span>}
+                      {/* Due Date Popover */}
+                      <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                              variant={"outline"}
+                            className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !dueDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                              {dueDate ? format(dueDate, "PPP") : <span>Add due date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent portalled={false} className="w-auto p-0" align="start">
@@ -873,6 +849,33 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                         />
                       </PopoverContent>
                     </Popover>
+
+                    {/* Priority Select */}
+                    <Select value={priority} onValueChange={(value) => handlePriorityChange(value as Priority)}>
+                      <SelectTrigger className="w-full justify-start text-left font-normal [&>*:last-child]:hidden">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">
+                          <div className="flex items-center">
+                            <ArrowDown className="h-4 w-4 mr-2 text-green-500" />
+                            <span>Low</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="medium">
+                          <div className="flex items-center">
+                            <ArrowRight className="h-4 w-4 mr-2 text-yellow-500" />
+                            <span>Medium</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="high">
+                          <div className="flex items-center">
+                            <ArrowUp className="h-4 w-4 mr-2 text-red-500" />
+                            <span>High</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
 
                     {/* Combined Attachment Actions Container - MOVED TO THE END OF ACTIONS */}
                     <div className="pt-2 mt-2 border-t"> {/* Visual separator */}

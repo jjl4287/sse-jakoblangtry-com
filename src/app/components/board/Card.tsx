@@ -61,10 +61,17 @@ export const Card = memo(({
     setIsDropdownOpen(open);
   }, []);
 
-  const handleDelete = useCallback((e: Event) => {
+  const handleDelete = useCallback(async (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     if (window.confirm(`Are you sure you want to delete card "${card.title}"?`)) {
-      deleteCard(card.id).catch(err => console.error("Error deleting card:", err));
+      try {
+        const deletePromise = deleteCard(card.id);
+        if (deletePromise && typeof deletePromise.then === 'function') {
+          await deletePromise;
+        }
+      } catch (err) {
+        console.error("Error deleting card:", err);
+      }
     }
   }, [card.id, card.title, deleteCard]);
 
@@ -82,9 +89,9 @@ export const Card = memo(({
   };
 
   // Safely access card properties
-  const cardPriority = card.priority || 'low';
-  const cardAssignees = card.assignees || [];
-  const cardLabels = card.labels || [];
+  const cardPriority = card.priority ?? 'low';
+  const cardAssignees = card.assignees ?? [];
+  const cardLabels = card.labels ?? [];
   
   const { Icon: PriorityIcon, color: priorityColor } = getPriorityInfo(cardPriority);
 
@@ -128,10 +135,7 @@ export const Card = memo(({
           )}
           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
             <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-              <span className={`flex items-center ${priorityColor}`}>
-                <PriorityIcon className="h-3 w-3 mr-0.5" />
-              </span>
-
+              {/* Weight Display */}
               {card.weight !== undefined && card.weight > 0 && (
                 <span className="flex items-center">
                   <Weight className="h-3 w-3 mr-0.5" />
@@ -139,6 +143,7 @@ export const Card = memo(({
                 </span>
               )}
 
+              {/* Due Date Display */}
               {card.dueDate && (
                 <span className="flex items-center ">
                   <Calendar className="h-3 w-3 mr-0.5" />
@@ -146,6 +151,7 @@ export const Card = memo(({
                 </span>
               )}
               
+              {/* Labels Display */}
               {cardLabels.slice(0, 3).map(label => (
                 <Badge 
                   key={label.id} 
@@ -165,6 +171,11 @@ export const Card = memo(({
                   +{cardLabels.length - 3}
                 </Badge>
               )}
+
+              {/* Priority Display (moved to last in this group) */}
+              <span className={`flex items-center ${priorityColor}`}>
+                <PriorityIcon className="h-3 w-3 mr-0.5" />
+              </span>
             </div>
 
             {/* Display stacked assignee avatars */}
@@ -174,16 +185,16 @@ export const Card = memo(({
                   key={assignee.id}
                   className="h-5 w-5"
                   style={{ zIndex: cardAssignees.length - idx, marginLeft: idx > 0 ? '-4px' : '0px' }}
-                  title={assignee.name || assignee.email || 'Assignee'}
+                  title={assignee.name ?? assignee.email ?? 'Assignee'}
                 >
                   {assignee.image ? (
                     <AvatarImage
                       src={assignee.image}
-                      alt={assignee.name || assignee.email || 'Assignee avatar'}
+                      alt={assignee.name ?? assignee.email ?? 'Assignee avatar'}
                     />
                   ) : (
                     <AvatarFallback>
-                      {(assignee.name || assignee.email)?.charAt(0).toUpperCase() || '?'}
+                      {(assignee.name ?? assignee.email)?.charAt(0).toUpperCase() ?? '?'}
                     </AvatarFallback>
                   )}
                 </Avatar>

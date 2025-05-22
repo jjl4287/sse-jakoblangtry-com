@@ -156,7 +156,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.15 }}
-                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background rounded-lg shadow-lg w-full max-w-[700px] p-6 z-[70] flex flex-col"
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background rounded-lg shadow-lg w-full max-w-[780px] p-6 z-[70] flex flex-col"
               >
                 <Dialog.Close asChild>
                   <button className="absolute top-4 right-4 p-2 rounded hover:bg-muted/10">
@@ -234,12 +234,57 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t mt-auto">
-                  <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+                  <div className="flex items-center space-x-1.5 flex-wrap gap-y-2">
+                    {/* Weight Input */}
+                    <div className="flex items-center h-8 w-auto min-w-[90px] justify-start text-left font-normal gap-1 rounded-md border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 px-2">
+                      <Weight className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Weight"
+                        value={weight ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setWeight(val ? Number(val) : undefined);
+                        }}
+                        className="border-0 focus-visible:ring-0 bg-transparent h-full p-0 text-sm shadow-none dark:bg-transparent dark:text-foreground placeholder:text-muted-foreground"
+                        style={{ backgroundColor: 'transparent' }}
+                      />
+                    </div>
+
+                    {/* Due Date Popover */}
+                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-auto min-w-[90px] h-8 text-sm justify-start text-left font-normal",
+                            !dueDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-1.5 h-4 w-4" />
+                          {dueDate ? format(dueDate, "MMM d") : <span>Due date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 z-[80]" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dueDate}
+                          onSelect={(date) => {
+                            setDueDate(date ?? undefined);
+                            setCalendarOpen(false);
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Priority Select */}
                     <Select value={priority} onValueChange={(value) => setPriority(value as Priority)}>
-                      <SelectTrigger className="w-auto min-w-[100px] h-8">
+                      <SelectTrigger className="w-auto min-w-[90px] h-8 text-sm">
                         <SelectValue placeholder="Priority" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[80]">
                         <SelectItem value="low">
                           <div className="flex items-center">
                             <ArrowDown className="h-3 w-3 mr-1 text-green-500" />
@@ -260,71 +305,38 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                         </SelectItem>
                       </SelectContent>
                     </Select>
-
-                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-auto min-w-[140px] justify-start text-left font-normal h-8",
-                            !dueDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-3 w-3" />
-                          {dueDate ? format(dueDate, "MMM d") : <span>Due date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent portalled={false} className="w-auto p-0" align="start" side="bottom">
-                        <Calendar
-                          mode="single"
-                          selected={dueDate}
-                          onSelect={(date) => {
-                            setDueDate(date ?? undefined);
-                            setCalendarOpen(false);
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
                     
-                    <div className="flex items-center space-x-2">
-                      <Weight className="h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="number"
-                        min="0"
-                        placeholder="Weight"
-                        value={weight ?? ''}
-                        onChange={(e) => setWeight(e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-20 h-8 text-sm"
-                      />
-                    </div>
-                    
+                    {/* Label Picker Popover */}
                     <Popover open={isLabelPickerOpen} onOpenChange={setIsLabelPickerOpen}>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 w-8 p-0" title="Add labels">
+                            <Button variant="outline" size="sm" className="h-8 w-8 p-0">
                                 <TagIcon className="h-4 w-4" />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent portalled={false} className="w-[250px] p-0" align="start">
+                        <PopoverContent portalled={false} side="top" className="w-[250px] p-0 z-[80]" align="start">
                             <Command>
-                                <CommandInput placeholder="Search labels..." value={labelSearchText} onValueChange={setLabelSearchText} />
+                                <CommandInput 
+                                    placeholder="Search labels..." 
+                                    value={labelSearchText}
+                                    onValueChange={setLabelSearchText}
+                                />
                                 <CommandList>
                                     <CommandEmpty>No labels found.</CommandEmpty>
                                     <CommandGroup>
                                         {availableBoardLabels
-                                            .filter(label => label.name.toLowerCase().includes(labelSearchText.toLowerCase()))
+                                            .filter(label => !labelSearchText || label.name.toLowerCase().includes(labelSearchText.toLowerCase()))
                                             .map((label) => (
                                             <CommandItem
                                                 key={label.id}
                                                 value={label.name}
                                                 onSelect={() => handleToggleLabel(label.id)}
-                                                className="flex justify-between items-center"
+                                                className="cursor-pointer flex justify-between items-center"
                                             >
                                                 <div className="flex items-center">
-                                                    <span style={{ backgroundColor: label.color }} className="inline-block w-3 h-3 rounded-sm mr-2"></span>
+                                                    <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: label.color }} />
                                                     {label.name}
                                                 </div>
-                                                {selectedLabelIds.has(label.id) && <CheckIcon className="h-4 w-4 ml-auto" />}
+                                                {selectedLabelIds.has(label.id) && <CheckIcon className="ml-2 h-4 w-4" />}
                                             </CommandItem>
                                         ))}
                                     </CommandGroup>
@@ -333,46 +345,41 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                         </PopoverContent>
                     </Popover>
 
+                    {/* Assignee Picker Popover */}
                     <Popover open={isAssigneePickerOpen} onOpenChange={setIsAssigneePickerOpen}>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 w-8 p-0" title="Add assignees">
+                            <Button variant="outline" size="sm" className="h-8 w-8 p-0">
                                 <UsersIcon className="h-4 w-4" />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent portalled={false} className="w-[250px] p-0" align="start">
+                        <PopoverContent portalled={false} side="top" className="w-[250px] p-0 z-[80]" align="start">
                             <Command>
-                                <CommandInput placeholder="Search assignees..." value={assigneeSearchText} onValueChange={setAssigneeSearchText} />
+                                <CommandInput 
+                                    placeholder="Search assignees..."
+                                    value={assigneeSearchText}
+                                    onValueChange={setAssigneeSearchText}
+                                />
                                 <CommandList>
                                     <CommandEmpty>No users found.</CommandEmpty>
                                     <CommandGroup>
-                                        {boardMembers
-                                            /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-                                            .filter(member => 
-                                                member.user && (
-                                                    !assigneeSearchText ||
-                                                    member.user.name?.toLowerCase().includes(assigneeSearchText.toLowerCase()) ||
-                                                    member.user.email?.toLowerCase().includes(assigneeSearchText.toLowerCase())
-                                                )
-                                            )
-                                            /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
-                                            .map((member) => (
+                                        {boardMembers.map((member) => (
                                             <CommandItem
                                                 key={member.user.id}
                                                 value={member.user.name ?? member.user.email ?? member.user.id}
                                                 onSelect={() => handleToggleAssignee(member.user.id)}
-                                                className="flex justify-between items-center"
+                                                className="cursor-pointer flex justify-between items-center"
                                             >
                                                 <div className="flex items-center">
                                                     {member.user.image ? (
-                                                        <img src={member.user.image} alt={member.user.name ?? ''} className="w-5 h-5 rounded-full mr-2" />
+                                                        <img src={member.user.image} alt={member.user.name ?? 'User avatar'} className="w-5 h-5 rounded-full mr-2" />
                                                     ) : (
                                                         <span className="w-5 h-5 rounded-full mr-2 bg-muted flex items-center justify-center text-xs">
-                                                            {(member.user.name ?? member.user.email ?? 'U').substring(0, 2).toUpperCase()}
+                                                            {(member.user.name ?? member.user.email ?? 'U').substring(0,1).toUpperCase()}
                                                         </span>
                                                     )}
                                                     {member.user.name ?? member.user.email}
                                                 </div>
-                                                {selectedAssigneeIds.has(member.user.id) && <CheckIcon className="h-4 w-4 ml-auto" />}
+                                                {selectedAssigneeIds.has(member.user.id) && <CheckIcon className="ml-2 h-4 w-4" />}
                                             </CommandItem>
                                         ))}
                                     </CommandGroup>
@@ -381,13 +388,8 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                         </PopoverContent>
                     </Popover>
                     
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 w-8 p-0"
-                      title="Attach files"
-                      onClick={handleClickAttachButton}
-                    >
+                    {/* Attach File Button */}
+                    <Button variant="outline" size="sm" onClick={handleClickAttachButton} className="h-8 w-8 p-0">
                       <Paperclip className="h-4 w-4" />
                     </Button>
                     <input
@@ -398,7 +400,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                       multiple
                     />
                   </div>
-                  <Button onClick={handleSubmit} disabled={!title.trim()} className="h-8">
+                  <Button onClick={handleSubmit} disabled={!title.trim()} size="sm">
                     Create Card
                   </Button>
                 </div>
