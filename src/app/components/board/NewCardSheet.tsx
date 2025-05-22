@@ -28,6 +28,7 @@ import {
 import { Badge } from '~/components/ui/badge';
 import type { Label as LabelType, User as UserType, Priority } from '~/types';
 import MarkdownEditor from '~/components/ui/MarkdownEditor';
+import { StyledLabelBadge } from '~/components/ui/StyledLabelBadge';
 
 interface NewCardSheetProps {
   columnId: string;
@@ -187,7 +188,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                             <span className="text-xs text-muted-foreground mr-1">Labels:</span>
                             {Array.from(selectedLabelIds).map(id => {
                                 const label = availableBoardLabels.find(l => l.id === id);
-                                return label ? <Badge key={id} style={{ backgroundColor: label.color, color: getContrastingTextColor(label.color) }} variant="outline" className="font-normal">{label.name}</Badge> : null;
+                                return label ? <StyledLabelBadge key={id} label={label} /> : null;
                             })}
                         </div>
                     )}

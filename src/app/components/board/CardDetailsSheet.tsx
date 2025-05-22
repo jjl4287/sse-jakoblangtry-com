@@ -47,6 +47,7 @@ import { getContrastingTextColor } from '~/lib/utils';
 import Markdown from '~/components/ui/Markdown';
 import MarkdownEditor from '~/components/ui/MarkdownEditor';
 import { AttachmentPreview } from './AttachmentPreview';
+import { StyledLabelBadge } from '~/components/ui/StyledLabelBadge';
 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 // Helper function to format activity log entries
@@ -1076,12 +1077,11 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                     <div className="flex flex-wrap gap-1 min-h-[20px] mt-1">
                       {cardLabelsToDisplay.length > 0 ? (
                         cardLabelsToDisplay.map(label => (
-                          <Badge key={label.id} variant="outline" className="font-normal" style={{ backgroundColor: label.color, color: getContrastingTextColor(label.color) }}>
-                            {label.name}
-                            <button onClick={() => handleToggleLabel(label.id)} className="ml-1 opacity-75 hover:opacity-100">
-                              <CloseIconLucide className="h-3 w-3" />
-                            </button>
-                          </Badge>
+                          <StyledLabelBadge 
+                            key={label.id} 
+                            label={label} 
+                            onRemove={handleToggleLabel} 
+                          />
                         ))
                       ) : (
                         <p className="text-xs text-muted-foreground">No labels</p>

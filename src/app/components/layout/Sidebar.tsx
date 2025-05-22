@@ -7,6 +7,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
 import type { FC } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '~/components/ui/alert-dialog';
 
 interface SidebarProps {
   boards: { id: string; title: string; pinned: boolean }[];
@@ -37,6 +47,7 @@ export const Sidebar: FC<SidebarProps> = ({
   const { data: session } = useSession();
   // Ref for sidebar input selection
   const sidebarInputRef = React.useRef<HTMLInputElement>(null);
+  const [boardToDelete, setBoardToDelete] = React.useState<null | { id: string; title: string }>(null);
 
   // Handle inline edit start
   const startSidebarEdit = (id: string, currentTitle: string) => {
@@ -143,7 +154,15 @@ export const Sidebar: FC<SidebarProps> = ({
                     <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onPin(b.id); }}>
                       <Pin size={14} />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onDelete(b.id); }}>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="h-6 w-6" 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setBoardToDelete({ id: b.id, title: b.title });
+                      }}
+                    >
                       <Trash2 size={14} />
                     </Button>
                   </div>
@@ -172,6 +191,32 @@ export const Sidebar: FC<SidebarProps> = ({
           </motion.aside>
         )}
       </AnimatePresence>
+
+      {/* Board Delete Confirmation Dialog */}
+      <AlertDialog open={!!boardToDelete} onOpenChange={(isOpen) => !isOpen && setBoardToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`This action cannot be undone. This will permanently delete the board "${boardToDelete?.title ?? ''}". All columns and cards within this board will also be deleted.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setBoardToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={async () => {
+                if (boardToDelete) {
+                  await onDelete(boardToDelete.id);
+                  setBoardToDelete(null);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Board
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }; 

@@ -9,6 +9,16 @@ import { useBoard } from '~/services/board-context';
 import { SortableCard } from './SortableCard'; 
 import { Trash2, Weight } from 'lucide-react';
 import { InlineEdit } from '~/components/ui/InlineEdit';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '~/components/ui/alert-dialog';
 
 interface SortableColumnProps {
   column: ColumnType;
@@ -24,6 +34,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAd
   const { updateColumn, deleteColumn } = useBoard();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(column.title);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   
   useEffect(() => {
     setTitleInput(column.title);
@@ -79,14 +90,20 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAd
     requestAnimationFrame(() => columnInputRef.current?.select());
   };
   
-  const handleDeleteColumn = useCallback(async () => {
-    if (confirm('Are you sure you want to delete this column?')) {
-      try {
-        await deleteColumn(column.id);
-      } catch (error: unknown) {
-        console.error('Failed to delete column:', error);
-      }
+  // This will now just open the confirmation dialog
+  const requestDeleteColumn = useCallback(() => {
+    setIsDeleteConfirmOpen(true);
+  }, []);
+
+  // This function will be called by the confirmation dialog
+  const executeDeleteColumn = useCallback(async () => {
+    try {
+      await deleteColumn(column.id);
+    } catch (error: unknown) {
+      console.error('Failed to delete column:', error);
+      // Optionally, show a toast or error message to the user here
     }
+    setIsDeleteConfirmOpen(false); // Close dialog regardless of outcome
   }, [deleteColumn, column.id]);
   
   // Memoize sorted cards to avoid re-sorting on each render
@@ -155,12 +172,12 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAd
           }}
           placeholder="Column Title"
         />
-        <div className="flex items-center gap-1 ml-auto">
-          <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
-            {column.cards.length}
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-xs text-muted-foreground">
+            {column.cards.length} {column.cards.length === 1 ? 'card' : 'cards'}
           </span>
           {totalWeight > 0 && (
-            <span className="glass-morph-light text-xs px-2 py-1 rounded-full flex items-center">
+            <span className="text-xs text-muted-foreground flex items-center">
               <Weight className="h-3 w-3 mr-0.5" />
               {totalWeight}
             </span>
@@ -175,7 +192,7 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAd
             </svg>
           </button>
           <button
-            onClick={handleDeleteColumn}
+            onClick={requestDeleteColumn}
             className="glass-morph-light text-xs p-1 rounded-full hover:bg-red-600/10 transition-colors hover-lift"
             aria-label="Delete Column"
           >
@@ -208,6 +225,24 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAd
           </div>
         )}
       </div>
+      {/* Confirmation Dialog */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the column "{column.title}"
+              and all of its cards.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDeleteColumn} className="bg-red-600 hover:bg-red-700">
+              Delete Column
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 

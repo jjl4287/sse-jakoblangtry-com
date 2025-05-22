@@ -18,6 +18,17 @@ import type { CardDragItem } from '~/constants/dnd-types';
 import { Badge } from '~/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar';
 import { getContrastingTextColor } from '~/lib/utils';
+import { StyledLabelBadge } from '~/components/ui/StyledLabelBadge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '~/components/ui/alert-dialog';
 
 interface CardProps {
   card: CardType;
@@ -42,6 +53,7 @@ export const Card = memo(({
   const { deleteCard } = useBoard();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isCardDeleteConfirmOpen, setIsCardDeleteConfirmOpen] = useState(false);
   
   // Use the custom hook for the lighting effect
   useMousePositionStyle(ref);
@@ -61,19 +73,26 @@ export const Card = memo(({
     setIsDropdownOpen(open);
   }, []);
 
-  const handleDelete = useCallback(async (e: React.MouseEvent<HTMLDivElement>) => {
+  // Opens the delete confirmation dialog
+  const requestDeleteCard = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    if (window.confirm(`Are you sure you want to delete card "${card.title}"?`)) {
-      try {
-        const deletePromise = deleteCard(card.id);
-        if (deletePromise && typeof deletePromise.then === 'function') {
-          await deletePromise;
-        }
-      } catch (err) {
-        console.error("Error deleting card:", err);
+    setIsCardDeleteConfirmOpen(true);
+    setIsDropdownOpen(false); // Close the dropdown when dialog opens
+  }, []);
+
+  // Executes the card deletion
+  const executeDeleteCard = useCallback(async () => {
+    try {
+      const deletePromise = deleteCard(card.id);
+      if (deletePromise && typeof deletePromise.then === 'function') {
+        await deletePromise;
       }
+    } catch (err) {
+      console.error("Error deleting card:", err);
+      // Optionally show a toast message here
     }
-  }, [card.id, card.title, deleteCard]);
+    setIsCardDeleteConfirmOpen(false); // Close dialog
+  }, [card.id, deleteCard]);
 
   // Helper function to get priority icon and color
   const getPriorityInfo = (priority: 'low' | 'medium' | 'high') => {
@@ -104,25 +123,18 @@ export const Card = memo(({
         onClick={handleOpenModal}
         style={{ pointerEvents: 'auto' }}
       >
-        {/* Conditionally render the ENTIRE DropdownMenu only when not dragging */}
+        {/* Conditionally render the Delete Button only when not dragging */}
         {!isDragging && (
-          <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-[50ms]" onClick={handleDropdownTriggerClick}>
-            <DropdownMenu onOpenChange={handleDropdownOpenChange} open={isDropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuItem
-                  onClick={handleDelete}
-                  className="cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  <span>Delete Card</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-[50ms]" onClick={(e) => e.stopPropagation()}> {/* Prevent card click through */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6 rounded-full"
+              onClick={requestDeleteCard} 
+              aria-label="Delete card"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         )}
 
@@ -132,6 +144,19 @@ export const Card = memo(({
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 mb-2 line-clamp-2 h-8">
               {card.description}
             </p>
+          )}
+          {/* Labels Display - Moved to its own row */}
+          {cardLabels.length > 0 && (
+            <div className="flex items-center flex-wrap gap-1 mb-2">
+              {cardLabels.slice(0, 3).map(label => (
+                <StyledLabelBadge key={label.id} label={label} />
+              ))}
+              {cardLabels.length > 3 && (
+                <Badge variant="outline" className="px-1.5 py-0.5 text-[10px] font-normal border">
+                  +{cardLabels.length - 3}
+                </Badge>
+              )}
+            </div>
           )}
           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
             <div className="flex items-center space-x-2 flex-wrap gap-y-1">
@@ -151,27 +176,6 @@ export const Card = memo(({
                 </span>
               )}
               
-              {/* Labels Display */}
-              {cardLabels.slice(0, 3).map(label => (
-                <Badge 
-                  key={label.id} 
-                  variant="outline" 
-                  className="px-1.5 py-0.5 text-[10px] font-normal border"
-                  style={{ 
-                    backgroundColor: label.color, 
-                    color: getContrastingTextColor(label.color),
-                    borderColor: getContrastingTextColor(label.color) === '#000000' ? '#00000030' : '#FFFFFF50',
-                   }}
-                >
-                  {label.name}
-                </Badge>
-              ))}
-              {cardLabels.length > 3 && (
-                <Badge variant="outline" className="px-1.5 py-0.5 text-[10px] font-normal border">
-                  +{cardLabels.length - 3}
-                </Badge>
-              )}
-
               {/* Priority Display (moved to last in this group) */}
               <span className={`flex items-center ${priorityColor}`}>
                 <PriorityIcon className="h-3 w-3 mr-0.5" />
@@ -219,6 +223,23 @@ export const Card = memo(({
           onOpenChange={setIsModalOpen}
         />
       )}
+      {/* Card Delete Confirmation Dialog */}
+      <AlertDialog open={isCardDeleteConfirmOpen} onOpenChange={setIsCardDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`This action cannot be undone. This will permanently delete the card "${card.title}".`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDeleteCard} className="bg-red-600 hover:bg-red-700">
+              Delete Card
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 });
