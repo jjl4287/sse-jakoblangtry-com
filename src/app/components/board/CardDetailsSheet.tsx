@@ -475,11 +475,12 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
 
     setIsSavingAttachment(true);
     const optimisticId = `optimistic-file-${Date.now()}`;
+    const tempOptimisticFileUrl = URL.createObjectURL(file); // Store for matching later
     const newOptimisticAttachment: OptimisticUIAttachment = {
       id: optimisticId,
       cardId: card.id,
       name: file.name,
-      url: URL.createObjectURL(file), 
+      url: tempOptimisticFileUrl, 
       type: file.type.startsWith('image/') ? 'image' : 'file',
       createdAt: new Date(),
       isOptimistic: true,
@@ -487,40 +488,27 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
     setOptimisticAttachments(prev => [...prev, newOptimisticAttachment]);
 
     try {
-      // await addAttachment(card.id, { file }); // This will be the actual upload
-      // For now, simulate success then rely on board context to update card.attachments
-      // This is a placeholder for the actual API call logic using FormData for file uploads
-      console.log('Simulating file upload for:', file.name);
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
-
-      // After successful upload, the board context should refresh and include the new attachment.
-      // The optimistic one can be removed IF the real one from card.attachments will be rendered.
-      // For now, we assume the card.attachments will be updated by the context, so we clear all optimistic ones.
-      // A more robust solution would match the optimistic one with the real one by some criteria if needed.
-      // Or, if addAttachment returns the created attachment, we can update it directly.
-      // For now, clearing all optimistic attachments when a real attachment operation is successful.
-      // If addAttachment returns the created attachment, update optimisticAttachments to remove the specific one.
-      // For this example, we'll rely on a full refresh from board context.
-
-      // If the API call is successful, the optimistic one will eventually be replaced by the real one from context.
-      // To prevent duplicates if the context update is quick, we might clear optimistic ones here.
-      // Or, if addAttachment returns the new attachment, we could replace the optimistic one.
-      // For now, let's assume the context handles it and we clear the specific optimistic attachment
-      // if the API call itself updates the card data directly or returns the new attachment ID.
-      // Since addAttachment doesn't return the attachment, we'll rely on the context to refresh.
-      // We can remove the optimistic attachment once the actual attachment is loaded via context.
-      // For now, we'll leave it, and the rendering logic will need to de-duplicate if necessary,
-      // or we'll assume the BoardProvider updates the card prop which re-renders and clears these.
+      const savedAttachment = await addAttachment(card.id, file); // addAttachment from useBoard
       
-      // Reset file input
+      if (savedAttachment) {
+        // Remove the successfully saved optimistic attachment
+        setOptimisticAttachments(prev => prev.filter(att => 
+          !(att.isOptimistic && att.url === tempOptimisticFileUrl && att.name === file.name)
+        ));
+      } else {
+        // If addAttachment didn't return anything (e.g. error handled within context but not thrown here)
+        // or if it failed silently for some reason, we might still need to remove the optimistic one.
+        // However, the catch block should handle explicit failures.
+        console.warn('File upload succeeded but no attachment data returned from context.');
+         // Fallback: remove based on optimisticId if context didn't return the new attachment
+        setOptimisticAttachments(prev => prev.filter(att => att.id !== optimisticId));
+      }
+      
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      // The optimistic item will be removed when the card updates with the real attachment.
-      // Or, ensure your rendering logic de-duplicates based on a stable ID if possible.
     } catch (error) {
       console.error("Failed to upload file:", error);
-      // Remove the optimistic attachment on failure
       setOptimisticAttachments(prev => prev.filter(att => att.id !== optimisticId));
     } finally {
       setIsSavingAttachment(false);
@@ -528,7 +516,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   };
 
   const handleAddLinkAttachment = async () => {
-    if (!(attachmentLinkUrl ?? '').trim()) { // Use nullish coalescing
+    if (!(attachmentLinkUrl ?? '').trim()) {
       alert("Please enter a valid URL.");
       return;
     }
@@ -542,54 +530,67 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
 
     setIsSavingAttachment(true);
     const optimisticId = `optimistic-link-${Date.now()}`;
+    const linkNameToSave = (attachmentLinkName ?? '').trim() || validUrl.href;
+    const linkUrlToSave = validUrl.href;
+
     const newLinkAttachment: OptimisticUIAttachment = {
       id: optimisticId,
       cardId: card.id,
-      name: (attachmentLinkName ?? '').trim() || validUrl.href, // Use nullish coalescing
-      url: validUrl.href,
+      name: linkNameToSave,
+      url: linkUrlToSave,
       type: 'link',
       createdAt: new Date(),
       isOptimistic: true,
     };
 
     setOptimisticAttachments(prev => [...prev, newLinkAttachment]);
+    const currentLinkUrl = attachmentLinkUrl; // Capture before clearing
+    const currentLinkName = attachmentLinkName; // Capture before clearing
+
     setAttachmentLinkUrl('');
     setAttachmentLinkName('');
-    setIsLinkPopoverOpen(false); // Close popover immediately
+    setIsLinkPopoverOpen(false);
 
     try {
-      await addAttachment(card.id, {
-        url: newLinkAttachment.url,
-        name: newLinkAttachment.name,
+      const savedAttachment = await addAttachment(card.id, {
+        url: linkUrlToSave,
+        name: linkNameToSave,
         type: 'link',
       });
-      // If successful, the BoardProvider should refresh the card data,
-      // which will include the new attachment from the server.
-      // The optimistic item will effectively be replaced.
-      // We can remove it from optimisticAttachments if addAttachment returns the new attachment ID
-      // or if we are sure the card prop will update and trigger a re-render that doesn't need it.
-      // For simplicity, let's assume the card prop update will handle this.
-      // If not, we'd do: setOptimisticAttachments(prev => prev.filter(att => att.id !== optimisticId));
-      // but this might cause a flicker if the real data comes in slightly later.
-      // A common pattern is for `addAttachment` to return the created item, then update the state.
+
+      if (savedAttachment) {
+        // Remove the successfully saved optimistic attachment
+        setOptimisticAttachments(prev => prev.filter(att => 
+          !(att.isOptimistic && att.url === linkUrlToSave && att.name === linkNameToSave)
+        ));
+      } else {
+        console.warn('Link attachment succeeded but no attachment data returned from context.');
+        // Fallback: remove based on optimisticId if context didn't return the new attachment
+        setOptimisticAttachments(prev => prev.filter(att => att.id !== optimisticId));
+      }
+
     } catch (error) {
       console.error("Failed to add link attachment:", error);
       alert("Failed to add link. Please try again.");
-      // Remove the optimistic attachment if the API call fails
       setOptimisticAttachments(prev => prev.filter(att => att.id !== optimisticId));
     } finally {
       setIsSavingAttachment(false);
     }
   };
 
-  // Reset optimistic attachments when the card changes or sheet closes
+  // Reset optimistic attachments only when the sheet is closed or the fundamental card context changes.
   useEffect(() => {
-    if (!isOpen || (card && card.id !== optimisticAttachments[0]?.cardId)) {
+    if (!isOpen) {
       setOptimisticAttachments([]);
+    } else {
+      // If card.id changes while sheet is open, clear optimistic items for the *previous* card.
+      // Check if any existing optimistic attachments belong to a different card ID.
+      const currentCardId = card?.id;
+      setOptimisticAttachments(prev => prev.filter(att => att.cardId === currentCardId));
     }
-  }, [isOpen, card]);
+  }, [isOpen, card?.id]); // Depend on card.id for context change detection
 
-  if (!card) return null; // Should not happen if isOpen is true and card is passed
+  if (!card) return null;
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>

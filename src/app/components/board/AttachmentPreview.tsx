@@ -1,15 +1,19 @@
 'use client';
 
 import React from 'react';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, XIcon } from 'lucide-react';
 import Image from 'next/image';
+import { Button } from '~/components/ui/button';
 
 interface AttachmentPreviewProps {
   url: string;
-  filename?: string; // Add optional filename prop
+  filename?: string;
+  type?: string;
+  onDelete: () => void;
+  isOptimistic?: boolean;
 }
 
-export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filename }) => {
+export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filename, type, onDelete, isOptimistic }) => {
   // Function to check if a string is a valid URL
   const isValidUrl = (urlString: string) => {
     try {
@@ -22,7 +26,39 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filen
 
   // Use filename if provided, otherwise fallback to URL
   const displayName = filename || url;
+  const containerClasses = `border rounded-md p-2 flex justify-between items-start gap-2 mb-2 ${isOptimistic ? 'opacity-70' : ''}`;
   
+  // For links or files that are not images/YouTube
+  const renderGenericPreview = () => (
+    <div className={containerClasses}>
+      <div className="flex-1 min-w-0">
+        <a 
+          href={url}
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center text-xs text-blue-400 hover:text-blue-300 hover:underline truncate"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Paperclip className="w-3 h-3 mr-1.5 flex-shrink-0" />
+          <span className="truncate">{displayName}</span>
+        </a>
+        {filename && url !== displayName && <p className="text-xs text-muted-foreground truncate">{url}</p>}
+      </div>
+      <Button 
+        variant="ghost"
+        size="sm"
+        onClick={(e) => { 
+          e.stopPropagation();
+          onDelete(); 
+        }}
+        className="text-destructive hover:text-destructive/80 p-1 h-7 w-7 flex-shrink-0"
+        aria-label="Delete attachment"
+      >
+        <XIcon className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
   if (isValidUrl(url)) {
     try {
       const parsedUrl = new URL(url);
@@ -37,60 +73,76 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filen
           
         if (videoId) {
           return (
-            <div className="relative pt-[56.25%] w-full overflow-hidden rounded mb-2">
-              <iframe 
-                className="absolute top-0 left-0 w-full h-full border-0"
-                src={`https://www.youtube.com/embed/${videoId}`}
-                title="YouTube video preview"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              ></iframe>
+            <div className={containerClasses}>
+              <div className="flex-1 min-w-0">
+                <div className="relative pt-[56.25%] w-full overflow-hidden rounded mb-1">
+                  <iframe 
+                    className="absolute top-0 left-0 w-full h-full border-0"
+                    src={`https://www.youtube.com/embed/${videoId}`}
+                    title="YouTube video preview"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+                <p className="text-xs text-muted-foreground truncate">{displayName}</p>
+              </div>
+              <Button 
+                variant="ghost"
+                size="sm"
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="text-destructive hover:text-destructive/80 p-1 h-7 w-7 flex-shrink-0"
+                aria-label="Delete attachment"
+              >
+                <XIcon className="h-4 w-4" />
+              </Button>
             </div>
           );
         }
       }
 
       // Image embed (common extensions)
-      if (/\.(jpeg|jpg|gif|png|webp|svg)$/.exec(pathname)) {
+      // Use type if available, otherwise fallback to extension check
+      const isImageType = type?.startsWith('image/') || /\.(jpeg|jpg|gif|png|webp|svg)$/.test(pathname);
+      if (isImageType) {
         return (
-          <div className="relative w-full h-40 mb-2 overflow-hidden rounded">
-            <Image 
-              src={url} 
-              alt="Attachment preview" 
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-cover"
-            />
-            <a 
-              href={url}
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="absolute inset-0 z-10"
-              onClick={(e) => e.stopPropagation()}
-            />
+          <div className={containerClasses}>
+            <div className="flex-1 min-w-0">
+              <div className="relative w-full h-32 mb-1 overflow-hidden rounded">
+                <Image 
+                  src={url} 
+                  alt={displayName || 'Attachment preview'} 
+                  fill
+                  sizes="(max-width: 640px) 100vw, 200px"
+                  className="object-cover"
+                />
+                <a 
+                  href={url}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="absolute inset-0 z-10"
+                  aria-label={`View ${displayName}`}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground truncate">{displayName}</p>
+            </div>
+            <Button 
+              variant="ghost"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="text-destructive hover:text-destructive/80 p-1 h-7 w-7 flex-shrink-0"
+              aria-label="Delete attachment"
+            >
+              <XIcon className="h-4 w-4" />
+            </Button>
           </div>
         );
       }
     } catch (error) {
-      console.error("Error parsing attachment URL:", error);
+      console.error("Error parsing attachment URL or rendering preview:", error);
       // Fall through to generic link if URL parsing fails or it's not a special type
     }
   }
-
-  // Generic link embed
-  return (
-    <a 
-      href={url}
-      target="_blank" 
-      rel="noopener noreferrer"
-      className="flex items-center text-xs text-blue-400 hover:text-blue-300 hover:underline mb-2 truncate"
-      onClick={(e) => {
-        // Prevent drag or other parent handlers without blocking navigation
-        e.stopPropagation();
-      }}
-    >
-      <Paperclip className="w-3 h-3 mr-1 flex-shrink-0" />
-      <span className="truncate">{displayName}</span>
-    </a>
-  );
+  // Fallback for non-URL strings or other types
+  return renderGenericPreview();
 }; 

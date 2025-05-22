@@ -41,7 +41,6 @@ export async function POST(
   const userId = session.user.id;
 
   try {
-    // 1. Authorization: Check if user can access/edit the card (simplified for now)
     const card = await prisma.card.findUnique({
       where: { id: cardId },
       select: { board: { select: { creatorId: true, members: { select: { userId: true } } } } },
@@ -58,60 +57,84 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // 2. Handle multipart/form-data
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
+    const contentType = request.headers.get('content-type') || '';
+    let attachmentData;
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-    }
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      const file = formData.get('file') as File | null;
 
-    // 3. Ensure upload directory exists
-    await ensureUploadDirExists();
-    const cardUploadDir = path.join(UPLOAD_DIR, cardId);
-    try {
-      await stat(cardUploadDir);
-    } catch (e: any) {
-      if (e.code === 'ENOENT') {
-        await mkdir(cardUploadDir, { recursive: true });
-      } else {
-        throw e; // Re-throw other errors
+      if (!file) {
+        return NextResponse.json({ error: 'No file provided' }, { status: 400 });
       }
+
+      await ensureUploadDirExists();
+      const cardUploadDir = path.join(UPLOAD_DIR, cardId);
+      try {
+        await stat(cardUploadDir);
+      } catch (e: any) {
+        if (e.code === 'ENOENT') {
+          await mkdir(cardUploadDir, { recursive: true });
+        } else {
+          throw e;
+        }
+      }
+      
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      const originalFilename = file.name;
+      const safeFilename = path.basename(originalFilename).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const timestamp = Date.now();
+      const uniqueFilename = `${timestamp}_${safeFilename}`;
+      const filePath = path.join(cardUploadDir, uniqueFilename);
+      
+      await writeFile(filePath, fileBuffer);
+
+      const fileUrl = `/uploads/cards/${cardId}/${uniqueFilename}`;
+
+      attachmentData = {
+        name: originalFilename,
+        url: fileUrl,
+        type: file.type || 'file', // Use file.type or default to 'file'
+        card: { connect: { id: cardId } },
+      };
+    } else if (contentType.includes('application/json')) {
+      const body = await request.json();
+      const { url, name } = body;
+
+      if (!url) {
+        return NextResponse.json({ error: 'URL is required' }, { status: 400 });
+      }
+      // Basic URL validation (can be enhanced)
+      try {
+        new URL(url);
+      } catch (_) {
+        return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
+      }
+
+      attachmentData = {
+        name: name || url, // Use provided name or the URL itself as name
+        url: url,
+        type: 'link',
+        card: { connect: { id: cardId } },
+      };
+    } else {
+      return NextResponse.json({ error: 'Unsupported Content-Type' }, { status: 415 });
     }
     
-    // 4. Save the file
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    // Sanitize filename to prevent directory traversal and other issues
-    const originalFilename = file.name;
-    const safeFilename = path.basename(originalFilename).replace(/[^a-zA-Z0-9._-]/g, '_');
-    const timestamp = Date.now();
-    const uniqueFilename = `${timestamp}_${safeFilename}`;
-    const filePath = path.join(cardUploadDir, uniqueFilename);
-    
-    await writeFile(filePath, fileBuffer);
-
-    // 5. Create Attachment record in DB
-    const fileUrl = `/uploads/cards/${cardId}/${uniqueFilename}`; // URL path for client access
-
     const attachment = await prisma.attachment.create({
-      data: {
-        name: originalFilename, // Store original filename
-        url: fileUrl,
-        type: file.type,
-        card: { connect: { id: cardId } },
-      },
+      data: attachmentData,
     });
     
-    // 6. Log activity (optional, but good practice)
     await prisma.activityLog.create({
         data: {
-            actionType: "ADD_ATTACHMENT_TO_CARD",
+            actionType: attachmentData.type === 'link' ? "ADD_LINK_ATTACHMENT_TO_CARD" : "ADD_FILE_ATTACHMENT_TO_CARD",
             cardId,
             userId,
             details: {
                 attachmentId: attachment.id,
                 attachmentName: attachment.name,
                 attachmentUrl: attachment.url,
+                attachmentType: attachment.type,
             },
         },
     });

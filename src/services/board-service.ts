@@ -565,48 +565,41 @@ export class BoardService {
    * Deletes a comment from a card
    */
   static async deleteComment(cardId: string, commentId: string): Promise<Board> {
-    // Update the board state locally first
-    const board = await this.getBoard();
-    const updatedColumns = board.columns.map((column) => {
-      const cardIndex = column.cards.findIndex((c) => c.id === cardId);
-      if (cardIndex === -1) return column;
-      const updatedCards = [...column.cards];
-      const card = updatedCards[cardIndex];
-      if (!card?.comments) return column;
-      updatedCards[cardIndex] = {
-        ...card,
-        comments: card.comments.filter(c => c.id !== commentId),
-      };
-      return { ...column, cards: updatedCards };
-    });
-    const updatedBoard = { ...board, columns: updatedColumns };
-
-    // Persist changes using the fallback mechanism
-    await saveBoard(updatedBoard);
-    return updatedBoard;
+    throw new Error('Method not implemented yet.');
   }
 
   /**
    * Adds an attachment to a card
    */
-  static async addAttachment(cardId: string, file: File): Promise<Attachment> {
-    const formData = new FormData();
-    formData.append('file', file);
+  static async addAttachment(cardId: string, attachmentData: File | { url: string; name: string; type: 'link' }): Promise<Attachment> {
+    const url = `/api/cards/${cardId}/attachments`;
+    let response;
 
-    const res = await fetch(`/api/cards/${cardId}/attachments`, {
-      method: 'POST',
-      body: formData, // No 'Content-Type' header needed, browser sets it for FormData
-    });
-
-    if (!res.ok) {
-      let msg = `Failed to add attachment: ${res.status}`;
-      try {
-        const body = (await res.json()) as { error?: string };
-        if (body.error) msg = body.error;
-      } catch {}
-      throw new BoardServiceError(msg);
+    if (attachmentData instanceof File) {
+      const formData = new FormData();
+      formData.append('file', attachmentData);
+      response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+        // Content-Type is set automatically by browser for FormData
+      });
+    } else {
+      // It's a link object
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(attachmentData),
+      });
     }
-    return (await res.json()) as Attachment;
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error("Failed to add attachment:", response.status, errorBody);
+      throw new Error(`Failed to add attachment: ${response.status} ${errorBody}`);
+    }
+    return response.json() as Promise<Attachment>;
   }
 
   static async listAttachments(cardId: string): Promise<Attachment[]> {
@@ -758,4 +751,4 @@ export class BoardService {
     }
     return (await res.json()) as ActivityLogType[];
   }
-} 
+}

@@ -56,7 +56,7 @@ interface BoardContextType {
   duplicateCard: (cardId: string, targetColumnId?: string) => Promise<void> | void;
   addComment: (cardId: string, author: string, content: string) => Promise<void> | void;
   deleteComment: (cardId: string, commentId: string) => Promise<void> | void;
-  addAttachment: (cardId: string, file: File) => Promise<Attachment | void>;
+  addAttachment: (cardId: string, attachmentData: File | { url: string; name: string; type: 'link' }) => Promise<Attachment | void>;
   deleteAttachment: (cardId: string, attachmentId: string) => Promise<void>;
   createBoardLabel: (name: string, color: string) => Promise<Label | void>;
   updateBoardLabel: (labelId: string, name: string, color: string) => Promise<Label | void>;
@@ -507,82 +507,45 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }));
   }, [updateBoardState]);
 
-  const addAttachment = useCallback(async (cardId: string, file: File): Promise<Attachment | void> => {
-    // Create a temporary optimistic attachment
-    const tempId = uuidv4();
-    const tempAttachment: Attachment = {
-      id: tempId,
-      name: file.name,
-      url: URL.createObjectURL(file), // Create temporary URL for optimistic UI
-      type: file.type,
-      createdAt: new Date()
-    };
-    
-    // Update state optimistically
-    updateBoardState(prev => ({
-      ...prev,
-      columns: prev.columns.map(c => ({
-        ...c,
-        cards: c.cards.map(card => card.id === cardId ? { 
-          ...card, 
-          attachments: [...card.attachments, tempAttachment] 
-        } : card)
-      }))
-    }));
+  const addAttachment = useCallback(
+    async (cardId: string, attachmentData: File | { url: string; name: string; type: 'link' }) => {
+      if (!board) return;
+      setSaveStatus('saving');
+      try {
+        let newAttachment: Attachment | undefined;
+        if (attachmentData instanceof File) {
+          newAttachment = await BoardService.addAttachment(cardId, attachmentData);
+        } else {
+          // Assuming BoardService.addAttachment can handle this structure for links, or we need another service method
+          // For now, let's assume BoardService.addAttachment is updated or overloaded to handle this.
+          // If not, we'd call a different BoardService method e.g., BoardService.addLinkAttachment
+          newAttachment = await BoardService.addAttachment(cardId, attachmentData as any); // Cast to any if service not updated yet
+        }
 
-    if (!session || !board || board.id === 'demo') {
-      return tempAttachment; // Return optimistic attachment for demo mode
-    }
-    
-    // Call the API
-    setSaveStatus('saving');
-    try {
-      const attachment = await BoardService.addAttachment(cardId, file);
-      
-      // Replace the temporary attachment with the real one
-      updateBoardState(prev => ({
-        ...prev,
-        columns: prev.columns.map(c => ({
-          ...c,
-          cards: c.cards.map(card => {
-            if (card.id === cardId) {
-              return {
-                ...card,
-                attachments: card.attachments.map(att => 
-                  att.id === tempId ? attachment : att
-                )
-              };
-            }
-            return card;
-          })
-        }))
-      }));
-      
-      setSaveStatus('saved');
-      return attachment;
-    } catch (e) {
-      setSaveStatus('error');
-      setSaveError(e as Error);
-      console.error(`Failed to upload attachment to card ${cardId}:`, e);
-      
-      // Remove the optimistic attachment on error
-      updateBoardState(prev => ({
-        ...prev,
-        columns: prev.columns.map(c => ({
-          ...c,
-          cards: c.cards.map(card => {
-            if (card.id === cardId) {
-              return {
-                ...card,
-                attachments: card.attachments.filter(att => att.id !== tempId)
-              };
-            }
-            return card;
-          })
-        }))
-      }));
-    }
-  }, [session, board, updateBoardState, setSaveStatus, setSaveError]);
+        if (newAttachment) {
+          updateBoardState(prev => ({
+            ...prev,
+            columns: prev.columns.map(col => ({
+              ...col,
+              cards: col.cards.map(c => 
+                c.id === cardId 
+                  ? { ...c, attachments: [...(c.attachments || []), newAttachment!] } 
+                  : c
+              ),
+            })),
+          }));
+          setSaveStatus('saved');
+          toast.success(attachmentData instanceof File ? 'File attached successfully' : 'Link added successfully');
+          return newAttachment;
+        }
+      } catch (e) {
+        setSaveStatus('error');
+        setSaveError(e as Error);
+        toast.error(attachmentData instanceof File ? 'Failed to attach file' : 'Failed to add link');
+      }
+    },
+    [board, session, updateBoardState]
+  );
 
   const deleteAttachment = useCallback(async (cardId: string, attachmentId: string): Promise<void> => {
     // Optimistic update
