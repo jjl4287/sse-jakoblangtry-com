@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { XIcon, CalendarIcon, Trash2, Edit3Icon, MessageSquareText, History, Type, CheckSquare, CircleSlash, ArrowUp, ArrowDown, ArrowRight, Weight, Paperclip, PlusCircleIcon } from 'lucide-react';
+import { XIcon, CalendarIcon, Trash2, Edit3Icon, MessageSquareText, History, Type, CheckSquare, CircleSlash, ArrowUp, ArrowDown, ArrowRight, Weight, Paperclip, PlusCircleIcon, Link2 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Sheet,
@@ -30,7 +30,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '~/components/ui/popover
 import { Button } from '~/components/ui/button';
 import { useBoard } from '~/services/board-context';
 import { cn } from '~/lib/utils';
-import type { Card, Priority, Label as LabelType, User as UserType, Comment as CommentType, ActivityLog as ActivityLogType, Attachment } from '~/types';
+import type { Card, Priority, Label as LabelType, User as UserType, Comment as CommentType, ActivityLog as ActivityLogType, Attachment as BaseAttachment } from '~/types';
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { Badge } from '~/components/ui/badge';
 import {
@@ -91,6 +91,23 @@ interface CardDetailsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// Base type for attachments from the server
+// interface BaseAttachment defined in ~/types
+
+// Type for attachments that are being optimistically added to the UI
+interface OptimisticUIAttachment extends BaseAttachment {
+  cardId: string; // Useful for optimistic operations
+  isOptimistic: true;
+}
+
+// Type for attachments that are confirmed and from the server (for rendering)
+interface ConfirmedUIAttachment extends BaseAttachment {
+  isOptimistic: false;
+}
+
+// Union type for what's rendered in the list
+type DisplayAttachment = OptimisticUIAttachment | ConfirmedUIAttachment;
+
 export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen, onOpenChange }) => {
   const {
     updateCard,
@@ -116,7 +133,12 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [weight, setWeight] = useState<number | undefined>(card.weight);
   const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [attachmentLinkUrl, setAttachmentLinkUrl] = useState('');
+  const [attachmentLinkName, setAttachmentLinkName] = useState('');
+  const [isLinkPopoverOpen, setIsLinkPopoverOpen] = useState(false);
+  const [isSavingAttachment, setIsSavingAttachment] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [optimisticAttachments, setOptimisticAttachments] = useState<OptimisticUIAttachment[]>([]);
   const cardTitleInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -234,6 +256,9 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
       // Reset states that should be fresh each time sheet opens
       setCalendarOpen(false);
       setAttachmentUrl('');
+      setAttachmentLinkUrl('');
+      setAttachmentLinkName('');
+      setIsSavingAttachment(false);
       setIsSaving(false);
       setIsEditingTitle(false);
       // Close pickers and reset their specific forms/search state
@@ -342,14 +367,30 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
     fileInputRef.current?.click();
   }, []);
 
-  const handleDeleteAttachment = useCallback(
-    async (attachmentId: string) => {
-      if (window.confirm('Are you sure you want to delete this attachment?')) {
-        await deleteAttachment(card.id, attachmentId);
-      }
-    },
-    [card.id, deleteAttachment]
-  );
+  const handleDeleteAttachment = async (attachmentId: string, isOptimistic?: boolean) => {
+    if (isOptimistic) {
+      setOptimisticAttachments(prev => prev.filter(att => att.id !== attachmentId));
+      return;
+    }
+
+    // For non-optimistic attachments, proceed with API call
+    const originalAttachments = card.attachments || [];
+    // Optimistically remove from UI (assuming card.attachments is part of the state or re-renders)
+    // This requires that the `card` prop is updated after deletion by the BoardProvider,
+    // or that we manually manage a local version of attachments derived from `card.attachments`.
+    // For now, we'll rely on the BoardProvider to update `card`.
+    // To show immediate effect, one might filter `card.attachments` into a local state,
+    // then update that local state.
+
+    try {
+      await deleteAttachment(card.id, attachmentId);
+      // BoardProvider should refresh and update card.attachments
+    } catch (error) {
+      console.error("Failed to delete attachment:", error);
+      alert("Failed to delete attachment. Please try again.");
+      // Revert UI if necessary, though typically a re-fetch/context update handles this.
+    }
+  };
 
   const handleToggleLabel = (labelId: string) => {
     const newSelectedIds = new Set(currentCardLabelIds);
@@ -422,6 +463,131 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   }, [card.id, updateCard]);
 
   const stableRef = useRef<HTMLDivElement>(null);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[handleFileUpload Started]');
+    console.log('event.target.files:', event.target.files);
+    const file = event.target.files?.[0];
+    if (!file) {
+      console.log('[handleFileUpload] No file selected or event.target.files is null.');
+      return;
+    }
+
+    setIsSavingAttachment(true);
+    const optimisticId = `optimistic-file-${Date.now()}`;
+    const newOptimisticAttachment: OptimisticUIAttachment = {
+      id: optimisticId,
+      cardId: card.id,
+      name: file.name,
+      url: URL.createObjectURL(file), 
+      type: file.type.startsWith('image/') ? 'image' : 'file',
+      createdAt: new Date(),
+      isOptimistic: true,
+    };
+    setOptimisticAttachments(prev => [...prev, newOptimisticAttachment]);
+
+    try {
+      // await addAttachment(card.id, { file }); // This will be the actual upload
+      // For now, simulate success then rely on board context to update card.attachments
+      // This is a placeholder for the actual API call logic using FormData for file uploads
+      console.log('Simulating file upload for:', file.name);
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+
+      // After successful upload, the board context should refresh and include the new attachment.
+      // The optimistic one can be removed IF the real one from card.attachments will be rendered.
+      // For now, we assume the card.attachments will be updated by the context, so we clear all optimistic ones.
+      // A more robust solution would match the optimistic one with the real one by some criteria if needed.
+      // Or, if addAttachment returns the created attachment, we can update it directly.
+      // For now, clearing all optimistic attachments when a real attachment operation is successful.
+      // If addAttachment returns the created attachment, update optimisticAttachments to remove the specific one.
+      // For this example, we'll rely on a full refresh from board context.
+
+      // If the API call is successful, the optimistic one will eventually be replaced by the real one from context.
+      // To prevent duplicates if the context update is quick, we might clear optimistic ones here.
+      // Or, if addAttachment returns the new attachment, we could replace the optimistic one.
+      // For now, let's assume the context handles it and we clear the specific optimistic attachment
+      // if the API call itself updates the card data directly or returns the new attachment ID.
+      // Since addAttachment doesn't return the attachment, we'll rely on the context to refresh.
+      // We can remove the optimistic attachment once the actual attachment is loaded via context.
+      // For now, we'll leave it, and the rendering logic will need to de-duplicate if necessary,
+      // or we'll assume the BoardProvider updates the card prop which re-renders and clears these.
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      // The optimistic item will be removed when the card updates with the real attachment.
+      // Or, ensure your rendering logic de-duplicates based on a stable ID if possible.
+    } catch (error) {
+      console.error("Failed to upload file:", error);
+      // Remove the optimistic attachment on failure
+      setOptimisticAttachments(prev => prev.filter(att => att.id !== optimisticId));
+    } finally {
+      setIsSavingAttachment(false);
+    }
+  };
+
+  const handleAddLinkAttachment = async () => {
+    if (!(attachmentLinkUrl ?? '').trim()) { // Use nullish coalescing
+      alert("Please enter a valid URL.");
+      return;
+    }
+    let validUrl: URL;
+    try {
+      validUrl = new URL(attachmentLinkUrl!);
+    } catch (_) {
+      alert("Invalid URL format.");
+      return;
+    }
+
+    setIsSavingAttachment(true);
+    const optimisticId = `optimistic-link-${Date.now()}`;
+    const newLinkAttachment: OptimisticUIAttachment = {
+      id: optimisticId,
+      cardId: card.id,
+      name: (attachmentLinkName ?? '').trim() || validUrl.href, // Use nullish coalescing
+      url: validUrl.href,
+      type: 'link',
+      createdAt: new Date(),
+      isOptimistic: true,
+    };
+
+    setOptimisticAttachments(prev => [...prev, newLinkAttachment]);
+    setAttachmentLinkUrl('');
+    setAttachmentLinkName('');
+    setIsLinkPopoverOpen(false); // Close popover immediately
+
+    try {
+      await addAttachment(card.id, {
+        url: newLinkAttachment.url,
+        name: newLinkAttachment.name,
+        type: 'link',
+      });
+      // If successful, the BoardProvider should refresh the card data,
+      // which will include the new attachment from the server.
+      // The optimistic item will effectively be replaced.
+      // We can remove it from optimisticAttachments if addAttachment returns the new attachment ID
+      // or if we are sure the card prop will update and trigger a re-render that doesn't need it.
+      // For simplicity, let's assume the card prop update will handle this.
+      // If not, we'd do: setOptimisticAttachments(prev => prev.filter(att => att.id !== optimisticId));
+      // but this might cause a flicker if the real data comes in slightly later.
+      // A common pattern is for `addAttachment` to return the created item, then update the state.
+    } catch (error) {
+      console.error("Failed to add link attachment:", error);
+      alert("Failed to add link. Please try again.");
+      // Remove the optimistic attachment if the API call fails
+      setOptimisticAttachments(prev => prev.filter(att => att.id !== optimisticId));
+    } finally {
+      setIsSavingAttachment(false);
+    }
+  };
+
+  // Reset optimistic attachments when the card changes or sheet closes
+  useEffect(() => {
+    if (!isOpen || (card && card.id !== optimisticAttachments[0]?.cardId)) {
+      setOptimisticAttachments([]);
+    }
+  }, [isOpen, card]);
 
   if (!card) return null; // Should not happen if isOpen is true and card is passed
 
@@ -706,6 +872,83 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                         />
                       </PopoverContent>
                     </Popover>
+
+                    {/* Combined Attachment Actions Container - MOVED TO THE END OF ACTIONS */}
+                    <div className="pt-2 mt-2 border-t"> {/* Visual separator */}
+                      <div className="flex flex-col items-start gap-2 mt-2">
+                        {/* Attach File Button Block */}
+                        <div className="w-full">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => {
+                              console.log('[Attach File Button Clicked]');
+                              console.log('isSavingAttachment:', isSavingAttachment);
+                              console.log('fileInputRef.current:', fileInputRef.current);
+                              if (fileInputRef.current) {
+                                console.log('Calling fileInputRef.current.click()');
+                                fileInputRef.current.click();
+                                console.log('Called fileInputRef.current.click()');
+                              } else {
+                                console.error('fileInputRef.current is null or undefined');
+                              }
+                            }} 
+                            disabled={isSavingAttachment} 
+                            className="w-full justify-start"
+                          >
+                            <Paperclip className="mr-2 h-4 w-4" />
+                            Attach File
+                          </Button>
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={(event) => {
+                              console.log('[File Input onChange Triggered]');
+                              handleFileUpload(event);
+                            }}
+                            className="hidden"
+                            disabled={isSavingAttachment}
+                          />
+                        </div>
+
+                        {/* Add Link Popover Block */}
+                        <div className="w-full">
+                          <Popover open={isLinkPopoverOpen} onOpenChange={setIsLinkPopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-start">
+                                <Link2 className="mr-2 h-4 w-4" />
+                                Add Link
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent portalled={false} side="bottom" align="start" className="w-[300px] p-4">
+                              <Input
+                                type="url"
+                                placeholder="Add link URL (e.g., https://example.com)"
+                                value={attachmentLinkUrl}
+                                onChange={(e) => setAttachmentLinkUrl(e.target.value)}
+                                disabled={isSavingAttachment}
+                                className="w-full mb-2"
+                              />
+                              <Input
+                                type="text"
+                                placeholder="Optional: Link name"
+                                value={attachmentLinkName}
+                                onChange={(e) => setAttachmentLinkName(e.target.value)}
+                                disabled={isSavingAttachment}
+                                className="w-full mb-2"
+                              />
+                              <Button
+                                onClick={handleAddLinkAttachment} // No need for async here, it's handled inside
+                                disabled={isSavingAttachment || !attachmentLinkUrl.trim()}
+                                className="w-full"
+                              >
+                                {isSavingAttachment ? 'Adding...' : 'Add Link'}
+                              </Button>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+                    </div>
+                    {/* End Combined Attachment Actions Container */}
                     </div>
                   </div>
 
@@ -932,53 +1175,55 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold mb-1">Attachments</h3>
-                    <div className="space-y-2">
-                      <div className="flex flex-col gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="w-full"
-                          onClick={handleAttachClick}
-                        >
-                          <Paperclip className="h-4 w-4 mr-2" />
-                          Attach File
-                        </Button>
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          className="hidden"
-                          onChange={handleFileAttachment}
-                          multiple
-                        />
-                        <div className="flex items-center space-x-2">
-                          <Input
-                            placeholder="Attachment URL"
-                            value={attachmentUrl}
-                            onChange={e => setAttachmentUrl(e.target.value)}
-                            className="w-full"
+                    <h3 className="text-sm font-semibold mb-2 flex items-center justify-between">
+                      <span>Attachments</span>
+                      {isSavingAttachment && <span className="text-xs text-muted-foreground">Processing...</span>}
+                    </h3>
+                    <div className="space-y-2 mt-1">
+                      {(() => {
+                        const confirmedAttachments: ConfirmedUIAttachment[] = (card.attachments ?? []).map(att => ({ 
+                          ...att, 
+                          isOptimistic: false 
+                        }));
+                        
+                        const allDisplayAttachments: DisplayAttachment[] = [...confirmedAttachments, ...optimisticAttachments];
+                        
+                        if (allDisplayAttachments.length === 0) {
+                          return <p className="text-xs text-muted-foreground">No attachments yet.</p>;
+                        }
+
+                        const uniqueAttachments = allDisplayAttachments.filter((att, index, self) =>
+                          index === self.findIndex(a => {
+                            // If both have server IDs, that's the primary key for uniqueness
+                            if (!a.isOptimistic && !att.isOptimistic) {
+                              return a.id === att.id;
+                            }
+                            // If one is optimistic and one is not, they might be the same if URLs/names match
+                            // This can happen briefly if server data arrives while optimistic one is shown
+                            if (a.isOptimistic !== att.isOptimistic) {
+                               // A more robust check might involve a temporary correlation ID
+                               // For now, if URLs and names match, consider them the same to avoid brief duplication
+                               return a.url === att.url && a.name === att.name;
+                            }
+                            // If both are optimistic, their generated IDs are unique
+                            if (a.isOptimistic && att.isOptimistic) {
+                                return a.id === att.id;
+                            }
+                            return a.id === att.id; // Fallback, should be covered by above
+                          })
+                        );
+
+                        return uniqueAttachments.map((attachment) => (
+                          <AttachmentPreview 
+                            key={attachment.id} 
+                            url={attachment.url}
+                            filename={attachment.name}
+                            type={attachment.type}
+                            onDelete={() => handleDeleteAttachment(attachment.id, attachment.isOptimistic)}
+                            isOptimistic={attachment.isOptimistic}
                           />
-                          <Button onClick={handleAddAttachment} size="sm">Add</Button>
-                        </div>
-                      </div>
-                      {card.attachments.map(att => (
-                        <div key={att.id} className="border rounded-md p-2">
-                          <div className="flex justify-between items-start gap-2">
-                            <div className="truncate flex-1">
-                              <AttachmentPreview url={att.url} filename={att.name} />
-                              <div className="text-xs text-muted-foreground">
-                                {new Date(att.createdAt).toLocaleDateString()}
-                              </div>
-                            </div>
-                            <button 
-                              onClick={() => handleDeleteAttachment(att.id)}
-                              className="text-destructive hover:text-destructive/80 p-1 h-6 w-6 flex items-center justify-center rounded-full hover:bg-muted/10"
-                            >
-                              <XIcon className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        ));
+                      })()}
                     </div>
                   </div>
                 </div>
