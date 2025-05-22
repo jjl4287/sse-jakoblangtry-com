@@ -43,6 +43,7 @@ model Card {
   dueDate     DateTime?
   assignees   User[]       @relation("CardAssignees")
   priority    Priority
+  weight      Int?
   attachments Attachment[]
   comments    Comment[]
   column      Column       @relation(fields: [columnId], references: [id], onDelete: Cascade)

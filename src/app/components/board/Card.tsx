@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { MoreHorizontal, Trash2, Calendar, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
+import { MoreHorizontal, Trash2, Calendar, ArrowUp, ArrowDown, ArrowRight, Weight } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMousePositionStyle } from '~/hooks/useMousePositionStyle';
 import type { Card as CardType } from '~/types';
@@ -131,6 +131,13 @@ export const Card = memo(({
               <span className={`flex items-center ${priorityColor}`}>
                 <PriorityIcon className="h-3 w-3 mr-0.5" />
               </span>
+
+              {card.weight !== undefined && card.weight > 0 && (
+                <span className="flex items-center">
+                  <Weight className="h-3 w-3 mr-0.5" />
+                  {card.weight}
+                </span>
+              )}
 
               {card.dueDate && (
                 <span className="flex items-center ">

@@ -49,14 +49,15 @@ interface BoardContextType {
     description?: string;
     priority?: Priority;
     dueDate?: Date;
+    weight?: number;
   }>) => Promise<void> | void;
   deleteCard: (cardId: string) => Promise<void> | void;
   moveCard: (cardId: string, targetColumnId: string, newOrder: number) => void;
   duplicateCard: (cardId: string, targetColumnId?: string) => Promise<void> | void;
   addComment: (cardId: string, author: string, content: string) => Promise<void> | void;
   deleteComment: (cardId: string, commentId: string) => Promise<void> | void;
-  addAttachment: (cardId: string, name: string, url: string, type: string) => Promise<void> | void;
-  deleteAttachment: (cardId: string, attachmentId: string) => Promise<void> | void;
+  addAttachment: (cardId: string, file: File) => Promise<Attachment | void>;
+  deleteAttachment: (cardId: string, attachmentId: string) => Promise<void>;
   createBoardLabel: (name: string, color: string) => Promise<Label | void>;
   updateBoardLabel: (labelId: string, name: string, color: string) => Promise<Label | void>;
   deleteBoardLabel: (labelId: string) => Promise<void>;
@@ -368,6 +369,7 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     description?: string;
     priority?: Priority;
     dueDate?: Date;
+    weight?: number;
   }>) => {
     updateBoardState(prev => ({
       ...prev,
@@ -381,6 +383,9 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           if (updates.description !== undefined) updatedCard.description = updates.description;
           if (updates.priority !== undefined) updatedCard.priority = updates.priority;
           if (updates.dueDate !== undefined) updatedCard.dueDate = updates.dueDate;
+          if (updates.weight !== undefined) {
+            updatedCard.weight = updates.weight;
+          }
           // Labels
           if (updates.labelIdsToAdd?.length) {
             const labelsToAdd = prev.labels?.filter(l => updates.labelIdsToAdd!.includes(l.id)) || [];
@@ -404,8 +409,22 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!session) return;
     setSaveStatus('saving');
     try {
-      const updated = await BoardService.updateCard(cardId, updates as any);
-      setBoard(updated);
+      const updatedCardFromApi = await BoardService.updateCard(cardId, updates as any);
+      // Instead of setBoard(updated), merge the single updated card back into the state
+      updateBoardState(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          columns: prev.columns.map(column => ({
+            ...column,
+            cards: column.cards.map(card => 
+              card.id === cardId 
+                ? { ...card, ...updatedCardFromApi } // Merge the API response into the specific card
+                : card
+            )
+          }))
+        };
+      });
       setSaveStatus('saved');
     } catch (e) {
       setSaveStatus('error');
@@ -488,25 +507,114 @@ export const BoardProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }));
   }, [updateBoardState]);
 
-  const addAttachment = useCallback((cardId: string, name: string, url: string, type: string) => {
+  const addAttachment = useCallback(async (cardId: string, file: File): Promise<Attachment | void> => {
+    // Create a temporary optimistic attachment
+    const tempId = uuidv4();
+    const tempAttachment: Attachment = {
+      id: tempId,
+      name: file.name,
+      url: URL.createObjectURL(file), // Create temporary URL for optimistic UI
+      type: file.type,
+      createdAt: new Date()
+    };
+    
+    // Update state optimistically
     updateBoardState(prev => ({
       ...prev,
       columns: prev.columns.map(c => ({
         ...c,
-        cards: c.cards.map(card => card.id === cardId ? { ...card, attachments: [...card.attachments, { id: uuidv4(), name, url, type, createdAt: new Date() }] } : card)
+        cards: c.cards.map(card => card.id === cardId ? { 
+          ...card, 
+          attachments: [...card.attachments, tempAttachment] 
+        } : card)
       }))
     }));
-  }, [updateBoardState]);
 
-  const deleteAttachment = useCallback((cardId: string, attachmentId: string) => {
+    if (!session || !board || board.id === 'demo') {
+      return tempAttachment; // Return optimistic attachment for demo mode
+    }
+    
+    // Call the API
+    setSaveStatus('saving');
+    try {
+      const attachment = await BoardService.addAttachment(cardId, file);
+      
+      // Replace the temporary attachment with the real one
+      updateBoardState(prev => ({
+        ...prev,
+        columns: prev.columns.map(c => ({
+          ...c,
+          cards: c.cards.map(card => {
+            if (card.id === cardId) {
+              return {
+                ...card,
+                attachments: card.attachments.map(att => 
+                  att.id === tempId ? attachment : att
+                )
+              };
+            }
+            return card;
+          })
+        }))
+      }));
+      
+      setSaveStatus('saved');
+      return attachment;
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+      console.error(`Failed to upload attachment to card ${cardId}:`, e);
+      
+      // Remove the optimistic attachment on error
+      updateBoardState(prev => ({
+        ...prev,
+        columns: prev.columns.map(c => ({
+          ...c,
+          cards: c.cards.map(card => {
+            if (card.id === cardId) {
+              return {
+                ...card,
+                attachments: card.attachments.filter(att => att.id !== tempId)
+              };
+            }
+            return card;
+          })
+        }))
+      }));
+    }
+  }, [session, board, updateBoardState, setSaveStatus, setSaveError]);
+
+  const deleteAttachment = useCallback(async (cardId: string, attachmentId: string): Promise<void> => {
+    // Optimistic update
     updateBoardState(prev => ({
       ...prev,
       columns: prev.columns.map(c => ({
         ...c,
-        cards: c.cards.map(card => card.id === cardId ? { ...card, attachments: card.attachments.filter(a => a.id !== attachmentId) } : card)
+        cards: c.cards.map(card => 
+          card.id === cardId ? 
+          { ...card, attachments: card.attachments.filter(a => a.id !== attachmentId) } : 
+          card
+        )
       }))
     }));
-  }, [updateBoardState]);
+    
+    if (!session || !board || board.id === 'demo') {
+      return; // Skip API call for demo mode
+    }
+    
+    setSaveStatus('saving');
+    try {
+      await BoardService.deleteAttachment(cardId, attachmentId);
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+      setSaveError(e as Error);
+      console.error(`Failed to delete attachment ${attachmentId} from card ${cardId}:`, e);
+      
+      // We should ideally restore the attachment on error, but we'd need to have cached it
+      // For simplicity, we'll just log the error and let the next board refresh restore it
+    }
+  }, [session, board, updateBoardState, setSaveStatus, setSaveError]);
 
   const createBoardLabel = useCallback(async (name: string, color: string): Promise<Label | void> => {
     if (!board?.id || board.id === 'demo') { // Don't save for demo board

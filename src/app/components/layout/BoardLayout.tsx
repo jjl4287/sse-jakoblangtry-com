@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { Board } from '../board/Board';
 import { BoardProvider, useBoard } from '~/services/board-context';
@@ -29,7 +29,7 @@ const InnerBoardLayout: React.FC = () => {
   const [focusRenameId, setFocusRenameId] = useState<string | null>(null);
 
   // Select a board by ID: update URL, optionally skip API refresh (for local-only boards)
-  const handleSelectBoard = (id: string, skipRefresh = false) => {
+  const handleSelectBoard = useCallback((id: string, skipRefresh = false) => {
     const params = new URLSearchParams(window.location.search);
     params.set('boardId', id);
     window.history.pushState({}, '', `?${params.toString()}`);
@@ -37,7 +37,7 @@ const InnerBoardLayout: React.FC = () => {
     if (!skipRefresh) {
       void refreshBoard();
     }
-  };
+  }, [refreshBoard]);
 
   // Pin or unpin a board by ID
   const handlePinBoard = () => {

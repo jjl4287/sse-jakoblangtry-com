@@ -6,9 +6,9 @@ import { authOptions } from "~/lib/auth/authOptions";
 // GET /api/cards/[cardId]/activity
 export async function GET(
   request: Request,
-  { params }: { params: { cardId: string } }
+  { params: paramsPromise }: { params: Promise<{ cardId: string }> }
 ) {
-  const { cardId } = params;
+  const { cardId } = await paramsPromise;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

@@ -1,0 +1,176 @@
+import { NextResponse } from 'next/server';
+import prisma from '~/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '~/lib/auth/authOptions';
+import fs from 'fs/promises';
+import path from 'path';
+import { stat, mkdir, writeFile } from 'fs/promises'; // For checking/creating directory and writing file
+
+// Ensure the upload directory exists
+const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'cards');
+
+async function ensureUploadDirExists() {
+  try {
+    await stat(UPLOAD_DIR);
+  } catch (e: any) {
+    if (e.code === 'ENOENT') {
+      try {
+        await mkdir(UPLOAD_DIR, { recursive: true });
+      } catch (mkdirError: any) {
+        console.error('Failed to create upload directory:', mkdirError);
+        throw new Error('Failed to create upload directory.');
+      }
+    } else {
+      console.error('Failed to check upload directory:', e);
+      throw new Error('Failed to check upload directory.');
+    }
+  }
+}
+
+
+export async function POST(
+  request: Request,
+  { params: paramsPromise }: { params: Promise<{ cardId: string }> }
+) {
+  const { cardId } = await paramsPromise;
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const userId = session.user.id;
+
+  try {
+    // 1. Authorization: Check if user can access/edit the card (simplified for now)
+    const card = await prisma.card.findUnique({
+      where: { id: cardId },
+      select: { board: { select: { creatorId: true, members: { select: { userId: true } } } } },
+    });
+
+    if (!card) {
+      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+    }
+
+    const isOwner = card.board.creatorId === userId;
+    const isMember = card.board.members.some(member => member.userId === userId);
+
+    if (!isOwner && !isMember) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // 2. Handle multipart/form-data
+    const formData = await request.formData();
+    const file = formData.get('file') as File | null;
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    }
+
+    // 3. Ensure upload directory exists
+    await ensureUploadDirExists();
+    const cardUploadDir = path.join(UPLOAD_DIR, cardId);
+    try {
+      await stat(cardUploadDir);
+    } catch (e: any) {
+      if (e.code === 'ENOENT') {
+        await mkdir(cardUploadDir, { recursive: true });
+      } else {
+        throw e; // Re-throw other errors
+      }
+    }
+    
+    // 4. Save the file
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    // Sanitize filename to prevent directory traversal and other issues
+    const originalFilename = file.name;
+    const safeFilename = path.basename(originalFilename).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const timestamp = Date.now();
+    const uniqueFilename = `${timestamp}_${safeFilename}`;
+    const filePath = path.join(cardUploadDir, uniqueFilename);
+    
+    await writeFile(filePath, fileBuffer);
+
+    // 5. Create Attachment record in DB
+    const fileUrl = `/uploads/cards/${cardId}/${uniqueFilename}`; // URL path for client access
+
+    const attachment = await prisma.attachment.create({
+      data: {
+        name: originalFilename, // Store original filename
+        url: fileUrl,
+        type: file.type,
+        card: { connect: { id: cardId } },
+      },
+    });
+    
+    // 6. Log activity (optional, but good practice)
+    await prisma.activityLog.create({
+        data: {
+            actionType: "ADD_ATTACHMENT_TO_CARD",
+            cardId,
+            userId,
+            details: {
+                attachmentId: attachment.id,
+                attachmentName: attachment.name,
+                attachmentUrl: attachment.url,
+            },
+        },
+    });
+
+    return NextResponse.json(attachment, { status: 201 });
+
+  } catch (error: unknown) {
+    console.error(`[API POST /api/cards/${cardId}/attachments] Error:`, error);
+    // It's good to distinguish between file system errors and other errors
+    if (error instanceof Error && (error.message.includes('upload directory') || (error as any).code === 'ENOENT' || (error as any).code === 'EACCES')) {
+        return NextResponse.json({ error: 'File system error during upload.' }, { status: 500 });
+    }
+    const message = error instanceof Error ? error.message : 'Failed to upload attachment';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+// We can add GET handler here later to list attachments for a card.
+export async function GET(
+  request: Request, // request is not used, but helpful for consistency
+  { params: paramsPromise }: { params: Promise<{ cardId: string }> }
+) {
+  const { cardId } = await paramsPromise;
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const userId = session.user.id; // For authorization checks
+
+  try {
+    // Authorization: Check if user can access the card (and thus its attachments)
+    const card = await prisma.card.findUnique({
+      where: { id: cardId },
+      select: { board: { select: { creatorId: true, members: { select: { userId: true } } } } },
+    });
+
+    if (!card) {
+      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+    }
+
+    const isOwner = card.board.creatorId === userId;
+    const isMember = card.board.members.some(member => member.userId === userId);
+
+    if (!isOwner && !isMember) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Fetch attachments for the card
+    const attachments = await prisma.attachment.findMany({
+      where: { cardId },
+      orderBy: { createdAt: 'asc' }, // Optional: order by creation time
+    });
+
+    return NextResponse.json(attachments);
+
+  } catch (error: unknown) {
+    console.error(`[API GET /api/cards/${cardId}/attachments] Error:`, error);
+    const message = error instanceof Error ? error.message : 'Failed to fetch attachments';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+} 

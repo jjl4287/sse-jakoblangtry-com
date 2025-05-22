@@ -48,6 +48,7 @@ const mapToBoard = (project: ProjectWithRelations): Board => ({
       labels: card.labels.map(l => ({ id: l.id, name: l.name, color: l.color, boardId: l.boardId })),
       assignees: card.assignees.map(u => ({ id: u.id, name: u.name, email: u.email, image: u.image })),
       priority: card.priority,
+      weight: card.weight ?? undefined,
       attachments: card.attachments.map(a => ({ id: a.id, name: a.name, url: a.url, type: a.type, createdAt: a.createdAt })),
       comments: card.comments.map(c => ({
         id: c.id,

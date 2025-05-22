@@ -36,6 +36,7 @@ export interface Card {
   dueDate?: Date;
   assignees: User[];
   priority: 'low' | 'medium' | 'high';
+  weight?: number; // Added field for card weight
   attachments: Attachment[];
   comments: Comment[];
   columnId: string;

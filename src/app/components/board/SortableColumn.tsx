@@ -7,7 +7,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { Column as ColumnType } from '~/types';
 import { useBoard } from '~/services/board-context';
 import { SortableCard } from './SortableCard'; 
-import { Trash2 } from 'lucide-react';
+import { Trash2, Weight } from 'lucide-react';
 import { InlineEdit } from '~/components/ui/InlineEdit';
 
 interface SortableColumnProps {
@@ -102,6 +102,11 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAd
     [column.cards, column.id]
   );
 
+  // Calculate total weight for the column
+  const totalWeight = useMemo(() => {
+    return sortedCards.reduce((sum, card) => sum + (card.weight || 0), 0);
+  }, [sortedCards]);
+
   // Get sortable card IDs 
   const cardIds = useMemo(() => 
     sortedCards.map(card => card.id), 
@@ -154,6 +159,12 @@ export function SortableColumn({ column, dragOverlay = false, overlayStyle, onAd
           <span className="glass-morph-light text-xs px-2 py-1 rounded-full">
             {column.cards.length}
           </span>
+          {totalWeight > 0 && (
+            <span className="glass-morph-light text-xs px-2 py-1 rounded-full flex items-center">
+              <Weight className="h-3 w-3 mr-0.5" />
+              {totalWeight}
+            </span>
+          )}
           <button
             onClick={() => onAddCardClick(column.id)}
             className="glass-morph-light text-xs p-1 rounded-full hover:bg-white/10 transition-colors hover-lift"

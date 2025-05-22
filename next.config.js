@@ -12,12 +12,6 @@ const nextConfig = {
     distDir: 'out',
   } : {}),
   devIndicators: false,
-  webpack: (config, { isServer }) => {
-    // Exclude the scripts directory from webpack processing
-    config.externals = [...(config.externals || []), 'scripts'];
-    // Return the modified config
-    return config;
-  },
   eslint: {
     // Skip ESLint during builds
     ignoreDuringBuilds: true,

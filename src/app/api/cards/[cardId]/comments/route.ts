@@ -8,9 +8,9 @@ import { z } from 'zod';
 // GET /api/cards/[cardId]/comments
 export async function GET(
   request: NextRequest,
-  { params }: { params: { cardId: string } }
+  { params: paramsPromise }: { params: Promise<{ cardId: string }> }
 ) {
-  const { cardId } = params;
+  const { cardId } = await paramsPromise;
 
   const session = await getServerSession(authOptions);
 
@@ -67,9 +67,9 @@ const CommentCreateSchema = z.object({ content: z.string().min(1, 'Comment conte
 // POST /api/cards/[cardId]/comments
 export async function POST(
   request: NextRequest,
-  { params }: { params: { cardId: string } }
+  { params: paramsPromise }: { params: Promise<{ cardId: string }> }
 ) {
-  const { cardId } = params;
+  const { cardId } = await paramsPromise;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

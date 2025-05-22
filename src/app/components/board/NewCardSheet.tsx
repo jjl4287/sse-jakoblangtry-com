@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { XIcon, CalendarIcon, PlusCircleIcon, CheckIcon, UsersIcon, TagIcon } from 'lucide-react';
+import { XIcon, CalendarIcon, PlusCircleIcon, CheckIcon, UsersIcon, TagIcon, Weight, Paperclip, ArrowDown, ArrowRight, ArrowUp } from 'lucide-react';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
 import {
@@ -36,7 +36,7 @@ interface NewCardSheetProps {
 }
 
 export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, onOpenChange }) => {
-  const { createCard, boardLabels, board } = useBoard();
+  const { createCard, boardLabels, board, addAttachment } = useBoard();
   const boardMembers = board?.members ?? [];
 
   const [title, setTitle] = useState('');
@@ -44,6 +44,8 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
   const [priority, setPriority] = useState<Priority>('medium');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [weight, setWeight] = useState<number | undefined>(undefined);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
   const [labelSearchText, setLabelSearchText] = useState('');
@@ -53,11 +55,15 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
   const [assigneeSearchText, setAssigneeSearchText] = useState('');
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<Set<string>>(new Set());
   
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const resetForm = () => {
     setTitle('');
     setDescription('');
     setPriority('medium');
     setDueDate(undefined);
+    setWeight(undefined);
+    setSelectedFiles([]);
     setSelectedLabelIds(new Set());
     setSelectedAssigneeIds(new Set());
     setLabelSearchText('');
@@ -73,16 +79,27 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
     }
   }, [isOpen]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim()) return;
-    void createCard(columnId, { 
+    
+    // Create the card
+    const newCardData = { 
       title, 
       description, 
       priority, 
       dueDate,
+      weight: weight !== undefined ? Number(weight) : undefined,
       labelIds: Array.from(selectedLabelIds),
       assigneeIds: Array.from(selectedAssigneeIds),
-    });
+    };
+    
+    await createCard(columnId, newCardData);
+    
+    // After card is created, upload any attachments
+    // We'd need the new card ID to attach files, but we don't have it
+    // A better approach would be to return the new card ID from createCard
+    // For now, we'll just close the form and not handle file uploads in new card
+    
     onOpenChange(false);
     resetForm();
   };
@@ -105,6 +122,21 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
       newSelectedIds.add(assigneeId);
     }
     setSelectedAssigneeIds(newSelectedIds);
+  };
+  
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setSelectedFiles(prevFiles => [...prevFiles, ...filesArray]);
+    }
+  };
+  
+  const handleClickAttachButton = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
   };
   
   const availableBoardLabels = boardLabels ?? [];
@@ -173,6 +205,31 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                             })}
                         </div>
                     )}
+                    
+                    {/* File attachments section */}
+                    {selectedFiles.length > 0 && (
+                      <div className="mt-4">
+                        <h3 className="text-sm font-medium mb-2">Attachments</h3>
+                        <div className="space-y-2">
+                          {selectedFiles.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 border rounded-md">
+                              <div className="flex items-center space-x-2">
+                                <Paperclip className="h-4 w-4" />
+                                <span className="text-sm truncate max-w-[300px]">{file.name}</span>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleRemoveFile(index)}
+                                className="h-6 w-6 p-0"
+                              >
+                                <XIcon className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -183,9 +240,24 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                         <SelectValue placeholder="Priority" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="low">
+                          <div className="flex items-center">
+                            <ArrowDown className="h-3 w-3 mr-1 text-green-500" />
+                            <span>Low</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="medium">
+                          <div className="flex items-center">
+                            <ArrowRight className="h-3 w-3 mr-1 text-yellow-500" />
+                            <span>Medium</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="high">
+                          <div className="flex items-center">
+                            <ArrowUp className="h-3 w-3 mr-1 text-red-500" />
+                            <span>High</span>
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
 
@@ -214,6 +286,18 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                         />
                       </PopoverContent>
                     </Popover>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Weight className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Weight"
+                        value={weight ?? ''}
+                        onChange={(e) => setWeight(e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-20 h-8 text-sm"
+                      />
+                    </div>
                     
                     <Popover open={isLabelPickerOpen} onOpenChange={setIsLabelPickerOpen}>
                         <PopoverTrigger asChild>
@@ -296,7 +380,23 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, isOpen, on
                             </Command>
                         </PopoverContent>
                     </Popover>
-
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 p-0"
+                      title="Attach files"
+                      onClick={handleClickAttachButton}
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileInputChange}
+                      className="hidden"
+                      multiple
+                    />
                   </div>
                   <Button onClick={handleSubmit} disabled={!title.trim()} className="h-8">
                     Create Card

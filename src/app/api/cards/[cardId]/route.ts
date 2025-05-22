@@ -12,6 +12,7 @@ const CardUpdateSchema = z.object({
   dueDate: z.string().datetime({ offset: true }).optional().or(z.string().optional()), // Allow date string or full ISO string
   priority: z.enum(['low', 'medium', 'high']).optional(),
   order: z.number().optional(),
+  weight: z.number().optional(),
   labelIdsToAdd: z.array(z.string()).optional(),
   labelIdsToRemove: z.array(z.string()).optional(),
   assigneeIdsToAdd: z.array(z.string()).optional(),
@@ -29,9 +30,9 @@ type CardUpdateData = Omit<Prisma.CardUpdateInput, 'labels' | 'assignees'> & {
 // PATCH /api/cards/[cardId]
 export async function PATCH(
   request: Request,
-  { params }: { params: { cardId: string } }
+  { params }: { params: Promise<{ cardId: string }> }
 ) {
-  const { cardId } = params;
+  const { cardId } = await params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -46,7 +47,18 @@ export async function PATCH(
     // Fetch the card before updates to compare values for logging
     const cardBeforeUpdate = await prisma.card.findUnique({
       where: { id: cardId },
-      include: { labels: true, assignees: true },
+      select: {
+        title: true,
+        description: true,
+        priority: true,
+        dueDate: true,
+        weight: true,
+        labels: true,
+        assignees: true,
+        columnId: true,
+        boardId: true,
+        order: true,
+      }
     });
 
     if (!cardBeforeUpdate) {
@@ -141,6 +153,15 @@ export async function PATCH(
           details: { old: oldDueDate, new: newDueDate },
         });
       }
+    }
+
+    if (validatedUpdates.weight !== undefined && validatedUpdates.weight !== cardBeforeUpdate.weight) {
+      activityLogs.push({
+        actionType: "UPDATE_CARD_WEIGHT",
+        cardId,
+        userId,
+        details: { old: cardBeforeUpdate.weight, new: validatedUpdates.weight },
+      });
     }
 
     if (validatedUpdates.labelIdsToAdd) {

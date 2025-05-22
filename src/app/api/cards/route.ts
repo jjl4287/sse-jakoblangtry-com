@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       description?: string;
       dueDate?: string;
       priority?: 'low' | 'medium' | 'high';
+      weight?: number;
       labelIds?: string[];
       assigneeIds?: string[];
     };
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
         description = '', 
         dueDate, 
         priority = 'medium',
+        weight,
         labelIds = [], 
         assigneeIds = [] 
     } = body;
@@ -62,6 +64,7 @@ export async function POST(request: Request) {
         dueDate: dueDate ? new Date(dueDate) : undefined,
         priority: priority ?? 'medium',
         order,
+        weight,
         column: { connect: { id: columnId } },
         board: { connect: { id: boardId } }, // Connect to the board
         // user field is not directly on card for creator, this is handled by board or activity log

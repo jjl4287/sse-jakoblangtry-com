@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { XIcon, CalendarIcon, Trash2, Edit3Icon, MessageSquareText, History, Type, CheckSquare, CircleSlash } from 'lucide-react';
+import { XIcon, CalendarIcon, Trash2, Edit3Icon, MessageSquareText, History, Type, CheckSquare, CircleSlash, ArrowUp, ArrowDown, ArrowRight, Weight, Paperclip, PlusCircleIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   Sheet,
@@ -30,7 +30,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '~/components/ui/popover
 import { Button } from '~/components/ui/button';
 import { useBoard } from '~/services/board-context';
 import { cn } from '~/lib/utils';
-import type { Card, Priority, Label as LabelType, User as UserType, Comment as CommentType, ActivityLog as ActivityLogType } from '~/types';
+import type { Card, Priority, Label as LabelType, User as UserType, Comment as CommentType, ActivityLog as ActivityLogType, Attachment } from '~/types';
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { Badge } from '~/components/ui/badge';
 import {
@@ -42,10 +42,11 @@ import {
   CommandList,
   CommandSeparator
 } from '~/components/ui/command';
-import { PlusCircleIcon, CheckIcon, XIcon as CloseIconLucide } from 'lucide-react';
+import { CheckIcon, XIcon as CloseIconLucide } from 'lucide-react';
 import { getContrastingTextColor } from '~/lib/utils';
 import Markdown from '~/components/ui/Markdown';
 import MarkdownEditor from '~/components/ui/MarkdownEditor';
+import { AttachmentPreview } from './AttachmentPreview';
 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 // Helper function to format activity log entries
@@ -107,17 +108,17 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
     board,
   } = useBoard();
   const [title, setTitle] = useState(card.title);
-  const [description, setDescription] = useState(card.description);
+  const [description, setDescription] = useState(card.description || '');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [priority, setPriority] = useState<Priority>(card.priority);
-  const [dueDate, setDueDate] = useState<Date | undefined>(
-    card.dueDate ? new Date(card.dueDate) : undefined
-  );
+  const [priority, setPriority] = useState<Priority>(card.priority || 'medium');
+  const [dueDate, setDueDate] = useState<Date | undefined>(card.dueDate ? new Date(card.dueDate) : undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [weight, setWeight] = useState<number | undefined>(card.weight);
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const cardTitleInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // State for Label Picker
   const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
@@ -215,9 +216,10 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   useEffect(() => {
     if (isOpen) {
       setTitle(card.title);
-      setDescription(card.description);
-      setPriority(card.priority);
+      setDescription(card.description || '');
+      setPriority(card.priority || 'medium');
       setDueDate(card.dueDate ? new Date(card.dueDate) : undefined);
+      setWeight(card.weight);
       setCurrentCardLabelIds(new Set(card.labels.map(l => l.id)));
       setCurrentCardAssigneeIds(new Set(card.assignees?.map(a => a.id) || []));
     }
@@ -295,10 +297,10 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
-    await updateCard(card.id, { title, description, priority, dueDate });
+    await updateCard(card.id, { title, description, priority, dueDate, weight });
     setIsSaving(false);
     onOpenChange(false);
-  }, [card.id, title, description, priority, dueDate, updateCard, onOpenChange]);
+  }, [card.id, title, description, priority, dueDate, weight, updateCard, onOpenChange]);
 
   const handleAddAttachment = useCallback(async () => {
     const rawUrl = attachmentUrl.trim();
@@ -310,12 +312,31 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
         : `https://${rawUrl}`;
       const url = new URL(formattedUrl);
       const name = url.hostname.replace('www.', '') + url.pathname;
-      await addAttachment(card.id, name, formattedUrl, url.protocol);
+      await addAttachment(card.id, new File([formattedUrl], name, { type: 'text/uri-list' }));
       setAttachmentUrl('');
     } catch (error) {
       console.error('Failed to add attachment:', error);
     }
   }, [attachmentUrl, card.id, addAttachment]);
+
+  const handleFileAttachment = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    try {
+      const files = Array.from(e.target.files);
+      for (const file of files) {
+        await addAttachment(card.id, file);
+      }
+      // Clear the input so the same file can be selected again
+      e.target.value = '';
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+    }
+  }, [card.id, addAttachment]);
+
+  const handleAttachClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
 
   const handleDeleteAttachment = useCallback(
     async (attachmentId: string) => {
@@ -391,6 +412,11 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   };
   // --- End Comment Logic ---
 
+  const handleWeightChange = useCallback((value: number | undefined) => {
+    setWeight(value);
+    void updateCard(card.id, { weight: value });
+  }, [card.id, updateCard]);
+
   if (!card) return null; // Should not happen if isOpen is true and card is passed
 
   return (
@@ -411,9 +437,10 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
               transition={{ duration: 0.15 }}
               className="bg-background fixed inset-y-0 right-0 w-[70%] flex flex-col shadow-lg z-50 isolate"
               onPointerDownCapture={(e: React.PointerEvent<HTMLDivElement>) => {
-                // Stop all pointer down events within the sheet from propagating further.
-                // This should prevent dnd-kit's PointerSensor from activating on underlying elements.
+                // Only stop propagation for pointer down on sheet background
+                if (e.target === e.currentTarget) {
                 e.stopPropagation();
+                }
               }}
               onKeyDownCapture={(e: React.KeyboardEvent<HTMLDivElement>) => {
                 const target = e.target as HTMLElement;
@@ -489,7 +516,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                         />
                         <div className="flex justify-end gap-2 mt-2">
                           <Button variant="outline" size="sm" onClick={() => {
-                            setDescription(card.description); // Reset to original
+                            setDescription(card.description || '');
                             setIsEditingDescription(false);
                           }}>Cancel</Button>
                           <Button size="sm" onClick={handleSaveDescription}>Save</Button>
@@ -588,202 +615,143 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
 
                 <div className="col-span-1 space-y-6 overflow-y-auto p-4">
                   <div>
-                    <h3 className="text-sm font-semibold mb-1">Priority</h3>
-                    <Select value={priority} onValueChange={handlePriorityChange}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <h3 className="text-sm font-semibold mb-2">Actions</h3>
+                    <div className="space-y-2">
+                      <Select value={priority} onValueChange={(value) => handlePriorityChange(value as Priority)}>
+                        <SelectTrigger className="w-full justify-start text-left font-normal [&>*:last-child]:hidden">
+                          <SelectValue placeholder="Priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">
+                            <div className="flex items-center">
+                              <ArrowDown className="h-4 w-4 mr-2 text-green-500" />
+                              <span>Low</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="medium">
+                            <div className="flex items-center">
+                              <ArrowRight className="h-4 w-4 mr-2 text-yellow-500" />
+                              <span>Medium</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="high">
+                            <div className="flex items-center">
+                              <ArrowUp className="h-4 w-4 mr-2 text-red-500" />
+                              <span>High</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Weight input */}
+                      <div className="flex items-center w-full justify-start text-left font-normal gap-2 rounded-md border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-3">
+                        <Weight className="h-4 w-4 mr-2" />
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="Weight"
+                          value={weight ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setWeight(val ? Number(val) : undefined);
+                          }}
+                          onBlur={() => {
+                            if (weight !== card.weight) {
+                              void updateCard(card.id, { weight });
+                            }
+                          }}
+                          className="border-0 focus-visible:ring-0 bg-transparent w-full"
+                        />
+                      </div>
 
-                  <div>
-                    <h3 className="text-sm font-semibold mb-1">Due Date</h3>
                     <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                       <PopoverTrigger asChild>
                         <Button
-                          variant="outline"
+                            variant={"outline"}
                           className={cn(
-                            'w-full justify-start text-left font-normal',
-                            !dueDate && 'text-muted-foreground'
+                              "w-full justify-start text-left font-normal",
+                              !dueDate && "text-muted-foreground"
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dueDate ? format(dueDate, 'PPP') : 'Pick a date'}
+                            {dueDate ? format(dueDate, "PPP") : <span>Add due date</span>}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent portalled={false} className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={dueDate}
-                          onSelect={date => {
-                            const d = date ?? undefined;
-                            setDueDate(d);
+                            onSelect={(date) => {
+                              setDueDate(date ?? undefined);
+                              if (date) {
+                                void updateCard(card.id, { dueDate: date });
+                              }
                             setCalendarOpen(false);
-                            void updateCard(card.id, { dueDate: d });
                           }}
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
+                    </div>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold mb-2 flex justify-between items-center">
-                      Labels
-                      <div className="flex items-center">
-                        <Popover open={isManageLabelsOpen} onOpenChange={setIsManageLabelsOpen} modal={true}>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" title="Manage board labels">
-                              Manage
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent portalled={false} className="w-[300px] p-0" align="start">
-                            <Command>
-                              <CommandInput placeholder="Filter labels..." /> {/* Basic filter, can be enhanced later */}
-                              <CommandList>
-                                <CommandEmpty>No labels found.</CommandEmpty>
-                                <CommandGroup heading="Board Labels">
-                                  {availableBoardLabels.map((label) => (
-                                    <CommandItem
-                                      key={label.id}
-                                      className="flex justify-between items-center"
-                                      onSelect={() => {
-                                        // Future: clicking could select for edit
-                                        setEditingLabel(label);
-                                        setNewBoardLabelName(label.name); // Pre-fill for editing
-                                        setNewBoardLabelColor(label.color); // Pre-fill for editing
-                                      }}
-                                    >
-                                      <div className="flex items-center">
-                                        <span style={{ backgroundColor: label.color }} className="inline-block w-3 h-3 rounded-sm mr-2"></span>
-                                        {label.name}
-                                      </div>
-                                      {/* Placeholder for Edit/Delete buttons */}
-                                      <div className="flex items-center">
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" title="Edit label" onClick={(e) => { 
-                                          e.stopPropagation(); 
-                                          setEditingLabel(label); 
-                                          setNewBoardLabelName(label.name); 
-                                          setNewBoardLabelColor(label.color);
-                                        }}>
-                                          <Edit3Icon className="h-3 w-3" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" title="Delete label" onClick={async (e) => { 
-                                          e.stopPropagation(); 
-                                          if (window.confirm(`Are you sure you want to delete label \"${label.name}\"? This will remove it from all cards.`)) {
-                                            await deleteBoardLabel(label.id);
-                                            // If this was the label being edited, reset the edit form
-                                            if (editingLabel?.id === label.id) {
-                                              setEditingLabel(null);
-                                              setNewBoardLabelName('');
-                                              setNewBoardLabelColor('#4287f5');
-                                            }
-                                          }
-                                        }}>
-                                          <Trash2 className="h-3 w-3" />
-                                        </Button>
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                                <CommandSeparator />
-                                <CommandGroup heading={editingLabel ? "Edit Label" : "Create New Label"}>
-                                  <div className="p-2 space-y-2">
-                                    <Input 
-                                      type="text" 
-                                      placeholder="Label name" 
-                                      value={editingLabel ? newBoardLabelName : newBoardLabelName} // Use newBoardLabelName for both create and edit flows for now
-                                      onChange={(e) => setNewBoardLabelName(e.target.value)}
-                                      className="h-8"
-                                    />
-                                    <div className="flex items-center space-x-2">
-                                      <Input 
-                                        type="color" 
-                                        value={editingLabel ? newBoardLabelColor : newBoardLabelColor} // Use newBoardLabelColor for both
-                                        onChange={(e) => setNewBoardLabelColor(e.target.value)}
-                                        className="h-8 w-14 p-1"
-                                      />
-                                      <Button 
-                                        onClick={async () => {
-                                          if (editingLabel) {
-                                            if (newBoardLabelName.trim() && newBoardLabelColor) {
-                                              await updateBoardLabel(editingLabel.id, newBoardLabelName.trim(), newBoardLabelColor);
-                                              setEditingLabel(null); // Reset after edit
-                                            }
-                                          } else {
-                                            if (newBoardLabelName.trim() && newBoardLabelColor) {
-                                              await createBoardLabel(newBoardLabelName.trim(), newBoardLabelColor);
-                                            }
-                                          }
-                                          setNewBoardLabelName(''); // Reset form
-                                          setNewBoardLabelColor('#4287f5');
-                                        }}
-                                        size="sm" 
-                                        className="flex-1 h-8"
-                                        disabled={!newBoardLabelName.trim()}
-                                      >
-                                        {editingLabel ? 'Save Changes' : 'Create Label'}
-                                      </Button>
-                                      {editingLabel && (
-                                        <Button variant="ghost" size="sm" onClick={() => { setEditingLabel(null); setNewBoardLabelName(''); setNewBoardLabelColor('#4287f5'); }} className="h-8">Cancel Edit</Button>
-                                      )}
-                                    </div>
-                                  </div>
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                    <div className="flex justify-between items-center mb-1">
+                      <h3 className="text-sm font-semibold">Labels</h3>
+                      <div className="flex items-center space-x-1">
                         <Popover open={isLabelPickerOpen} onOpenChange={setIsLabelPickerOpen} modal={true}>
                           <PopoverTrigger asChild>
-                            <Button variant="ghost" size="sm" className="ml-2" title="Add label to card">
+                            <Button variant="ghost" size="sm" className="p-1 h-auto">
                               <PlusCircleIcon className="h-4 w-4" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent portalled={false} 
+                          <PopoverContent 
+                            portalled={false}
                             className="w-[250px] p-0" 
                             align="start"
                             onPointerDownOutside={(event) => {
-                              // Prevent closing if the click is on the trigger button itself
-                              // This can happen if the trigger is part of what's considered "outside"
                               const target = event.target as HTMLElement;
-                              if (target.closest('[aria-controls="radix-"]')) { // Heuristic for trigger
+                              if (target.closest('[aria-controls^="radix-"]')) { 
                                 event.preventDefault();
                               }
                             }}
                           >
                             <Command>
-                              <CommandInput 
-                                placeholder="Search or create label..." 
+                              <CommandInput
+                                placeholder="Search labels..."
                                 value={labelSearchText}
                                 onValueChange={setLabelSearchText}
                               />
                               <CommandList>
                                 <CommandEmpty>
-                                  {showNewLabelForm ? '' : (labelSearchText.length > 0 ? 'No labels found.' : 'Type to search or create.')}
+                                  {!labelSearchText && availableBoardLabels.length === 0 && "No labels on this board."}
+                                  {labelSearchText && "No labels found."}
+                                  {!labelSearchText && availableBoardLabels.length > 0 && "Type to search labels."}
                                 </CommandEmpty>
                                 <CommandGroup>
                                   {availableBoardLabels
-                                    .filter(label => label.name.toLowerCase().includes(labelSearchText.toLowerCase()))
+                                    .filter(
+                                      (label) =>
+                                        !labelSearchText ||
+                                        label.name.toLowerCase().includes(labelSearchText.toLowerCase())
+                                    )
                                     .map((label) => (
                                       <CommandItem
                                         key={label.id}
                                         value={label.name}
-                                        onSelect={() => {
-                                          handleToggleLabel(label.id);
-                                          // Consider closing popover or not based on UX preference
-                                          // setIsLabelPickerOpen(false);
-                                        }}
-                                        className="flex justify-between items-center"
+                                        onSelect={() => handleToggleLabel(label.id)}
+                                        className="cursor-pointer flex justify-between items-center"
                                       >
-                                        <span style={{ backgroundColor: label.color }} className="inline-block w-3 h-3 rounded-sm mr-2"></span>
-                                        {label.name}
-                                        {currentCardLabelIds.has(label.id) && <CheckIcon className="h-4 w-4 ml-auto" />}
+                                        <div className="flex items-center">
+                                          <span 
+                                            className="w-3 h-3 rounded-full mr-2" 
+                                            style={{ backgroundColor: label.color }} 
+                                          />
+                                          {label.name}
+                                        </div>
+                                        {currentCardLabelIds.has(label.id) && (
+                                          <CheckIcon className="ml-2 h-4 w-4" />
+                                        )}
                                       </CommandItem>
                                     ))}
                                 </CommandGroup>
@@ -792,8 +760,8 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                           </PopoverContent>
                         </Popover>
                       </div>
-                    </h3>
-                    <div className="flex flex-wrap gap-1 min-h-[20px]">
+                    </div>
+                    <div className="flex flex-wrap gap-1 min-h-[20px] mt-1">
                       {cardLabelsToDisplay.length > 0 ? (
                         cardLabelsToDisplay.map(label => (
                           <Badge key={label.id} variant="outline" className="font-normal" style={{ backgroundColor: label.color, color: getContrastingTextColor(label.color) }}>
@@ -904,27 +872,53 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   <div>
                     <h3 className="text-sm font-semibold mb-1">Attachments</h3>
                     <div className="space-y-2">
-                      {card.attachments.map(att => (
-                        <div
-                          key={att.id}
-                          className="flex items-center justify-between p-2 bg-muted/10 rounded"
+                      {/* UI to attach new files/URLs first */}
+                      <div className="flex flex-col gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="w-full"
+                          onClick={handleAttachClick}
                         >
-                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="underline">
-                            {att.name}
-                          </a>
-                          <button onClick={() => handleDeleteAttachment(att.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive hover:text-destructive/80" />
-                          </button>
+                          <Paperclip className="h-4 w-4 mr-2" />
+                          Attach File
+                        </Button>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          className="hidden"
+                          onChange={handleFileAttachment}
+                          multiple
+                        />
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            placeholder="Attachment URL"
+                            value={attachmentUrl}
+                            onChange={e => setAttachmentUrl(e.target.value)}
+                            className="w-full"
+                          />
+                          <Button onClick={handleAddAttachment} size="sm">Add</Button>
+                        </div>
+                      </div>
+                      {/* Uploaded attachments below */}
+                      {card.attachments.map(att => (
+                        <div key={att.id} className="border rounded-md p-2">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="truncate flex-1">
+                              <AttachmentPreview url={att.url} filename={att.name} />
+                              <div className="text-xs text-muted-foreground">
+                                {new Date(att.createdAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => handleDeleteAttachment(att.id)}
+                              className="text-destructive hover:text-destructive/80 p-1 h-6 w-6 flex items-center justify-center rounded-full hover:bg-muted/10"
+                            >
+                              <XIcon className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
                       ))}
-                    </div>
-                    <div className="mt-2 flex space-x-2">
-                      <Input
-                        placeholder="Attachment URL"
-                        value={attachmentUrl}
-                        onChange={e => setAttachmentUrl(e.target.value)}
-                      />
-                      <Button onClick={handleAddAttachment}>Add</Button>
                     </div>
                   </div>
                 </div>

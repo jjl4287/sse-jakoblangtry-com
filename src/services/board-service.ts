@@ -88,6 +88,7 @@ type CardUpdatePayload = Partial<
     description?: string;
     priority?: Card['priority']; // Use Card['priority'] to ensure it matches the type
     dueDate?: Date;
+    weight?: number;
   }
 >;
 
@@ -270,6 +271,7 @@ export class BoardService {
       title: string; // Title is non-optional for creation
       labelIds?: string[];
       assigneeIds?: string[];
+      weight?: number;
     }
   ): Promise<Board> {
     const params = typeof window !== 'undefined' ? window.location.search : '';
@@ -296,7 +298,7 @@ export class BoardService {
   static async updateCard(
     cardId: string,
     updates: CardUpdatePayload
-  ): Promise<Board> {
+  ): Promise<Card> {
     const res = await fetch(`/api/cards/${cardId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -313,7 +315,7 @@ export class BoardService {
     // The API returns the updated card, but BoardService typically refetches the whole board.
     // For now, we'll stick to refetching the board to ensure UI consistency.
     // Potentially optimize later if this becomes a bottleneck.
-    return await this.getBoard();
+    return await res.json() as Card;
   }
 
   /**
@@ -587,67 +589,48 @@ export class BoardService {
   /**
    * Adds an attachment to a card
    */
-  static async addAttachment(
-    cardId: string,
-    name: string,
-    url: string,
-    type: string
-  ): Promise<Board> {
-    const attachmentData = { name, url, type };
+  static async addAttachment(cardId: string, file: File): Promise<Attachment> {
+    const formData = new FormData();
+    formData.append('file', file);
 
-    // Create the new attachment object
-    const newAttachment: Attachment = {
-        id: uuidv4(),
-        name: attachmentData.name,
-        url: attachmentData.url,
-        type: attachmentData.type || 'link',
-        createdAt: new Date(),
-    };
-
-    // Update the board state locally first
-    const board = await this.getBoard();
-    const updatedColumns = board.columns.map((column) => {
-      const cardIndex = column.cards.findIndex((c) => c.id === cardId);
-      if (cardIndex === -1) return column;
-      const updatedCards = [...column.cards];
-      const card = updatedCards[cardIndex];
-      if (!card) return column;
-      updatedCards[cardIndex] = {
-        ...card,
-        attachments: [...(card.attachments || []), newAttachment],
-      };
-      return { ...column, cards: updatedCards };
+    const res = await fetch(`/api/cards/${cardId}/attachments`, {
+      method: 'POST',
+      body: formData, // No 'Content-Type' header needed, browser sets it for FormData
     });
-    const updatedBoard = { ...board, columns: updatedColumns };
 
-    // Persist changes using the fallback mechanism
-    await saveBoard(updatedBoard);
-    return updatedBoard;
+    if (!res.ok) {
+      let msg = `Failed to add attachment: ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new BoardServiceError(msg);
+    }
+    return (await res.json()) as Attachment;
   }
 
-  /**
-   * Deletes an attachment from a card
-   */
-  static async deleteAttachment(cardId: string, attachmentId: string): Promise<Board> {
-    // Update the board state locally first
-    const board = await this.getBoard();
-    const updatedColumns = board.columns.map((column) => {
-      const cardIndex = column.cards.findIndex((c) => c.id === cardId);
-      if (cardIndex === -1) return column;
-      const updatedCards = [...column.cards];
-      const card = updatedCards[cardIndex];
-      if (!card?.attachments) return column;
-      updatedCards[cardIndex] = {
-        ...card,
-        attachments: card.attachments.filter(a => a.id !== attachmentId),
-      };
-      return { ...column, cards: updatedCards };
-    });
-    const updatedBoard = { ...board, columns: updatedColumns };
+  static async listAttachments(cardId: string): Promise<Attachment[]> {
+    const res = await fetch(`/api/cards/${cardId}/attachments`);
+    if (!res.ok) {
+      throw new BoardServiceError(`Failed to list attachments: ${res.status}`);
+    }
+    return (await res.json()) as Attachment[];
+  }
 
-    // Persist changes using the fallback mechanism
-    await saveBoard(updatedBoard);
-    return updatedBoard;
+  static async deleteAttachment(cardId: string, attachmentId: string): Promise<void> {
+    const res = await fetch(`/api/cards/${cardId}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      let msg = `Delete attachment failed: ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body.error) msg = body.error;
+      } catch {}
+      throw new BoardServiceError(msg);
+    }
+    // No specific data returned on successful DELETE, so no need to parse res.json()
+    // Depending on how UI is updated, may need to refetch board or card details
   }
 
   /**
