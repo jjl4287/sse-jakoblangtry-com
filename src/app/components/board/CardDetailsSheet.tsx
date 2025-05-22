@@ -126,6 +126,8 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState('#cccccc'); // Default color
   const [showNewLabelForm, setShowNewLabelForm] = useState(false);
+  // Add a view state to toggle between list and create views
+  const [labelPickerView, setLabelPickerView] = useState<'list' | 'create'>('list');
 
   // Derived state for current card's labels (IDs)
   const [currentCardLabelIds, setCurrentCardLabelIds] = useState<Set<string>>(() => new Set(card.labels.map(l => l.id)));
@@ -240,6 +242,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
       setNewLabelName('');
       setNewLabelColor('#cccccc');
       setShowNewLabelForm(false);
+      setLabelPickerView('list'); // Reset to list view
       setIsAssigneePickerOpen(false);
       setAssigneeSearchText('');
       // Reset label management popover states
@@ -259,6 +262,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
       setNewLabelName('');
       setNewLabelColor('#cccccc');
       setShowNewLabelForm(false);
+      setLabelPickerView('list'); // Reset to list view
       setIsAssigneePickerOpen(false);
       setAssigneeSearchText('');
       setIsManageLabelsOpen(false);
@@ -370,12 +374,12 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
       handleToggleLabel(createdLabel.id); // Automatically add to current card
       setNewLabelName('');
       setNewLabelColor('#cccccc');
-      setShowNewLabelForm(false);
+      setLabelPickerView('list'); // Switch back to list view after creating
       setLabelSearchText(''); // Clear search to show the new label
     }
   };
   
-  const availableBoardLabels = boardLabels || [];
+  const availableBoardLabels = boardLabels ?? [];
   const cardLabelsToDisplay = availableBoardLabels.filter(boardLabel => currentCardLabelIds.has(boardLabel.id));
 
   // --- Assignee Logic ---
@@ -416,6 +420,8 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
     setWeight(value);
     void updateCard(card.id, { weight: value });
   }, [card.id, updateCard]);
+
+  const stableRef = useRef<HTMLDivElement>(null);
 
   if (!card) return null; // Should not happen if isOpen is true and card is passed
 
@@ -613,7 +619,15 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   </div>
                 </div>
 
-                <div className="col-span-1 space-y-6 overflow-y-auto p-4">
+                <div 
+                  className="col-span-1 space-y-6 overflow-y-auto p-4"
+                  style={{ 
+                    overscrollBehavior: 'contain',
+                    scrollbarWidth: 'thin',
+                    scrollbarGutter: 'stable',
+                    msOverflowStyle: 'scrollbar',
+                  }}
+                >
                   <div>
                     <h3 className="text-sm font-semibold mb-2">Actions</h3>
                     <div className="space-y-2">
@@ -643,7 +657,6 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                         </SelectContent>
                       </Select>
                       
-                      {/* Weight input */}
                       <div className="flex items-center w-full justify-start text-left font-normal gap-2 rounded-md border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-3">
                         <Weight className="h-4 w-4 mr-2" />
                         <Input
@@ -660,7 +673,8 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                               void updateCard(card.id, { weight });
                             }
                           }}
-                          className="border-0 focus-visible:ring-0 bg-transparent w-full"
+                          className="border-0 focus-visible:ring-0 bg-transparent w-full p-0 shadow-none dark:bg-transparent dark:text-foreground"
+                          style={{ backgroundColor: 'transparent' }}
                         />
                       </div>
 
@@ -698,65 +712,116 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <h3 className="text-sm font-semibold">Labels</h3>
-                      <div className="flex items-center space-x-1">
+                      <div className="w-[28px] h-[28px] relative flex-shrink-0 flex items-center justify-center">
                         <Popover open={isLabelPickerOpen} onOpenChange={setIsLabelPickerOpen} modal={true}>
                           <PopoverTrigger asChild>
-                            <Button variant="ghost" size="sm" className="p-1 h-auto">
+                            <Button variant="ghost" size="sm" className="p-0 h-6 w-6">
                               <PlusCircleIcon className="h-4 w-4" />
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent 
                             portalled={false}
                             className="w-[250px] p-0" 
-                            align="start"
-                            onPointerDownOutside={(event) => {
-                              const target = event.target as HTMLElement;
-                              if (target.closest('[aria-controls^="radix-"]')) { 
-                                event.preventDefault();
-                              }
-                            }}
+                            align="end"
+                            sideOffset={5}
                           >
-                            <Command>
-                              <CommandInput
-                                placeholder="Search labels..."
-                                value={labelSearchText}
-                                onValueChange={setLabelSearchText}
-                              />
-                              <CommandList>
-                                <CommandEmpty>
-                                  {!labelSearchText && availableBoardLabels.length === 0 && "No labels on this board."}
-                                  {labelSearchText && "No labels found."}
-                                  {!labelSearchText && availableBoardLabels.length > 0 && "Type to search labels."}
-                                </CommandEmpty>
-                                <CommandGroup>
-                                  {availableBoardLabels
-                                    .filter(
-                                      (label) =>
-                                        !labelSearchText ||
-                                        label.name.toLowerCase().includes(labelSearchText.toLowerCase())
-                                    )
-                                    .map((label) => (
-                                      <CommandItem
-                                        key={label.id}
-                                        value={label.name}
-                                        onSelect={() => handleToggleLabel(label.id)}
-                                        className="cursor-pointer flex justify-between items-center"
-                                      >
-                                        <div className="flex items-center">
-                                          <span 
-                                            className="w-3 h-3 rounded-full mr-2" 
-                                            style={{ backgroundColor: label.color }} 
-                                          />
-                                          {label.name}
-                                        </div>
-                                        {currentCardLabelIds.has(label.id) && (
-                                          <CheckIcon className="ml-2 h-4 w-4" />
-                                        )}
-                                      </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
+                            {labelPickerView === 'list' ? (
+                              <div className="flex flex-col">
+                                <Command className="overflow-visible">
+                                  <CommandInput
+                                    placeholder="Search labels..."
+                                    value={labelSearchText}
+                                    onValueChange={setLabelSearchText}
+                                  />
+                                  <CommandList className="max-h-[200px]">
+                                    <CommandEmpty>
+                                      {!labelSearchText && availableBoardLabels.length === 0 && "No labels on this board."}
+                                      {labelSearchText && "No labels found."}
+                                      {!labelSearchText && availableBoardLabels.length > 0 && "Type to search labels."}
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                      {availableBoardLabels
+                                        .filter(
+                                          (label) =>
+                                            !labelSearchText ||
+                                            label.name.toLowerCase().includes(labelSearchText.toLowerCase())
+                                        )
+                                        .map((label) => (
+                                          <CommandItem
+                                            key={label.id}
+                                            value={label.name}
+                                            onSelect={() => handleToggleLabel(label.id)}
+                                            className="cursor-pointer flex justify-between items-center"
+                                          >
+                                            <div className="flex items-center">
+                                              <span 
+                                                className="w-3 h-3 rounded-full mr-2" 
+                                                style={{ backgroundColor: label.color }} 
+                                              />
+                                              {label.name}
+                                            </div>
+                                            {currentCardLabelIds.has(label.id) && (
+                                              <CheckIcon className="ml-2 h-4 w-4" />
+                                            )}
+                                          </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                                {/* Sticky footer with Create button */}
+                                <div className="border-t p-2 bg-popover">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full flex items-center justify-center"
+                                    onClick={() => {
+                                      setLabelPickerView('create');
+                                      setNewLabelName('');
+                                      setNewLabelColor('#4287f5');
+                                    }}
+                                  >
+                                    <PlusCircleIcon className="h-4 w-4 mr-2" />
+                                    Create new label
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-4 space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <h3 className="text-sm font-medium">Create new label</h3>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-7 w-7 p-0" 
+                                    onClick={() => setLabelPickerView('list')}
+                                  >
+                                    <XIcon className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <div className="space-y-3">
+                                  <Input
+                                    placeholder="Label name"
+                                    value={newLabelName}
+                                    onChange={(e) => setNewLabelName(e.target.value)}
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="color"
+                                      value={newLabelColor}
+                                      onChange={(e) => setNewLabelColor(e.target.value)}
+                                      className="w-10 h-10 rounded cursor-pointer"
+                                    />
+                                    <Button
+                                      className="flex-1"
+                                      onClick={handleCreateNewLabel}
+                                      disabled={!newLabelName.trim()}
+                                    >
+                                      Create and Add
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </PopoverContent>
                         </Popover>
                       </div>
@@ -780,68 +845,65 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   <div className="mb-4">
                     <div className="flex justify-between items-center mb-2">
                       <h4 className="font-semibold text-sm">Assignees</h4>
-                      <Popover open={isAssigneePickerOpen} onOpenChange={setIsAssigneePickerOpen} modal={true}>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm" className="p-1 h-auto">
-                            <PlusCircleIcon className="h-4 w-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent portalled={false} 
-                          className="w-[250px] p-0" 
-                          align="start"
-                          onPointerDownOutside={(event) => {
-                            const target = event.target as HTMLElement;
-                            if (target.closest('[aria-controls="radix-"]')) {
-                              event.preventDefault();
-                            }
-                          }}
-                        >
-                          <Command>
-                            <CommandInput
-                              placeholder="Search assignees..."
-                              value={assigneeSearchText}
-                              onValueChange={setAssigneeSearchText}
-                            />
-                            <CommandList>
-                              <CommandEmpty>No assignees found.</CommandEmpty>
-                              <CommandGroup>
-                                {boardMembers
-                                  .filter(
-                                    (member) =>
-                                      member.user && (
-                                      !assigneeSearchText ||
-                                      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-                                      member.user.name?.toLowerCase().includes(assigneeSearchText.toLowerCase()) ||
-                                      member.user.email?.toLowerCase().includes(assigneeSearchText.toLowerCase())
-                                      )
-                                  )
-                                  .map((member) => (
-                                    <CommandItem
-                                      key={member.user.id}
-                                      value={member.user.name ?? member.user.email ?? member.user.id}
-                                      onSelect={() => handleToggleAssignee(member.user.id)}
-                                      className="cursor-pointer flex justify-between items-center"
-                                    >
-                                      <div className="flex items-center">
-                                        {member.user.image ? (
-                                          <img src={member.user.image} alt={member.user.name ?? member.user.email ?? 'User avatar'} className="w-6 h-6 rounded-full mr-2" />
-                                        ) : (
-                                          <span className="w-6 h-6 rounded-full mr-2 bg-muted flex items-center justify-center text-xs">
-                                            {(member.user.name ?? member.user.email ?? 'U').substring(0, 2).toUpperCase()}
-                                          </span>
+                      <div className="w-[28px] h-[28px] relative flex-shrink-0 flex items-center justify-center">
+                        <Popover open={isAssigneePickerOpen} onOpenChange={setIsAssigneePickerOpen} modal={true}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="sm" className="p-0 h-6 w-6">
+                              <PlusCircleIcon className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent 
+                            portalled={false}
+                            className="w-[250px] p-0" 
+                            align="end"
+                            sideOffset={5}
+                          >
+                            <Command>
+                              <CommandInput
+                                placeholder="Search assignees..."
+                                value={assigneeSearchText}
+                                onValueChange={setAssigneeSearchText}
+                              />
+                              <CommandList>
+                                <CommandEmpty>No assignees found.</CommandEmpty>
+                                <CommandGroup>
+                                  {boardMembers
+                                    .filter(
+                                      (member) =>
+                                        member.user && (
+                                        !assigneeSearchText ||
+                                        (member.user.name?.toLowerCase().includes(assigneeSearchText.toLowerCase()) ?? false) ||
+                                        (member.user.email?.toLowerCase().includes(assigneeSearchText.toLowerCase()) ?? false)
+                                        )
+                                    )
+                                    .map((member) => (
+                                      <CommandItem
+                                        key={member.user.id}
+                                        value={member.user.name ?? member.user.email ?? member.user.id}
+                                        onSelect={() => handleToggleAssignee(member.user.id)}
+                                        className="cursor-pointer flex justify-between items-center"
+                                      >
+                                        <div className="flex items-center">
+                                          {member.user.image ? (
+                                            <img src={member.user.image} alt={member.user.name ?? member.user.email ?? 'User avatar'} className="w-6 h-6 rounded-full mr-2" />
+                                          ) : (
+                                            <span className="w-6 h-6 rounded-full mr-2 bg-muted flex items-center justify-center text-xs">
+                                              {(member.user.name ?? member.user.email ?? 'U').substring(0, 2).toUpperCase()}
+                                            </span>
+                                          )}
+                                          {member.user.name ?? member.user.email}
+                                        </div>
+                                        {currentCardAssigneeIds.has(member.user.id) && (
+                                          <CheckIcon className="ml-2 h-4 w-4" />
                                         )}
-                                        {member.user.name ?? member.user.email}
-                                      </div>
-                                      {currentCardAssigneeIds.has(member.user.id) && (
-                                        <CheckIcon className="ml-2 h-4 w-4" />
-                                      )}
-                                    </CommandItem>
-                                  ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                                      </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
                     </div>
                     {cardAssigneesToDisplay.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
@@ -872,7 +934,6 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   <div>
                     <h3 className="text-sm font-semibold mb-1">Attachments</h3>
                     <div className="space-y-2">
-                      {/* UI to attach new files/URLs first */}
                       <div className="flex flex-col gap-2">
                         <Button 
                           variant="outline" 
@@ -900,7 +961,6 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                           <Button onClick={handleAddAttachment} size="sm">Add</Button>
                         </div>
                       </div>
-                      {/* Uploaded attachments below */}
                       {card.attachments.map(att => (
                         <div key={att.id} className="border rounded-md p-2">
                           <div className="flex justify-between items-start gap-2">
@@ -923,6 +983,12 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ card, isOpen
                   </div>
                 </div>
               </div>
+              {/* Invisible reference element for stable popover positioning */}
+              <div 
+                ref={stableRef} 
+                className="fixed bottom-4 right-4 w-0 h-0 pointer-events-none opacity-0"
+                aria-hidden="true"
+              />
             </motion.div>
           </SheetContent>
         )}
