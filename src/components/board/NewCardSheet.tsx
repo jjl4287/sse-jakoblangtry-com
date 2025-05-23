@@ -13,7 +13,7 @@ import {
 } from '~/components/ui/select';
 import { Calendar } from '~/components/ui/calendar';
 import { Button } from '~/components/ui/button';
-import { useCardMutations } from '~/hooks/use-card';
+import { useCardMutations } from '~/hooks/useCard';
 import { useBoardLabels } from '~/hooks/useLabels';
 import { useBoardMembers } from '~/hooks/useBoardMembers';
 import { Popover, PopoverTrigger, PopoverContent } from '~/components/ui/popover';
@@ -31,6 +31,7 @@ import { Badge } from '~/components/ui/badge';
 import type { Label as LabelType, User as UserType, Priority } from '~/types';
 import MarkdownEditor from '~/components/ui/MarkdownEditor';
 import { StyledLabelBadge } from '~/components/ui/StyledLabelBadge';
+import { toast } from 'sonner';
 
 interface NewCardSheetProps {
   columnId: string;
@@ -53,6 +54,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, boardId, i
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [weight, setWeight] = useState<number | undefined>(undefined);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
 
   const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
   const [labelSearchText, setLabelSearchText] = useState('');
@@ -89,28 +91,67 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, boardId, i
   const handleSubmit = async () => {
     if (!title.trim()) return;
     
-    // Create the card with the correct structure for the newer createCard hook
-    const newCardData = { 
-      title, 
-      description, 
-      columnId,
-      boardId,
-      priority, 
-      dueDate,
-      weight: weight !== undefined ? Number(weight) : undefined,
-      labelIds: Array.from(selectedLabelIds),
-      assigneeIds: Array.from(selectedAssigneeIds),
-    };
-    
-    await createCard(newCardData);
-    
-    // After card is created, upload any attachments
-    // We'd need the new card ID to attach files, but we don't have it
-    // A better approach would be to return the new card ID from createCard
-    // For now, we'll just close the form and not handle file uploads in new card
-    
-    onOpenChange(false);
-    resetForm();
+    setIsUploadingFiles(true);
+    try {
+      // Create the card with the correct structure for the newer createCard hook
+      const newCardData = { 
+        title, 
+        description, 
+        boardId,
+        priority, 
+        dueDate,
+        weight: weight !== undefined ? Number(weight) : undefined,
+        labelIds: Array.from(selectedLabelIds),
+        assigneeIds: Array.from(selectedAssigneeIds),
+      };
+      
+      // Create the card and get the new card data (including ID)
+      const newCard = await createCard(columnId, newCardData);
+      
+      // Upload any selected files to the newly created card
+      if (selectedFiles.length > 0 && newCard?.id) {
+        console.log(`📎 Uploading ${selectedFiles.length} files to card ${newCard.id}`);
+        toast.info(`Uploading ${selectedFiles.length} file(s)...`);
+        
+        let uploadedCount = 0;
+        let failedCount = 0;
+        
+        // Upload each file individually
+        for (const file of selectedFiles) {
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            await addAttachment(newCard.id, formData);
+            console.log(`✅ Uploaded file: ${file.name}`);
+            uploadedCount++;
+          } catch (fileError) {
+            console.error(`❌ Failed to upload file ${file.name}:`, fileError);
+            toast.error(`Failed to upload file ${file.name}`);
+            failedCount++;
+            // Continue with other files even if one fails
+          }
+        }
+        
+        // Show summary toast
+        if (uploadedCount > 0 && failedCount === 0) {
+          toast.success(`All ${uploadedCount} file(s) uploaded successfully`);
+        } else if (uploadedCount > 0 && failedCount > 0) {
+          toast.warning(`${uploadedCount} file(s) uploaded, ${failedCount} failed`);
+        } else if (failedCount > 0) {
+          toast.error(`Failed to upload ${failedCount} file(s)`);
+        }
+      }
+      
+      onOpenChange(false);
+      resetForm();
+    } catch (error) {
+      console.error('❌ Failed to create card:', error);
+      toast.error('Failed to create card');
+      // Optionally show an error message to the user
+    } finally {
+      setIsUploadingFiles(false);
+    }
   };
 
   const handleToggleLabel = (labelId: string) => {
@@ -409,8 +450,8 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, boardId, i
                       multiple
                     />
                   </div>
-                  <Button onClick={handleSubmit} disabled={!title.trim()} size="sm">
-                    Create Card
+                  <Button onClick={handleSubmit} disabled={!title.trim() || isUploadingFiles} size="sm">
+                    {isUploadingFiles ? 'Creating & Uploading...' : 'Create Card'}
                   </Button>
                 </div>
               </motion.div>
