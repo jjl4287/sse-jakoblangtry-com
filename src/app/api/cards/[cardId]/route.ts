@@ -117,6 +117,16 @@ export async function PATCH(
   { params }: { params: Promise<{ cardId: string }> }
 ) {
   const { cardId } = await params;
+  
+  // Check if this is a temporary ID (optimistic update)
+  if (cardId.startsWith('temp_') || cardId.startsWith('temp_card_')) {
+    // For temporary IDs, just return success without doing anything
+    // The optimistic update system will replace this with the real ID once the card is created
+    return NextResponse.json({ 
+      id: cardId, 
+      message: 'Temporary card update ignored - will be processed when card is persisted' 
+    });
+  }
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -318,6 +328,16 @@ export async function DELETE(
   { params }: { params: { cardId: string } }
 ) {
   const { cardId } = params;
+  
+  // Check if this is a temporary ID (optimistic update)
+  if (cardId.startsWith('temp_') || cardId.startsWith('temp_card_')) {
+    // For temporary IDs, just return success without doing anything
+    // The optimistic update system will handle the local removal
+    return NextResponse.json({ 
+      success: true,
+      message: 'Temporary card delete ignored - handled by optimistic updates' 
+    });
+  }
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

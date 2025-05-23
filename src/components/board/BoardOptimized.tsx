@@ -21,7 +21,6 @@ import {
 } from '@dnd-kit/sortable';
 import { SortableColumn } from './SortableColumn';
 import { SortableCard } from './SortableCard';
-import { Column } from './Column';
 import { Card } from './Card';
 import type { Board as BoardType } from '~/types';
 import { useTheme } from '~/contexts/ThemeContext';
@@ -33,6 +32,7 @@ import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
 import type { Card as CardType, Column as ColumnType } from '~/types';
 import { NewCardSheet } from './NewCardSheet';
+import { AddColumnSheet } from './AddColumnSheet';
 import { BoardHeader } from './BoardHeader';
 import { ShareBoardSheet } from './ShareBoardSheet';
 import { useBoardOptimized } from '~/hooks/useBoardOptimized';
@@ -63,6 +63,7 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [addingCardToColumnId, setAddingCardToColumnId] = useState<string | null>(null);
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
+  const [isAddColumnSheetOpen, setIsAddColumnSheetOpen] = useState(false);
 
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -296,11 +297,9 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
     setSearchQuery(e.target.value);
   }, []);
 
-  const handleAddColumnClick = useCallback(async () => {
-    if (!board) return;
-    const width = board.columns.length ? 100 / (board.columns.length + 1) : 100;
-    await mutations.createColumn(board.id, { title: 'New Column', width });
-  }, [board, mutations]);
+  const handleAddColumnClick = useCallback(() => {
+    setIsAddColumnSheetOpen(true);
+  }, []);
 
   const handleOpenNewCardDialog = useCallback((columnId: string) => {
     setAddingCardToColumnId(columnId);
@@ -317,6 +316,11 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
     setHeaderTitle(board?.title || '');
     setIsEditingHeader(false);
   }, [board?.title]);
+
+  // Handler to refresh board data when a new column is added via sheet
+  const handleColumnAdded = useCallback(() => {
+    smartRefetch();
+  }, [smartRefetch]);
 
   // Loading state
   if (loading) {
@@ -450,6 +454,16 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
           onOpenChange={setIsShareSheetOpen}
           boardId={board.id}
           boardTitle={board.title}
+        />
+      )}
+
+      {/* Conditionally Render Add Column Sheet */}
+      {isAddColumnSheetOpen && (
+        <AddColumnSheet
+          isOpen={isAddColumnSheetOpen}
+          onOpenChange={setIsAddColumnSheetOpen}
+          boardId={board.id}
+          onColumnAdded={handleColumnAdded}
         />
       )}
     </div>

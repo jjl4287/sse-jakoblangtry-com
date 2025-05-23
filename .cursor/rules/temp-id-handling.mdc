@@ -1,0 +1,55 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+- **Temporary ID Pattern:**
+  - When using optimistic updates, temporary IDs are created with prefixes like `temp_`, `temp_col_`, `temp_card_`
+  - These IDs don't exist in the database and will cause Prisma P2025 errors if not handled
+
+- **Required Checks in API Endpoints:**
+  - All PATCH and DELETE endpoints for resources that support optimistic updates MUST check for temporary IDs
+  - Return success responses for temporary IDs without attempting database operations
+
+- **Implementation Pattern:**
+  ```typescript
+  // ✅ DO: Check for temporary IDs at the start of API handlers
+  export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    
+    // Check if this is a temporary ID (optimistic update)
+    if (id.startsWith('temp_') || id.startsWith('temp_col_') || id.startsWith('temp_card_')) {
+      return NextResponse.json({ 
+        id, 
+        message: 'Temporary resource update ignored - will be processed when resource is persisted' 
+      });
+    }
+    
+    // ... rest of the endpoint logic
+  }
+  ```
+
+- **Common Temporary ID Prefixes:**
+  - `temp_` - Generic temporary resources
+  - `temp_col_` - Temporary columns
+  - `temp_card_` - Temporary cards
+  - Add new prefixes as needed for other resources
+
+- **Error Prevention:**
+  - This prevents Prisma P2025 errors ("No record was found for update/delete")
+  - Allows optimistic updates to work smoothly without backend errors
+  - The optimistic update system handles the local state changes
+
+- **Files That Implement This Pattern:**
+  - [src/app/api/columns/[id]/route.ts](mdc:src/app/api/columns/[id]/route.ts) - Column PATCH/DELETE
+  - [src/app/api/cards/[cardId]/route.ts](mdc:src/app/api/cards/[cardId]/route.ts) - Card PATCH/DELETE
+
+- **When to Apply:**
+  - Any resource that supports optimistic updates
+  - PATCH endpoints for updating resources
+  - DELETE endpoints for removing resources
+  - GET endpoints generally don't need this (they should return 404 for not found)
+
+- **Related Systems:**
+  - [src/hooks/useMutationsOptimized.ts](mdc:src/hooks/useMutationsOptimized.ts) - Creates temporary IDs
+  - Optimistic update patterns in React components
