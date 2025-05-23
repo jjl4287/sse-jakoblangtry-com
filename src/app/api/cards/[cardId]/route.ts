@@ -5,6 +5,90 @@ import { type Card, type Prisma } from '@prisma/client'; // Use type-only import
 import { getServerSession } from "next-auth/next"; // Added for session
 import { authOptions } from "~/lib/auth/authOptions"; // Added for session
 
+// GET /api/cards/[cardId]
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ cardId: string }> }
+) {
+  const { cardId } = await params;
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const card = await prisma.card.findUnique({
+      where: { id: cardId },
+      include: {
+        labels: true,
+        assignees: true,
+        attachments: true,
+        comments: {
+          include: {
+            user: true
+          }
+        }
+      }
+    });
+
+    if (!card) {
+      return NextResponse.json({ error: "Card not found" }, { status: 404 });
+    }
+
+    // Map to the expected Card format
+    const formattedCard = {
+      id: card.id,
+      columnId: card.columnId,
+      order: card.order,
+      title: card.title,
+      description: card.description,
+      labels: card.labels.map(l => ({ 
+        id: l.id, 
+        name: l.name, 
+        color: l.color, 
+        boardId: l.boardId 
+      })),
+      assignees: card.assignees.map(u => ({ 
+        id: u.id, 
+        name: u.name, 
+        email: u.email, 
+        image: u.image 
+      })),
+      priority: card.priority as 'low' | 'medium' | 'high',
+      weight: card.weight ?? undefined,
+      attachments: card.attachments.map(a => ({ 
+        id: a.id, 
+        name: a.name, 
+        url: a.url, 
+        type: a.type, 
+        createdAt: a.createdAt 
+      })),
+      comments: card.comments.map(c => ({
+        id: c.id,
+        content: c.content,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        cardId: c.cardId,
+        userId: c.userId,
+        user: {
+          id: c.user.id,
+          name: c.user.name,
+          email: c.user.email,
+          image: c.user.image,
+        }
+      })),
+      dueDate: card.dueDate ?? undefined,
+    };
+
+    return NextResponse.json(formattedCard);
+  } catch (_error: unknown) {
+    console.error('[API GET /api/cards/[cardId]] Error:', _error);
+    const message = _error instanceof Error ? _error.message : 'Failed to fetch card';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 // Schema for validating incoming card update data
 const CardUpdateSchema = z.object({
   title: z.string().optional(),

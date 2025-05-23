@@ -13,7 +13,7 @@ const LabelCreateSchema = z.object({
 // GET /api/boards/[boardId]/labels - List labels for a board
 export async function GET(
   request: Request,
-  { params }: { params: { boardId: string } }
+  { params }: { params: Promise<{ boardId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,7 +21,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { boardId } = params;
+    const { boardId } = await params;
 
     if (!boardId) {
       return NextResponse.json(
@@ -50,7 +50,7 @@ export async function GET(
 // POST /api/boards/[boardId]/labels - Create a new label for a board
 export async function POST(
   request: Request,
-  { params }: { params: { boardId: string } }
+  { params }: { params: Promise<{ boardId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -58,7 +58,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { boardId } = params;
+    const { boardId } = await params;
     const parsed = LabelCreateSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });

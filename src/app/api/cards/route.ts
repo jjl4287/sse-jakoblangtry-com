@@ -3,6 +3,90 @@ import prisma from '~/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
 
+// GET /api/cards?columnId=...
+export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const url = new URL(request.url);
+    const columnId = url.searchParams.get('columnId');
+
+    if (!columnId) {
+      return NextResponse.json({ error: 'Column ID is required' }, { status: 400 });
+    }
+
+    // Fetch cards for the specified column
+    const cards = await prisma.card.findMany({
+      where: { columnId },
+      orderBy: { order: 'asc' },
+      include: {
+        labels: true,
+        assignees: true,
+        attachments: true,
+        comments: {
+          include: {
+            user: true
+          }
+        }
+      }
+    });
+
+    // Map to the expected Card format
+    const formattedCards = cards.map(card => ({
+      id: card.id,
+      columnId: card.columnId,
+      order: card.order,
+      title: card.title,
+      description: card.description,
+      labels: card.labels.map(l => ({ 
+        id: l.id, 
+        name: l.name, 
+        color: l.color, 
+        boardId: l.boardId 
+      })),
+      assignees: card.assignees.map(u => ({ 
+        id: u.id, 
+        name: u.name, 
+        email: u.email, 
+        image: u.image 
+      })),
+      priority: card.priority as 'low' | 'medium' | 'high',
+      weight: card.weight ?? undefined,
+      attachments: card.attachments.map(a => ({ 
+        id: a.id, 
+        name: a.name, 
+        url: a.url, 
+        type: a.type, 
+        createdAt: a.createdAt 
+      })),
+      comments: card.comments.map(c => ({
+        id: c.id,
+        content: c.content,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        cardId: c.cardId,
+        userId: c.userId,
+        user: {
+          id: c.user.id,
+          name: c.user.name,
+          email: c.user.email,
+          image: c.user.image,
+        }
+      })),
+      dueDate: card.dueDate ?? undefined,
+    }));
+
+    return NextResponse.json(formattedCards);
+  } catch (_error: unknown) {
+    console.error('[API GET /api/cards] Error:', _error);
+    const message = _error instanceof Error ? _error.message : 'Failed to fetch cards';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 // POST /api/cards
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -40,13 +124,13 @@ export async function POST(request: Request) {
     // Fetch the column to get the boardId
     const column = await prisma.column.findUnique({
         where: { id: columnId },
-        select: { projectId: true } // projectId in Column is the boardId for the Card
+        select: { boardId: true } // boardId in Column is the boardId for the Card
     });
 
-    if (!column?.projectId) {
+    if (!column?.boardId) {
         return NextResponse.json({ error: 'Column not found or does not belong to a board' }, { status: 404 });
     }
-    const boardId = column.projectId;
+    const boardId = column.boardId;
 
     // Determine next order index
     const maxOrderCard = await prisma.card.findFirst({

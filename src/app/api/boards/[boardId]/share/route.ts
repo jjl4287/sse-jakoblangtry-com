@@ -13,7 +13,7 @@ const ShareRequestSchema = z.object({ emailToShareWith: z.string().email('Invali
 
 export async function POST(
   request: Request,
-  context: { params: { boardId: string } }
+  context: { params: Promise<{ boardId: string }> }
 ) {
   const session = await getServerSession(authOptions);
 
@@ -21,7 +21,7 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const boardId = context.params.boardId;
+  const { boardId } = await context.params;
   let body: ShareRequestBody;
 
   try {

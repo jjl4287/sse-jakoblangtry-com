@@ -9,9 +9,9 @@ const CardMoveSchema = z.object({ targetColumnId: z.string().min(1), order: z.nu
 // POST /api/cards/[cardId]/move
 export async function POST(
   request: Request,
-  { params }: { params: { cardId: string } }
+  { params }: { params: Promise<{ cardId: string }> }
 ) {
-  const { cardId } = params;
+  const { cardId } = await params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

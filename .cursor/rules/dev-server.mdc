@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- **Development Server Management:**
+  - **DO NOT** restart or run the development server (`npm run dev`, `yarn dev`, `next dev`) if it's already running
+  - The user typically has the dev server running continuously during development
+  - Always assume the development server is running unless explicitly told otherwise
+
+- **When Making Changes:**
+  - Next.js automatically hot-reloads on file changes
+  - No manual server restart needed for most code changes
+  - Focus on code edits rather than server management
+
+- **Exceptions (Only restart if explicitly requested):**
+  - User specifically asks to restart the server
+  - Changes to [next.config.js](mdc:next.config.js) that require a restart
+  - Changes to [package.json](mdc:package.json) dependencies that require reinstallation
+  - Environment variable changes that require server restart
+
+- **Communication:**
+  ```typescript
+  // ✅ DO: Make code changes and let hot reload handle updates
+  // The changes will be reflected automatically in the browser
+  
+  // ❌ DON'T: Suggest restarting the dev server unnecessarily
+  // "Let me restart the dev server to apply these changes"
+  ```
+
+- **Best Practices:**
+  - Trust Next.js hot reload capabilities
+  - Make incremental changes and test in browser
+  - Only suggest server actions when truly necessary
+  - Assume the user has their development environment properly set up

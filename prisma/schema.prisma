@@ -28,8 +28,8 @@ model Column {
   title     String
   width     Int
   order     Int       @default(0)
-  board     Board     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId String
+  board     Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId   String
   cards     Card[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
