@@ -11,8 +11,8 @@ import {
 } from '~/components/ui/sheet';
 import { Button } from '~/components/ui/button';
 import MarkdownEditor from '~/components/ui/MarkdownEditor';
-import { useCardMutations } from '~/hooks/useCard';
-import { useComments as useCardComments, useCommentMutations } from '~/hooks/use-comments';
+import { useCardMutations, type CardUpdateInput } from '~/hooks/useCard';
+import { useComments as useCardComments, useCommentMutations } from '~/hooks/useComments';
 import { useCardActivity } from '~/hooks/useActivity';
 import { useBoardLabels, useLabelMutations } from '~/hooks/useLabels';
 import { useBoardMembers } from '~/hooks/useBoardMembers';
@@ -96,7 +96,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
       }
     },
     
-    handleUpdateCard: async (cardId: string, updates: any) => {
+    handleUpdateCard: async (cardId: string, updates: CardUpdateInput) => {
       try {
         await updateCard(cardId, updates);
         // Refetch activity to show update
