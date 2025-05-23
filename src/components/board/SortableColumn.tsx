@@ -28,6 +28,9 @@ interface SortableColumnProps {
   /** Optional style overrides when rendered in DragOverlay */
   overlayStyle?: React.CSSProperties;
   boardId?: string;
+  /** Optimized mutation functions */
+  updateColumn?: (columnId: string, updates: any) => Promise<void>;
+  deleteColumn?: (columnId: string) => Promise<void>;
 }
 
 export const SortableColumn = memo<SortableColumnProps>(function SortableColumn({ 
@@ -35,10 +38,16 @@ export const SortableColumn = memo<SortableColumnProps>(function SortableColumn(
   dragOverlay = false, 
   overlayStyle, 
   onAddCardClick, 
-  boardId 
+  boardId,
+  updateColumn: optimizedUpdateColumn,
+  deleteColumn: optimizedDeleteColumn
 }) {
   // Column.id is assumed valid (validated by parent Column wrapper)
-  const { updateColumn, deleteColumn } = useColumnMutations();
+  const { updateColumn: fallbackUpdateColumn, deleteColumn: fallbackDeleteColumn } = useColumnMutations();
+  
+  // Use optimized mutations if available, otherwise fall back to traditional hooks
+  const updateColumn = optimizedUpdateColumn || fallbackUpdateColumn;
+  const deleteColumn = optimizedDeleteColumn || fallbackDeleteColumn;
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(column.title);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -120,7 +129,12 @@ export const SortableColumn = memo<SortableColumnProps>(function SortableColumn(
   // This function will be called by the confirmation dialog
   const executeDeleteColumn = useCallback(async () => {
     try {
-      await deleteColumn(column.id);
+      const result = deleteColumn(column.id);
+      // If it returns a promise (traditional hook), wait for it
+      if (result && typeof result.then === 'function') {
+        await result;
+      }
+      // If it's optimized mutation (void return), it handles success/error internally
     } catch (error: unknown) {
       console.error('Failed to delete column:', error);
       // Optionally, show a toast or error message to the user here
@@ -153,15 +167,19 @@ export const SortableColumn = memo<SortableColumnProps>(function SortableColumn(
   );
 
   // Memoized handlers to prevent recreation
-  const handleSaveTitle = useCallback(() => {
+  const handleSaveTitle = useCallback(async () => {
     setIsEditingTitle(false);
     if (titleInput.trim() && titleInput !== column.title) {
-      const promise = updateColumn(column.id, { title: titleInput.trim() });
-      if (promise && typeof promise.catch === 'function') {
-        void promise.catch(err => {
-          console.error('Failed to update column title:', err);
-          setTitleInput(column.title); // Revert on error
-        });
+      try {
+        const result = updateColumn(column.id, { title: titleInput.trim() });
+        // If it returns a promise (traditional hook), wait for it and handle errors
+        if (result && typeof result.then === 'function') {
+          await result;
+        }
+        // If it's optimized mutation (void return), it handles errors internally
+      } catch (error) {
+        console.error('Failed to update column title:', error);
+        setTitleInput(column.title); // Revert on error
       }
     } else if (titleInput.trim() === '') {
       setTitleInput(column.title); // Revert if cleared

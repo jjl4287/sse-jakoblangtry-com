@@ -47,6 +47,20 @@ interface ColumnCreateOperation extends BaseOperation {
   columnData: any;
 }
 
+interface ColumnUpdateOperation extends BaseOperation {
+  type: 'column_update';
+  columnId: string;
+  updates: any;
+  originalState?: any;
+}
+
+interface ColumnDeleteOperation extends BaseOperation {
+  type: 'column_delete';
+  columnId: string;
+  boardId: string;
+  originalState?: any;
+}
+
 interface BoardUpdateOperation extends BaseOperation {
   type: 'board_update';
   boardId: string;
@@ -60,6 +74,8 @@ type Operation =
   | CardUpdateOperation 
   | CardCreateOperation 
   | ColumnCreateOperation 
+  | ColumnUpdateOperation 
+  | ColumnDeleteOperation 
   | BoardUpdateOperation;
 
 // Enhanced conflict resolution and operation merging
@@ -81,6 +97,10 @@ class OperationQueue {
         return `card_create_${operation.tempId}`;
       case 'column_create':
         return `column_create_${operation.tempId}`;
+      case 'column_update':
+        return `column_update_${operation.columnId}`;
+      case 'column_delete':
+        return `column_delete_${operation.columnId}`;
       case 'board_update':
         return `board_update_${operation.boardId}`;
       default:
@@ -118,6 +138,14 @@ class OperationQueue {
         return {
           ...existing,
           updates: { ...existing.updates, ...incomingUpdate.updates },
+          timestamp: Date.now(),
+        };
+
+      case 'column_update':
+        const incomingColumnUpdate = incoming as Omit<ColumnUpdateOperation, 'id' | 'timestamp' | 'retryCount' | 'status' | 'dependencies'>;
+        return {
+          ...existing,
+          updates: { ...existing.updates, ...incomingColumnUpdate.updates },
           timestamp: Date.now(),
         };
 
@@ -168,7 +196,7 @@ class OperationQueue {
       .filter(op => op.status === 'pending' && !this.processing.has(op.id))
       .sort((a, b) => {
         // Prioritize by type (moves first, then updates, then creates)
-        const typeOrder = { 'card_move': 0, 'column_reorder': 1, 'card_update': 2, 'board_update': 3, 'card_create': 4, 'column_create': 5 };
+        const typeOrder = { 'card_move': 0, 'column_reorder': 1, 'card_update': 2, 'board_update': 3, 'card_create': 4, 'column_create': 5, 'column_update': 6, 'column_delete': 7 };
         const typeDiff = (typeOrder[a.type] || 999) - (typeOrder[b.type] || 999);
         if (typeDiff !== 0) return typeDiff;
         
@@ -488,7 +516,71 @@ export function useOptimizedMutations(
       boardId,
       columnData
     });
+
+    // Trigger processing immediately for column operations
+    if (processTimeoutRef.current) {
+      clearTimeout(processTimeoutRef.current);
+    }
+    processTimeoutRef.current = setTimeout(processBatchOperations, 50);
   }, [updateBoardLocal]);
+
+  const updateColumn = useCallback(async (columnId: string, updates: any) => {
+    let originalState: any = null;
+
+    updateBoardLocal((board) => {
+      const newColumns = board.columns.map(col => {
+        if (col.id === columnId) {
+          originalState = { ...col };
+          return { ...col, ...updates, updatedAt: new Date() };
+        }
+        return col;
+      });
+      
+      return { ...board, columns: newColumns };
+    });
+
+    operationQueue.current.addOperation({
+      type: 'column_update',
+      columnId,
+      updates,
+      originalState
+    });
+
+    // Trigger processing immediately for column operations
+    if (processTimeoutRef.current) {
+      clearTimeout(processTimeoutRef.current);
+    }
+    processTimeoutRef.current = setTimeout(processBatchOperations, 50);
+  }, [updateBoardLocal]);
+
+  const deleteColumn = useCallback(async (columnId: string) => {
+    let originalState: any = null;
+
+    updateBoardLocal((board) => {
+      const columnToDelete = board.columns.find(col => col.id === columnId);
+      if (columnToDelete) {
+        originalState = { column: columnToDelete, boardState: board };
+        const newColumns = board.columns.filter(col => col.id !== columnId);
+        return { ...board, columns: newColumns };
+      }
+      return board;
+    });
+
+    if (originalState) {
+      operationQueue.current.addOperation({
+        type: 'column_delete',
+        columnId,
+        boardId: boardId!,
+        originalState
+      });
+
+      // Trigger processing immediately for column operations
+      if (processTimeoutRef.current) {
+        clearTimeout(processTimeoutRef.current);
+      }
+      processTimeoutRef.current = setTimeout(processBatchOperations, 50);
+    }
+  }, [updateBoardLocal, boardId]);
 
   const updateBoard = useCallback(async (boardId: string, updates: any) => {
     let originalState: any = null;
@@ -508,7 +600,10 @@ export function useOptimizedMutations(
 
   // Enhanced batch processor with better error handling
   const processBatchOperations = useCallback(async () => {
-    if (!boardId || isProcessing.current) return;
+    if (!boardId || isProcessing.current) {
+      console.log(`⏸️ Skipping batch processing: boardId=${!!boardId}, isProcessing=${isProcessing.current}`);
+      return;
+    }
     
     isProcessing.current = true;
     
@@ -516,25 +611,30 @@ export function useOptimizedMutations(
       const operations = operationQueue.current.getPendingOperations();
       const retryOperations = operationQueue.current.getRetryableOperations();
       
+      console.log(`🔍 Batch processing check: ${operations.length} pending, ${retryOperations.length} retryable`);
+      
       // Retry failed operations first
       for (const operation of retryOperations) {
         operation.status = 'pending';
         operation.timestamp = Date.now();
+        console.log(`🔄 Retrying operation: ${operation.type} (attempt ${operation.retryCount + 1})`);
       }
       
       const allOperations = operationQueue.current.getPendingOperations();
       
       if (allOperations.length === 0) {
+        console.log(`✅ No operations to process`);
         isProcessing.current = false;
         return;
       }
 
-      console.log(`🔄 Processing ${allOperations.length} operations...`);
+      console.log(`🔄 Processing ${allOperations.length} operations...`, allOperations.map(op => `${op.type}:${op.id}`));
 
       // Process in smaller batches for better reliability
       const BATCH_SIZE = 2;
       for (let i = 0; i < allOperations.length; i += BATCH_SIZE) {
         const batch = allOperations.slice(i, i + BATCH_SIZE);
+        console.log(`📦 Processing batch ${Math.floor(i/BATCH_SIZE) + 1}: ${batch.map(op => op.type).join(', ')}`);
         
         const batchPromises = batch.map(async (operation) => {
           const promise = processOperation(operation);
@@ -542,7 +642,8 @@ export function useOptimizedMutations(
           return promise;
         });
 
-        await Promise.allSettled(batchPromises);
+        const results = await Promise.allSettled(batchPromises);
+        console.log(`📦 Batch ${Math.floor(i/BATCH_SIZE) + 1} results:`, results.map((r, idx) => `${batch[idx].type}: ${r.status}`));
         
         // Small delay between batches
         if (i + BATCH_SIZE < allOperations.length) {
@@ -559,13 +660,17 @@ export function useOptimizedMutations(
       
       // Schedule next processing if needed
       const status = operationQueue.current.getStatus();
+      console.log(`📊 Operation queue status:`, status);
       if (status.pending > 0 || status.failed > 0) {
+        console.log(`⏰ Scheduling next batch processing in 300ms`);
         processTimeoutRef.current = setTimeout(processBatchOperations, 300);
       }
     }
   }, [boardId]);
 
   const processOperation = useCallback(async (operation: Operation): Promise<void> => {
+    console.log(`🔄 Processing operation: ${operation.type}`, operation);
+    
     try {
       let response: Response;
       
@@ -576,6 +681,7 @@ export function useOptimizedMutations(
             throw new Error(`Invalid card move operation: cardId=${operation.cardId}, targetColumnId=${operation.targetColumnId}`);
           }
           
+          console.log(`📦 Card move API call: /api/cards/${operation.cardId}/move`);
           response = await fetch(`/api/cards/${operation.cardId}/move`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -592,6 +698,7 @@ export function useOptimizedMutations(
             throw new Error(`Invalid column reorder operation: boardId=${operation.boardId}, orders=${operation.columnOrders?.length}`);
           }
           
+          console.log(`📦 Column reorder API call: /api/columns (PATCH)`, { boardId: operation.boardId, columnOrders: operation.columnOrders });
           response = await fetch('/api/columns', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -608,6 +715,7 @@ export function useOptimizedMutations(
             throw new Error(`Invalid card update operation: cardId=${operation.cardId}, updates=${!!operation.updates}`);
           }
           
+          console.log(`📦 Card update API call: /api/cards/${operation.cardId}`);
           response = await fetch(`/api/cards/${operation.cardId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -617,6 +725,7 @@ export function useOptimizedMutations(
           break;
           
         case 'card_create':
+          console.log(`📦 Card create API call: /api/cards`, operation.cardData);
           response = await fetch('/api/cards', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -639,6 +748,7 @@ export function useOptimizedMutations(
           break;
           
         case 'column_create':
+          console.log(`📦 Column create API call: /api/columns`, { ...operation.columnData, boardId: operation.boardId });
           response = await fetch('/api/columns', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -648,6 +758,7 @@ export function useOptimizedMutations(
           
           if (response.ok) {
             const newColumn = await response.json();
+            console.log(`✅ Column created successfully:`, newColumn);
             updateBoardLocal((board) => {
               const newColumns = board.columns.map(col => 
                 col.id === operation.tempId ? newColumn : col
@@ -657,7 +768,34 @@ export function useOptimizedMutations(
           }
           break;
           
+        case 'column_update':
+          if (!operation.columnId || !operation.updates) {
+            throw new Error(`Invalid column update operation: columnId=${operation.columnId}, updates=${!!operation.updates}`);
+          }
+          
+          console.log(`📦 Column update API call: /api/columns/${operation.columnId}`, operation.updates);
+          response = await fetch(`/api/columns/${operation.columnId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(operation.updates),
+          });
+          break;
+          
+        case 'column_delete':
+          if (!operation.columnId || !operation.boardId) {
+            throw new Error(`Invalid column delete operation: columnId=${operation.columnId}, boardId=${operation.boardId}`);
+          }
+          
+          console.log(`📦 Column delete API call: /api/columns/${operation.columnId}`);
+          response = await fetch(`/api/columns/${operation.columnId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+          break;
+          
         case 'board_update':
+          console.log(`📦 Board update API call: /api/boards/${operation.boardId}`, operation.updates);
           response = await fetch(`/api/boards/${operation.boardId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -670,6 +808,8 @@ export function useOptimizedMutations(
           throw new Error(`Unknown operation type: ${(operation as any).type}`);
       }
 
+      console.log(`📡 Response status for ${operation.type}:`, response.status, response.ok);
+
       if (!response.ok) {
         const errorText = await response.text();
         let errorData;
@@ -678,6 +818,12 @@ export function useOptimizedMutations(
         } catch {
           errorData = { error: errorText };
         }
+        
+        console.error(`❌ API Error for ${operation.type}:`, {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
         
         // Enhanced error message for validation errors
         if (response.status === 400 && errorData.error === 'Validation failed') {
@@ -697,7 +843,8 @@ export function useOptimizedMutations(
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`❌ Operation ${operation.type} failed (attempt ${operation.retryCount + 1}):`, {
         operation,
-        error: errorMessage
+        error: errorMessage,
+        fullError: error
       });
       
       operationQueue.current.markFailed(operation.id, error as Error);
@@ -720,6 +867,8 @@ export function useOptimizedMutations(
     createCard,
     reorderColumns,
     createColumn,
+    updateColumn,
+    deleteColumn,
     updateBoard,
     getOperationStatus: () => operationQueue.current.getStatus()
   };

@@ -11,15 +11,18 @@ interface AddColumnSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onColumnAdded?: () => void;
+  /** Optional optimized mutation function */
+  createColumn?: (boardId: string, data: { title: string; width: number }) => Promise<void>;
 }
 
 export const AddColumnSheet: React.FC<AddColumnSheetProps> = ({ 
   boardId, 
   isOpen, 
   onOpenChange, 
-  onColumnAdded 
+  onColumnAdded, 
+  createColumn 
 }) => {
-  const { createColumn } = useColumnMutations();
+  const { createColumn: defaultCreateColumn } = useColumnMutations();
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -46,7 +49,7 @@ export const AddColumnSheet: React.FC<AddColumnSheetProps> = ({
     
     setIsSubmitting(true);
     try {
-      await createColumn(boardId, { title: name.trim(), width: 300 });
+      await (createColumn || defaultCreateColumn)(boardId, { title: name.trim(), width: 300 });
       onOpenChange(false);
       onColumnAdded?.();
       resetForm();

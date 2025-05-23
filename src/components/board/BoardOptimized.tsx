@@ -405,7 +405,9 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
                 key={column.id} 
                 column={column} 
                 onAddCardClick={handleOpenNewCardDialog} 
-                boardId={board.id} 
+                boardId={board.id}
+                updateColumn={mutations.updateColumn}
+                deleteColumn={mutations.deleteColumn}
               />
             ))}
           </SortableContext>
@@ -418,7 +420,9 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
                 column={activeItem.column} 
                 dragOverlay 
                 onAddCardClick={handleOpenNewCardDialog} 
-                boardId={board.id} 
+                boardId={board.id}
+                updateColumn={mutations.updateColumn}
+                deleteColumn={mutations.deleteColumn}
               />
             </div>
           )}
@@ -464,6 +468,7 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
           onOpenChange={setIsAddColumnSheetOpen}
           boardId={board.id}
           onColumnAdded={handleColumnAdded}
+          createColumn={mutations.createColumn}
         />
       )}
     </div>
