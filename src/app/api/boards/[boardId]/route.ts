@@ -13,18 +13,18 @@ export async function PATCH(
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    return new NextResponse('Unauthorized', { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { boardId } = await params;
   if (!boardId) {
-    return new NextResponse('Board ID is required', { status: 400 });
+    return NextResponse.json({ error: 'Board ID is required' }, { status: 400 });
   }
 
   try {
     const parsed = BoardPatchSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return new NextResponse('Invalid title', { status: 400 });
+      return NextResponse.json({ error: 'Invalid title' }, { status: 400 });
     }
     const { title } = parsed.data;
 
@@ -41,8 +41,8 @@ export async function PATCH(
     if (updatedBoard.count === 0) {
       // This means either the board doesn't exist or the user doesn't own it.
       // For security, don't reveal which one.
-      return new NextResponse(
-        'Board not found or user not authorized to update this board',
+      return NextResponse.json(
+        { error: 'Board not found or user not authorized to update this board' },
         { status: 404 }
       );
     }
@@ -51,9 +51,9 @@ export async function PATCH(
   } catch (error) {
     console.error(`[API PATCH /api/boards/${boardId}] Error:`, error);
     if (error instanceof SyntaxError) {
-      return new NextResponse('Invalid JSON in request body', { status: 400 });
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
     }
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -64,12 +64,12 @@ export async function DELETE(
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    return new NextResponse('Unauthorized', { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { boardId } = await params;
   if (!boardId) {
-    return new NextResponse('Board ID is required', { status: 400 });
+    return NextResponse.json({ error: 'Board ID is required' }, { status: 400 });
   }
 
   try {
@@ -84,8 +84,8 @@ export async function DELETE(
     if (deletedBoard.count === 0) {
       // This means either the board doesn't exist or the user doesn't own it.
       // For security, don't reveal which one.
-      return new NextResponse(
-        'Board not found or user not authorized to delete this board',
+      return NextResponse.json(
+        { error: 'Board not found or user not authorized to delete this board' },
         { status: 404 }
       );
     }
@@ -93,6 +93,6 @@ export async function DELETE(
     return NextResponse.json({ message: 'Board deleted successfully' });
   } catch (error) {
     console.error(`[API DELETE /api/boards/${boardId}] Error:`, error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 } 

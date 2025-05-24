@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { type Card, type Prisma } from '@prisma/client'; // Use type-only import for Card
 import { getServerSession } from "next-auth/next"; // Added for session
 import { authOptions } from "~/lib/auth/authOptions"; // Added for session
+import { formatCardForAPI } from '~/lib/utils/cardFormatting';
 
 // GET /api/cards/[cardId]
 export async function GET(
@@ -36,50 +37,8 @@ export async function GET(
       return NextResponse.json({ error: "Card not found" }, { status: 404 });
     }
 
-    // Map to the expected Card format
-    const formattedCard = {
-      id: card.id,
-      columnId: card.columnId,
-      order: card.order,
-      title: card.title,
-      description: card.description,
-      labels: card.labels.map(l => ({ 
-        id: l.id, 
-        name: l.name, 
-        color: l.color, 
-        boardId: l.boardId 
-      })),
-      assignees: card.assignees.map(u => ({ 
-        id: u.id, 
-        name: u.name, 
-        email: u.email, 
-        image: u.image 
-      })),
-      priority: card.priority as 'low' | 'medium' | 'high',
-      weight: card.weight ?? undefined,
-      attachments: card.attachments.map(a => ({ 
-        id: a.id, 
-        name: a.name, 
-        url: a.url, 
-        type: a.type, 
-        createdAt: a.createdAt 
-      })),
-      comments: card.comments.map(c => ({
-        id: c.id,
-        content: c.content,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt,
-        cardId: c.cardId,
-        userId: c.userId,
-        user: {
-          id: c.user.id,
-          name: c.user.name,
-          email: c.user.email,
-          image: c.user.image,
-        }
-      })),
-      dueDate: card.dueDate ?? undefined,
-    };
+    // Map to the expected Card format using shared utility
+    const formattedCard = formatCardForAPI(card);
 
     return NextResponse.json(formattedCard);
   } catch (_error: unknown) {

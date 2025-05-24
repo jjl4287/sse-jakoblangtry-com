@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
+import { formatCardForAPI } from '~/lib/utils/cardFormatting';
 
 // GET /api/cards?columnId=...
 export async function GET(request: Request) {
@@ -34,50 +35,8 @@ export async function GET(request: Request) {
       }
     });
 
-    // Map to the expected Card format
-    const formattedCards = cards.map(card => ({
-      id: card.id,
-      columnId: card.columnId,
-      order: card.order,
-      title: card.title,
-      description: card.description,
-      labels: card.labels.map(l => ({ 
-        id: l.id, 
-        name: l.name, 
-        color: l.color, 
-        boardId: l.boardId 
-      })),
-      assignees: card.assignees.map(u => ({ 
-        id: u.id, 
-        name: u.name, 
-        email: u.email, 
-        image: u.image 
-      })),
-      priority: card.priority as 'low' | 'medium' | 'high',
-      weight: card.weight ?? undefined,
-      attachments: card.attachments.map(a => ({ 
-        id: a.id, 
-        name: a.name, 
-        url: a.url, 
-        type: a.type, 
-        createdAt: a.createdAt 
-      })),
-      comments: card.comments.map(c => ({
-        id: c.id,
-        content: c.content,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt,
-        cardId: c.cardId,
-        userId: c.userId,
-        user: {
-          id: c.user.id,
-          name: c.user.name,
-          email: c.user.email,
-          image: c.user.image,
-        }
-      })),
-      dueDate: card.dueDate ?? undefined,
-    }));
+    // Map to the expected Card format using shared utility
+    const formattedCards = cards.map(formatCardForAPI);
 
     return NextResponse.json(formattedCards);
   } catch (_error: unknown) {
