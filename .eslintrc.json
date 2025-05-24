@@ -3,6 +3,7 @@
     "next/core-web-vitals"
   ],
   "ignorePatterns": ["scripts/**/*"],
+  "plugins": ["unused-imports"],
   "rules": {
     "@typescript-eslint/no-unsafe-assignment": "warn",
     "@typescript-eslint/no-unsafe-member-access": "warn",
@@ -14,14 +15,18 @@
     "@typescript-eslint/restrict-template-expressions": "warn",
     "@typescript-eslint/no-unused-vars": "warn",
     "react/display-name": "warn",
-    "react-hooks/exhaustive-deps": "warn"
+    "react-hooks/exhaustive-deps": "warn",
+    "unused-imports/no-unused-imports": "error",
+    "unused-imports/no-unused-vars": ["warn", {"vars": "all", "varsIgnorePattern": "^_", "args": "after-used", "argsIgnorePattern": "^_"}]
   },
   "overrides": [
     {
-      "files": ["**/route.ts"],
+      "files": ["src/app/api/**/*.ts", "src/app/api/**/*.tsx"],
       "rules": {
         "@typescript-eslint/no-unsafe-assignment": "off",
-        "@typescript-eslint/no-unsafe-member-access": "off"
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unsafe-call": "off"
       }
     }
   ]

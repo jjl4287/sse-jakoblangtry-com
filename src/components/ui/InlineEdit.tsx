@@ -42,6 +42,8 @@ export const InlineEdit = forwardRef<HTMLInputElement, InlineEditProps>((
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
       e.currentTarget.blur();
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -51,24 +53,33 @@ export const InlineEdit = forwardRef<HTMLInputElement, InlineEditProps>((
     }
   };
 
-  const commonBehaviorClasses = 'border-b-2 border-transparent transition-colors duration-200 ease-in-out';
-  const inputSpecificClasses = 'focus:border-foreground focus:outline-none';
-  const displaySpecificClasses = 'hover:border-foreground cursor-text';
+  // Separate user-provided props to avoid override
+  const {
+    onKeyDown: userOnKeyDown,
+    className: userClassName,
+    ...restInputProps
+  } = inputProps ?? {};
+
+  // Use box-shadow for underline (inset) so it doesn't affect layout height
+  const commonBehaviorClasses = 'transition-shadow duration-200 ease-in-out';
+  const inputSpecificClasses = 'focus:shadow-[inset_0_-2px_0_0_currentColor] focus:outline-none';
+  const displaySpecificClasses = 'hover:shadow-[inset_0_-2px_0_0_currentColor] cursor-text';
 
   if (isEditing) {
     return (
       <input
+        // Spread other props first so event handlers below are not overridden
+        {...restInputProps}
         ref={ref}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={handleBlur}
         onKeyDown={(e) => {
           handleKeyDown(e);
-          inputProps?.onKeyDown?.(e);
+          userOnKeyDown?.(e);
         }}
         placeholder={placeholder}
-        className={cn(commonBehaviorClasses, inputSpecificClasses, className, inputProps?.className)}
-        {...inputProps}
+        className={cn(className, userClassName, commonBehaviorClasses, inputSpecificClasses)}
       />
     );
   }
@@ -76,7 +87,7 @@ export const InlineEdit = forwardRef<HTMLInputElement, InlineEditProps>((
   return (
     <span
       onDoubleClick={onEditStart}
-      className={cn(commonBehaviorClasses, displaySpecificClasses, className)}
+      className={cn(className, commonBehaviorClasses, displaySpecificClasses)}
     >
       {value || placeholder}
     </span>

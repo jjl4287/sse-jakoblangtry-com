@@ -1,0 +1,91 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Plan for enriching card functionality, inspired by GitHub issues.
+globs: src/app/components/board/CardDetailsSheet.tsx, src/app/api/cards/**/route.ts, prisma/schema.prisma
+---
+
+- **Context**
+  - This plan adapts key features from GitHub's issue interface (as seen in the provided screenshots) into our card sheets.
+  - Screenshots analyzed: GitHub issue list, issue detail modal, and new issue creation dialog.
+  - Goal: elevate our card UI to match GitHub's polish and functionality.
+
+- **Phase 1: Labels & Assignees**
+  - [x] **Database Schema**
+    - [x] Add `Label` model in [prisma/schema.prisma](mdc:prisma/schema.prisma) with fields: `id`, `name`, `color`, `boardId`.
+    - [x] Update `Board` model: add `labels: Label[]` (one-to-many).
+    - [x] Update `Card` model: add `labels: Label[]`, `assignees: User[]` (many-to-many).
+  - [x] **API Endpoints**
+    - [x] Create routes under `src/app/api/boards/[boardId]/labels/route.ts`:
+      - [x] `GET /api/boards/[boardId]/labels` → list labels.
+      - [x] `POST /api/boards/[boardId]/labels` → create label (body: `name`, `color`).
+    - [x] Extend `PATCH /api/cards/[cardId]/route.ts` to accept:
+      - [x] `labelIdsToAdd`, `labelIdsToRemove`, `assigneeIdsToAdd`, `assigneeIdsToRemove`.
+  - [ ] **Frontend Implementation**
+    - In `CardDetailsSheet.tsx` ([CardDetailsSheet.tsx](mdc:src/app/components/board/CardDetailsSheet.tsx)):
+      - [x] Display current labels as colored badges.
+      - [~] **Label Picker & Management**
+        - [x] Bug: Fix `CommandInput` in label picker to allow typing for search.
+        - [x] UX: Decouple label creation from search. Add "Manage Labels" button/section with:
+            - [x] Simple form to create new labels (name, color).
+            - [x] Ability to edit existing board labels (name, color).
+            - [x] Display all board labels in this management view.
+        - [x] Multi-select existing labels for the card using Popover + Command.
+      - [~] **Assignee Picker & Display**
+        - [x] Display current assignees as badges (currently initials).
+        - [x] Multi-select dropdown (Popover + Command) to add/remove users.
+        - [x] Bug: Fix `CommandInput` in assignee picker to allow typing for search.
+        - [x] Enhancement: Display full user avatars (if available, fallback to initials) in assignee picker and badges.
+      - [x] On change, call `updateCard(card.id, { labelIdsToAdd, labelIdsToRemove, assigneeIdsToAdd, assigneeIdsToRemove })`.
+      - [x] UI: Constrain width of inline-editable card title to prevent overflow.
+    - [x] Update `BoardContext` or service layer to fetch available labels and assignees.
+
+- **Phase 2: Comments & Activity Feed**
+  - [x] **Database Schema**
+    - [x] Add `Comment` model: `id`, `content`, `cardId`, `userId`, `createdAt`, `updatedAt`.
+    - [x] Add `ActivityLog` model: `id`, `actionType`, `details`, `createdAt`, `cardId`, `userId`.
+  - [x] **API Endpoints**
+    - [x] Under `src/app/api/cards/[cardId]/comments/route.ts`:
+      - [x] `GET /api/cards/[cardId]/comments` → list comments.
+      - [x] `POST /api/cards/[cardId]/comments` → create comment (body: `content`).
+    - [x] `GET /api/cards/[cardId]/activity` → list activity logs.
+  - [x] In existing card update routes, insert `ActivityLog` entries for actions (label added, assignee changed, etc.).
+  - [x] **Frontend Implementation**
+    - In `CardDetailsSheet.tsx`:
+      - [x] Build a scrollable feed combining comments and activity logs.
+        - Comments: user avatar, name, timestamp, and Markdown content.
+        - Activity: formatted text (e.g., "User X added label Bug").
+      - [ ] At the bottom of the feed, add a Markdown-enabled textarea and a "Comment" button to post new comments.
+
+- **Phase 3: Milestones**
+  - [ ] **Database Schema**
+    - [ ] Add `Milestone` model: `id`, `title`, `dueDate`, `boardId`.
+    - [ ] Update `Card` model: add `milestoneId` relation.
+  - [ ] **API Endpoints**
+    - [ ] Create `src/app/api/boards/[boardId]/milestones/route.ts` to `GET`/`POST` milestones.
+    - [ ] Extend `PATCH /api/cards/[cardId]` to accept `milestoneId`.
+  - [ ] **Frontend Implementation**
+    - In `CardDetailsSheet.tsx`, add a dropdown to select a milestone (show title and due date).
+
+- **Phase 4: Card Relationships**
+  - [ ] **Database Schema**
+    - [ ] Update `Card` model to include self-referential relation: `linkedCards` and `linkedFrom`.
+  - [ ] **API Endpoints**
+    - [ ] Create `/api/cards/[cardId]/links/route.ts` for linking/unlinking cards.
+  - [ ] **Frontend Implementation**
+    - In `CardDetailsSheet.tsx`, display linked cards section with add/remove controls.
+
+- **Future Enhancements**
+  - [ ] Markdown toolbar & live preview for comments.
+  - [ ] Issue templates & draft autosave.
+  - [ ] Threaded comments & reactions.
+  - [ ] Notifications & subscriptions ("Subscribe" toggle in header).
+  - [ ] User mentions (`@username`) with autocomplete.
+
+- **Tracking & Single Source of Truth**
+  - Each task is tracked with a checkbox. (`[ ]` = To Do, `[~]` = In Progress/Partially Done, `[x]` = Done)
+  - This rule file serves as the authoritative roadmap for card feature enrichment.
+

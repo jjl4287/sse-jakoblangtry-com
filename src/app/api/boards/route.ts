@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '~/lib/auth/authOptions';
 import prisma from '~/lib/prisma';
 import type { Board } from '~/types';
 import type { Prisma } from '@prisma/client';
+import { z } from 'zod';
 
 // Define typed payload for board with nested relations
 type ProjectWithRelations = Prisma.BoardGetPayload<{
@@ -14,10 +14,17 @@ type ProjectWithRelations = Prisma.BoardGetPayload<{
       include: {
         cards: {
           orderBy: { order: 'asc' },
-          include: { labels: true; attachments: true; comments: true; assignees: true }
+          include: {
+            labels: true;
+            attachments: true;
+            comments: { include: { user: true } };
+            assignees: true;
+          }
         }
       }
-    }
+    },
+    labels: true,
+    members: { include: { user: true } }
   }
 }>;
 
@@ -38,14 +45,41 @@ const mapToBoard = (project: ProjectWithRelations): Board => ({
       order: card.order,
       title: card.title,
       description: card.description,
-      labels: card.labels.map(l => ({ id: l.id, name: l.name, color: l.color })),
-      assignees: card.assignees.map(u => u.id),
+      labels: card.labels.map(l => ({ id: l.id, name: l.name, color: l.color, boardId: l.boardId })),
+      assignees: card.assignees.map(u => ({ id: u.id, name: u.name, email: u.email, image: u.image })),
       priority: card.priority,
+      weight: card.weight ?? undefined,
       attachments: card.attachments.map(a => ({ id: a.id, name: a.name, url: a.url, type: a.type, createdAt: a.createdAt })),
-      comments: card.comments.map(c => ({ id: c.id, author: c.author, content: c.content, createdAt: c.createdAt })),
+      comments: card.comments.map(c => ({
+        id: c.id,
+        content: c.content,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        cardId: c.cardId,
+        userId: c.userId,
+        user: {
+          id: c.user.id,
+          name: c.user.name,
+          email: c.user.email,
+          image: c.user.image,
+        }
+      })),
       dueDate: card.dueDate ?? undefined,
     })),
   })),
+  labels: project.labels?.map(l => ({ id: l.id, name: l.name, color: l.color, boardId: l.boardId })) ?? [],
+  members: project.members?.map(m => ({
+    id: m.id,
+    role: m.role,
+    userId: m.userId,
+    boardId: m.boardId,
+    user: {
+      id: m.user.id,
+      name: m.user.name,
+      email: m.user.email,
+      image: m.user.image,
+    }
+  })) ?? [],
 });
 
 // Force this API route to always be dynamic (no caching)
@@ -67,24 +101,23 @@ export async function GET(request: Request) {
         { pinned: 'desc' },
         { updatedAt: 'desc' },
       ];
-      const select = { id: true, title: true, pinned: true, userId: true };
+      // No specific select for list, rely on default fields or define minimally if needed
 
-      let whereClause: Prisma.BoardWhereInput = { isPublic: true }; // Default for unauthenticated
+      let whereClause: Prisma.BoardWhereInput = { isPublic: true };
 
-      if (userId) { // Authenticated user: public boards, owned boards, or shared boards
+      if (userId) {
         whereClause = {
           OR: [
             { isPublic: true }, 
-            { userId: userId }, 
+            { creatorId: userId },
             { members: { some: { userId: userId } } }
           ]
         };
-      }
-      
+      }      
       const boards = await prisma.board.findMany({ 
         where: whereClause, 
-        orderBy, 
-        select 
+        orderBy,
+        select: { id: true, title: true, pinned: true, theme: true, creatorId: true, isPublic: true, updatedAt: true }
       });
       return NextResponse.json(boards);
     }
@@ -92,20 +125,20 @@ export async function GET(request: Request) {
     // ---- FETCHING A SINGLE BOARD by boardId ----
     let boardWhereConditions: Prisma.BoardWhereInput = { id: boardId };
 
-    if (userId) { // Authenticated user: must be owner, member, or public
+    if (userId) {
       boardWhereConditions = {
         AND: [
           { id: boardId },
           {
             OR: [
-              { userId: userId },
+              { creatorId: userId },
               { members: { some: { userId: userId } } },
               { isPublic: true }
             ]
           }
         ]
       };
-    } else { // Unauthenticated user: must be public
+    } else {
       boardWhereConditions = {
         AND: [
           { id: boardId },
@@ -122,10 +155,24 @@ export async function GET(request: Request) {
           include: {
             cards: {
               orderBy: { order: 'asc' },
-              include: { labels: true, attachments: true, comments: true, assignees: true }
+              include: {
+                labels: true,
+                attachments: true,
+                comments: { include: { user: true } },
+                assignees: true
+              }
             }
           }
-        }
+        },
+        labels: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            boardId: true
+          }
+        }, 
+        members: { include: { user: true } } 
       }
     });
 
@@ -136,11 +183,14 @@ export async function GET(request: Request) {
     const out = mapToBoard(board);
     return NextResponse.json(out);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API GET /api/boards] Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+const BoardCreateSchema = z.object({ title: z.string().min(1, 'Title is required') });
 
 /**
  * POST handler to create a new board
@@ -152,16 +202,53 @@ export async function POST(request: Request) {
   }
   const userId = session.user.id;
   const userName = session.user.name ?? 'Anonymous';
-  const { title } = await request.json();
+  const email = session.user.email;
+
+  const parsed = BoardCreateSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
+  }
+  const { title } = parsed.data;
+
   // Ensure the user exists (upsert) before creating the board
   await prisma.user.upsert({
     where: { id: userId },
-    create: { id: userId, name: userName },
-    update: { name: userName },
+    create: { 
+      id: userId, 
+      name: userName,
+      email: email,
+    },
+    update: { 
+      name: userName,
+      email: email,
+    },
   });
+
   // Now create the board linked to that user
-  const board = await prisma.board.create({
-    data: { title, userId },
+  const newBoard = await prisma.board.create({
+    data: {
+      title,
+      creatorId: userId,
+      members: {
+        create: [
+          {
+            userId: userId,
+            role: 'owner',
+          },
+        ],
+      },
+    },
+    include: {
+      members: {
+        include: {
+          user: true,
+        },
+      },
+    },
   });
-  return NextResponse.json(board, { status: 201 });
+
+  return NextResponse.json(
+    { id: newBoard.id, title: newBoard.title, pinned: newBoard.pinned, creatorId: newBoard.creatorId }, 
+    { status: 201 }
+  );
 } 

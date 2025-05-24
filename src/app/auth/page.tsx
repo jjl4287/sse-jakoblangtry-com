@@ -1,8 +1,7 @@
-/* eslint-disable react/no-unescaped-entities */
+ 
 'use client';
 
 import React, { useState } from 'react';
-import type { SignInResponse } from 'next-auth/react';
 import { signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 

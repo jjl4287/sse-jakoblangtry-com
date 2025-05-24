@@ -25,6 +25,19 @@ next-env.d.ts
 .DS_Store
 *.pem
 
+# user uploads (should not be tracked)
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# OS files
+**/.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -42,5 +55,26 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
-# idea files
+# logs
+*.log
+
+# runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# test coverage
+/coverage/
+/.nyc_output
+
+# IDE files
 .idea
+.vscode/
+*.swp
+*.swo
+*~
+
+# temporary files
+.tmp/
+.temp/
