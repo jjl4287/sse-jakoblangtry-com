@@ -29,13 +29,15 @@ interface CardLabelManagerProps {
   availableLabels: Label[];
   onToggleLabel: (labelId: string) => void;
   onCreateLabel: (name: string, color: string) => Promise<Label | null>;
+  pendingLabelChanges?: Set<string>;
 }
 
 export const CardLabelManager: React.FC<CardLabelManagerProps> = ({
   currentLabels,
   availableLabels,
   onToggleLabel,
-  onCreateLabel
+  onCreateLabel,
+  pendingLabelChanges = new Set()
 }) => {
   const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
   const [labelSearchText, setLabelSearchText] = useState('');
@@ -64,7 +66,7 @@ export const CardLabelManager: React.FC<CardLabelManagerProps> = ({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-1">
         <h4 className="font-semibold text-sm">Labels</h4>
         <div className="w-[28px] h-[28px] relative flex-shrink-0 flex items-center justify-center">
           <Popover open={isLabelPickerOpen} onOpenChange={setIsLabelPickerOpen} modal={true}>
@@ -87,6 +89,7 @@ export const CardLabelManager: React.FC<CardLabelManagerProps> = ({
                   currentLabelIds={currentLabelIds}
                   onToggleLabel={onToggleLabel}
                   onShowCreateForm={() => setLabelPickerView('create')}
+                  pendingLabelChanges={pendingLabelChanges}
                 />
               ) : (
                 <LabelCreateForm
@@ -104,14 +107,16 @@ export const CardLabelManager: React.FC<CardLabelManagerProps> = ({
       </div>
 
       {/* Display current labels */}
-      <div className="flex flex-wrap gap-1 mt-1">
+      <div className="flex flex-wrap gap-1">
         {currentLabels.length > 0 ? (
           currentLabels.map(label => (
             <StyledLabelBadge
               key={label.id}
               label={label}
               onClick={() => onToggleLabel(label.id)}
-              className="cursor-pointer hover:opacity-80"
+              className={`cursor-pointer hover:opacity-80 transition-opacity ${
+                pendingLabelChanges.has(label.id) ? 'opacity-60' : ''
+              }`}
             />
           ))
         ) : (
@@ -129,6 +134,7 @@ interface LabelPickerListProps {
   currentLabelIds: Set<string>;
   onToggleLabel: (labelId: string) => void;
   onShowCreateForm: () => void;
+  pendingLabelChanges?: Set<string>;
 }
 
 const LabelPickerList: React.FC<LabelPickerListProps> = ({
@@ -137,7 +143,8 @@ const LabelPickerList: React.FC<LabelPickerListProps> = ({
   filteredLabels,
   currentLabelIds,
   onToggleLabel,
-  onShowCreateForm
+  onShowCreateForm,
+  pendingLabelChanges = new Set()
 }) => {
   return (
     <Command>
@@ -152,6 +159,8 @@ const LabelPickerList: React.FC<LabelPickerListProps> = ({
             <CommandItem
               key={label.id}
               onSelect={() => onToggleLabel(label.id)}
+              className={pendingLabelChanges.has(label.id) ? 'opacity-60' : ''}
+              disabled={pendingLabelChanges.has(label.id)}
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center">

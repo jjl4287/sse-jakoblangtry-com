@@ -1,4 +1,4 @@
-import type { ActivityLog } from '~/types';
+import type { ActivityLog, ActivityDetails } from '~/types';
 import { activityRepository } from '~/lib/repositories/activity-repository';
 import { NotFoundError, ValidationError } from '~/lib/errors/domain-errors';
 
@@ -7,7 +7,7 @@ export interface ActivityService {
   getActivityByCardId(cardId: string): Promise<ActivityLog[]>;
   logActivity(data: {
     actionType: string;
-    details?: any;
+    details?: ActivityDetails;
     cardId: string;
     userId?: string;
   }): Promise<ActivityLog>;
@@ -78,7 +78,7 @@ export class ActivityServiceImpl implements ActivityService {
 
   async logActivity(data: {
     actionType: string;
-    details?: any;
+    details?: ActivityDetails;
     cardId: string;
     userId?: string;
   }): Promise<ActivityLog> {
@@ -103,7 +103,7 @@ export class ActivityServiceImpl implements ActivityService {
 
   private validateActivityData(data: {
     actionType: string;
-    details?: any;
+    details?: ActivityDetails;
     cardId: string;
     userId?: string;
   }): void {
@@ -127,7 +127,7 @@ export class ActivityServiceImpl implements ActivityService {
     }
   }
 
-  private validateActivityDetails(details: any): void {
+  private validateActivityDetails(details: ActivityDetails): void {
     // Check if details can be serialized to JSON
     try {
       JSON.stringify(details);

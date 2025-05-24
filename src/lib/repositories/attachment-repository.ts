@@ -1,6 +1,7 @@
 import prisma from '~/lib/prisma';
 import type { Attachment } from '~/types';
 import type { BaseRepository } from './base-repository';
+import type { Prisma } from '@prisma/client';
 
 export interface AttachmentRepository extends BaseRepository<Attachment> {
   findByCardId(cardId: string): Promise<Attachment[]>;
@@ -13,7 +14,7 @@ export interface AttachmentRepository extends BaseRepository<Attachment> {
 }
 
 class PrismaAttachmentRepository implements AttachmentRepository {
-  private mapToAttachment(prismaAttachment: any): Attachment {
+  private mapToAttachment(prismaAttachment: Prisma.AttachmentGetPayload<{}>): Attachment {
     return {
       id: prismaAttachment.id,
       name: prismaAttachment.name,

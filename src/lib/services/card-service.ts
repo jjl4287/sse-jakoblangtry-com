@@ -256,7 +256,7 @@ export class CardServiceImpl implements CardService {
 
     const updatedCard = await this.cardRepo.moveCard(cardId, targetColumnId, newOrder);
 
-    // Log activity
+    // Log activity only if moving between columns (not intra-column reordering)
     if (userId && existingCard.columnId !== targetColumnId) {
       await this.activityRepo.createActivityLog({
         actionType: 'MOVE_CARD',

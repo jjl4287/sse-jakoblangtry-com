@@ -1,8 +1,8 @@
 "use client";
 
-import MDEditor, { commands, EditorContext } from '@uiw/react-md-editor';
+import MDEditor, { commands } from '@uiw/react-md-editor';
 import rehypeSanitize from 'rehype-sanitize'; // Recommended for security
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '~/lib/utils'; // Assuming you have a cn utility
 
 interface MarkdownEditorProps {
@@ -28,7 +28,6 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<PreviewMode>('edit');
-  const editorContext = useContext(EditorContext);
 
   useEffect(() => {
     setIsMounted(true);
@@ -106,24 +105,9 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             onClick={() => setActiveTab('preview')}
           >Preview</button>
         </div>
-        {activeTab === 'edit' && (
-          <div className="flex space-x-1">
-            {customCommands.map((cmd, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => {
-                  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-                  editorContext?.execCommand(cmd);
-                }}
-                className="p-1 text-gray-400 hover:text-white hover:bg-[#161b22] rounded"
-                title={cmd.name}
-              >{cmd.icon}</button>
-            ))}
-          </div>
-        )}
+        {/* Command buttons temporarily disabled - will be available through the native toolbar */}
       </div>
-      {/* Editor area: toolbar hidden */}
+            {/* Editor area: toolbar hidden */}
       <MDEditor
         value={value}
         onChange={onChange}

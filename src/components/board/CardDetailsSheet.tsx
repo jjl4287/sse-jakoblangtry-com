@@ -16,7 +16,7 @@ import { useComments as useCardComments, useCommentMutations } from '~/hooks/use
 import { useCardActivity } from '~/hooks/useActivity';
 import { useBoardLabels, useLabelMutations } from '~/hooks/useLabels';
 import { useBoardMembers } from '~/hooks/useBoardMembers';
-import type { Card } from '~/types';
+import type { Card, Label, User } from '~/types';
 
 // Import the new components
 import { CardHeader } from '~/components/card/CardHeader';
@@ -32,13 +32,15 @@ interface CardDetailsSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   boardId?: string;
+  onCardUpdate?: (updatedCard: Card) => void;  // Callback to update parent's card state
 }
 
 export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({ 
   card, 
   isOpen, 
   onOpenChange,
-  boardId: propBoardId
+  boardId: propBoardId,
+  onCardUpdate
 }) => {
   const { updateCard, addAttachment, deleteAttachment } = useCardMutations();
   
@@ -57,6 +59,32 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
 
   // State for new comment
   const [newCommentContent, setNewCommentContent] = useState('');
+
+  // Optimistic UI state for labels and assignees
+  const [optimisticLabels, setOptimisticLabels] = useState<Label[]>(card.labels);
+  const [optimisticAssignees, setOptimisticAssignees] = useState<User[]>(card.assignees || []);
+  const [pendingLabelChanges, setPendingLabelChanges] = useState<Set<string>>(new Set());
+  const [pendingAssigneeChanges, setPendingAssigneeChanges] = useState<Set<string>>(new Set());
+
+  // Sync optimistic state when card prop changes
+  useEffect(() => {
+    setOptimisticLabels(card.labels);
+    setOptimisticAssignees(card.assignees || []);
+  }, [card.labels, card.assignees]);
+
+  // Add/remove global class to prevent card dragging when sheet is open
+  useEffect(() => {
+    if (isOpen) {
+      document.documentElement.classList.add('card-details-sheet-open');
+    } else {
+      document.documentElement.classList.remove('card-details-sheet-open');
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.documentElement.classList.remove('card-details-sheet-open');
+    };
+  }, [isOpen]);
 
   // Memoize combined feed items
   const combinedFeedItems = useMemo(() => {
@@ -108,16 +136,61 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
     
     handleToggleLabel: async (labelId: string) => {
       try {
-        const isCurrentlyAssigned = card.labels.some(l => l.id === labelId);
+        const label = boardLabels.find(l => l.id === labelId);
+        if (!label) return;
+
+        const isCurrentlyAssigned = optimisticLabels.some(l => l.id === labelId);
+        
+        // Optimistic update
+        setPendingLabelChanges(prev => new Set(prev).add(labelId));
+        
         if (isCurrentlyAssigned) {
+          // Remove label optimistically
+          setOptimisticLabels(prev => prev.filter(l => l.id !== labelId));
+          
+          // Update parent card state if callback provided
+          if (onCardUpdate) {
+            onCardUpdate({
+              ...card,
+              labels: optimisticLabels.filter(l => l.id !== labelId)
+            });
+          }
+          
+          // API call in background
           await updateCard(card.id, { labelIdsToRemove: [labelId] });
         } else {
+          // Add label optimistically  
+          setOptimisticLabels(prev => [...prev, label]);
+          
+          // Update parent card state if callback provided
+          if (onCardUpdate) {
+            onCardUpdate({
+              ...card,
+              labels: [...optimisticLabels, label]
+            });
+          }
+          
+          // API call in background
           await updateCard(card.id, { labelIdsToAdd: [labelId] });
         }
+        
         // Refetch activity to show update
         await refetchActivity();
       } catch (error) {
         console.error('Error toggling label:', error);
+        
+        // Revert optimistic update on error
+        setOptimisticLabels(card.labels);
+        if (onCardUpdate) {
+          onCardUpdate(card);
+        }
+      } finally {
+        // Remove from pending changes
+        setPendingLabelChanges(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(labelId);
+          return newSet;
+        });
       }
     },
     
@@ -139,16 +212,61 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
     
     handleToggleAssignee: async (assigneeId: string) => {
       try {
-        const isCurrentlyAssigned = card.assignees?.some(a => a.id === assigneeId);
+        const user = availableUsers.find(u => u.id === assigneeId);
+        if (!user) return;
+
+        const isCurrentlyAssigned = optimisticAssignees.some(a => a.id === assigneeId);
+        
+        // Optimistic update
+        setPendingAssigneeChanges(prev => new Set(prev).add(assigneeId));
+        
         if (isCurrentlyAssigned) {
+          // Remove assignee optimistically
+          setOptimisticAssignees(prev => prev.filter(a => a.id !== assigneeId));
+          
+          // Update parent card state if callback provided
+          if (onCardUpdate) {
+            onCardUpdate({
+              ...card,
+              assignees: optimisticAssignees.filter(a => a.id !== assigneeId)
+            });
+          }
+          
+          // API call in background
           await updateCard(card.id, { assigneeIdsToRemove: [assigneeId] });
         } else {
+          // Add assignee optimistically
+          setOptimisticAssignees(prev => [...prev, user]);
+          
+          // Update parent card state if callback provided
+          if (onCardUpdate) {
+            onCardUpdate({
+              ...card,
+              assignees: [...optimisticAssignees, user]
+            });
+          }
+          
+          // API call in background
           await updateCard(card.id, { assigneeIdsToAdd: [assigneeId] });
         }
+        
         // Refetch activity to show update
         await refetchActivity();
       } catch (error) {
         console.error('Error toggling assignee:', error);
+        
+        // Revert optimistic update on error
+        setOptimisticAssignees(card.assignees || []);
+        if (onCardUpdate) {
+          onCardUpdate(card);
+        }
+      } finally {
+        // Remove from pending changes
+        setPendingAssigneeChanges(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(assigneeId);
+          return newSet;
+        });
       }
     },
     
@@ -156,7 +274,17 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
       try {
         const formData = new FormData();
         formData.append('file', file);
-        await addAttachment(card.id, formData);
+        const newAttachment = await addAttachment(card.id, formData);
+        
+        // Update local card state with new attachment
+        if (onCardUpdate && newAttachment) {
+          const updatedCard = {
+            ...card,
+            attachments: [...card.attachments, newAttachment]
+          };
+          onCardUpdate(updatedCard);
+        }
+        
         // Refetch activity to show update
         await refetchActivity();
       } catch (error) {
@@ -167,7 +295,17 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
     
     handleAddAttachmentUrl: async (url: string, name: string, type: string) => {
       try {
-        await addAttachment(card.id, { url, name, type });
+        const newAttachment = await addAttachment(card.id, { url, name, type });
+        
+        // Update local card state with new attachment
+        if (onCardUpdate && newAttachment) {
+          const updatedCard = {
+            ...card,
+            attachments: [...card.attachments, newAttachment]
+          };
+          onCardUpdate(updatedCard);
+        }
+        
         // Refetch activity to show update
         await refetchActivity();
       } catch (error) {
@@ -179,6 +317,16 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
     handleDeleteAttachment: async (attachmentId: string) => {
       try {
         await deleteAttachment(card.id, attachmentId);
+        
+        // Update local card state by removing the attachment
+        if (onCardUpdate) {
+          const updatedCard = {
+            ...card,
+            attachments: card.attachments.filter(att => att.id !== attachmentId)
+          };
+          onCardUpdate(updatedCard);
+        }
+        
         // Refetch activity to show update
         await refetchActivity();
       } catch (error) {
@@ -186,7 +334,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
         throw error;
       }
     }
-  }), [card, updateCard, addAttachment, deleteAttachment, createLabel, boardId, refetchActivity, refetchLabels]);
+  }), [card, updateCard, addAttachment, deleteAttachment, createLabel, boardId, refetchActivity, refetchLabels, optimisticLabels, optimisticAssignees, boardLabels, availableUsers, onCardUpdate]);
 
   const handlePostComment = useCallback(async () => {
     if (!newCommentContent.trim()) return;
@@ -204,6 +352,13 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
 
   if (!card) return null;
 
+  // Create optimistic card object for components
+  const optimisticCard: Card = {
+    ...card,
+    labels: optimisticLabels,
+    assignees: optimisticAssignees
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent 
@@ -217,7 +372,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
           }
         }}
       >
-        <SheetHeader className="flex-row items-center justify-between border-b p-4">
+        <SheetHeader className="flex-row items-center justify-between border-b px-4 py-2">
           <div className="flex-1 min-w-0">
             <CardHeader
               card={card}
@@ -233,10 +388,10 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
           <SheetTitle className="sr-only">{card.title} - Open</SheetTitle>
         </SheetHeader>
         
-        <div className="flex-1 grid grid-cols-3 gap-6 overflow-hidden">
+        <div className="flex-1 grid grid-cols-3 gap-4 overflow-hidden">
           {/* Main Content */}
-          <div className="col-span-2 flex flex-col overflow-hidden p-4">
-            <div className="flex-1 space-y-6 overflow-y-auto pr-2">
+          <div className="col-span-2 flex flex-col overflow-hidden px-4 py-3">
+            <div className="flex-1 space-y-4 overflow-y-auto pr-2">
               {/* Description */}
               <CardDescription
                 card={card}
@@ -254,52 +409,63 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
             
             {/* Comment Input */}
             <div className="bg-background flex-shrink-0 pt-4 border-t" data-no-dnd="true">
-              <MarkdownEditor
-                className="rounded-md"
-                value={newCommentContent}
-                onChange={(value) => setNewCommentContent(value ?? '')}
-                placeholder="Write a comment... (Cmd/Ctrl+Enter to submit)"
-                height={120}
-                theme="dark"
-                onKeyDown={(e) => {
-                  // Handle Cmd/Ctrl+Enter to submit comment
-                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (newCommentContent.trim()) {
-                      handlePostComment();
+              <div className="space-y-3">
+                <MarkdownEditor
+                  className="rounded-md border border-border"
+                  value={newCommentContent}
+                  onChange={(value) => setNewCommentContent(value ?? '')}
+                  placeholder="Leave a comment..."
+                  height={120}
+                  theme="dark"
+                  onKeyDown={(e) => {
+                    // Handle Cmd/Ctrl+Enter to submit comment
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (newCommentContent.trim()) {
+                        handlePostComment();
+                      }
                     }
-                  }
-                }}
-              />
-              <div className="mt-3 flex justify-end">
-                <Button 
-                  onClick={handlePostComment} 
-                  disabled={!newCommentContent.trim()} 
-                  size="sm"
-                >
-                  Comment
-                </Button>
+                  }}
+                />
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-muted-foreground">
+                    <kbd className="px-1.5 py-0.5 text-xs font-mono bg-muted border rounded">⌘</kbd>
+                    <span className="mx-1">+</span>
+                    <kbd className="px-1.5 py-0.5 text-xs font-mono bg-muted border rounded">↵</kbd>
+                    <span className="ml-1">to submit</span>
+                  </div>
+                  <Button 
+                    onClick={handlePostComment} 
+                    disabled={!newCommentContent.trim()} 
+                    size="sm"
+                    className="px-4"
+                  >
+                    Comment
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Sidebar */}
-          <div className="col-span-1 space-y-6 overflow-y-auto p-4">
+          <div className="col-span-1 space-y-4 overflow-y-auto px-4 py-3">
             {/* Labels */}
             <CardLabelManager
               cardId={card.id}
-              currentLabels={card.labels}
+              currentLabels={optimisticLabels}
               availableLabels={boardLabels}
               onToggleLabel={handlers.handleToggleLabel}
               onCreateLabel={handlers.handleCreateLabel}
+              pendingLabelChanges={pendingLabelChanges}
             />
 
             {/* Assignees */}
             <CardAssignees
-              card={card}
+              card={optimisticCard}
               availableUsers={availableUsers}
               onToggleAssignee={handlers.handleToggleAssignee}
+              pendingAssigneeChanges={pendingAssigneeChanges}
             />
 
             {/* Actions (Priority, Due Date, Weight) */}

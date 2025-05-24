@@ -37,9 +37,10 @@ export async function POST(request: NextRequest) {
     // Create column
     const column = await prisma.column.create({ data: { title, width, order: count, boardId: board.id } });
     return NextResponse.json(column);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API POST /api/columns] Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -95,8 +96,9 @@ export async function PATCH(request: NextRequest) {
       message: 'Columns reordered successfully',
       columns: updatedColumns 
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API PATCH /api/columns] Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 } 

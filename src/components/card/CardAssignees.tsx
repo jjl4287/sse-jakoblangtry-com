@@ -22,12 +22,14 @@ interface CardAssigneesProps {
   card: Card;
   availableUsers: User[];
   onToggleAssignee: (assigneeId: string) => void;
+  pendingAssigneeChanges?: Set<string>;
 }
 
 export const CardAssignees: React.FC<CardAssigneesProps> = ({
   card,
   availableUsers,
-  onToggleAssignee
+  onToggleAssignee,
+  pendingAssigneeChanges = new Set()
 }) => {
   const [isAssigneePickerOpen, setIsAssigneePickerOpen] = useState(false);
   const [assigneeSearchText, setAssigneeSearchText] = useState('');
@@ -41,7 +43,7 @@ export const CardAssignees: React.FC<CardAssigneesProps> = ({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-1">
         <h4 className="font-semibold text-sm">Assignees</h4>
         <div className="w-[28px] h-[28px] relative flex-shrink-0 flex items-center justify-center">
           <Popover open={isAssigneePickerOpen} onOpenChange={setIsAssigneePickerOpen} modal={true}>
@@ -107,12 +109,14 @@ export const CardAssignees: React.FC<CardAssigneesProps> = ({
       </div>
 
       {/* Display current assignees */}
-      <div className="flex flex-wrap gap-2 mt-1">
+      <div className="flex flex-wrap gap-2">
         {card.assignees && card.assignees.length > 0 ? (
           card.assignees.map(assignee => (
             <div 
               key={assignee.id} 
-              className="flex items-center space-x-2 bg-muted/50 rounded-md px-2 py-1 cursor-pointer hover:bg-muted transition-colors"
+              className={`flex items-center space-x-2 bg-muted/50 rounded-md px-2 py-1 cursor-pointer hover:bg-muted transition-all ${
+                pendingAssigneeChanges.has(assignee.id) ? 'opacity-60' : ''
+              }`}
               onClick={() => onToggleAssignee(assignee.id)}
             >
               {assignee.image ? (

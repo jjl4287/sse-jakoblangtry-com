@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { format } from 'date-fns';
-import { MessageSquareText } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import type { Comment, ActivityLog } from '~/types';
 import Markdown from '~/components/ui/Markdown';
 
@@ -87,11 +87,20 @@ function formatActivity(activity: ActivityLog): string {
     case 'ADD_COMMENT':
       return 'added a comment';
       
+    case 'ADD_FILE_ATTACHMENT_TO_CARD':
+      return `attached file "${details?.attachmentName || 'Unknown File'}"`;
+      
+    case 'ADD_LINK_ATTACHMENT_TO_CARD':
+      return `added link "${details?.attachmentName || 'Unknown Link'}"`;
+      
+    case 'DELETE_ATTACHMENT_FROM_CARD':
+      return `removed attachment "${details?.attachmentName || 'Unknown File'}"`;
+      
     case 'ATTACH_FILE':
-      return `attached file "${details?.fileName || 'Unknown File'}"`;
+      return `attached file "${details?.fileName || details?.attachmentName || 'Unknown File'}"`;
       
     case 'REMOVE_ATTACHMENT':
-      return `removed attachment "${details?.fileName || 'Unknown File'}"`;
+      return `removed attachment "${details?.fileName || details?.attachmentName || 'Unknown File'}"`;
       
     default:
       return `performed action: ${activity.actionType}`;
@@ -106,56 +115,96 @@ export const CardActivityFeed: React.FC<CardActivityFeedProps> = ({
   const isLoading = isLoadingComments || isLoadingActivityLogs;
 
   return (
-    <div className="mt-6 text-sm">
-      <h3 className="text-base font-semibold mb-3 flex items-center text-foreground">
-        <MessageSquareText className="h-5 w-5 mr-2" />
-        Activity & Comments
-      </h3>
+    <div className="text-sm">
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <p className="text-sm text-muted-foreground">Loading activity...</p>
+        </div>
+      )}
       
-      <div className="space-y-4 mb-6">
-        {isLoading && (
-          <p className="text-xs text-muted-foreground">Loading feed...</p>
-        )}
-        
-        {!isLoading && combinedFeedItems.length === 0 && (
-          <p className="text-xs text-muted-foreground">No activity or comments yet.</p>
-        )}
-        
-        {combinedFeedItems.map((item) => {
-          if (item.itemType === 'comment') {
-            return <CommentItem key={`comment-${item.id}`} comment={item} />;
-          }
+      {!isLoading && combinedFeedItems.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">
+          <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No activity or comments yet.</p>
+          <p className="text-xs mt-1">Start the conversation!</p>
+        </div>
+      )}
+      
+      {!isLoading && combinedFeedItems.length > 0 && (
+        <div className="relative">
+          {/* Timeline line - connects from description box to bottom */}
+          <div className="absolute left-4 -top-4 bottom-0 w-px bg-border" />
           
-          return <ActivityItem key={`activity-${item.id}`} activity={item} />;
-        })}
-      </div>
+          <div className="space-y-0">
+            {combinedFeedItems.map((item, index) => {
+              const isLast = index === combinedFeedItems.length - 1;
+              
+              if (item.itemType === 'comment') {
+                return (
+                  <CommentItem 
+                    key={`comment-${item.id}`} 
+                    comment={item} 
+                    isLast={isLast}
+                  />
+                );
+              }
+              
+              return (
+                <ActivityItem 
+                  key={`activity-${item.id}`} 
+                  activity={item} 
+                  isLast={isLast}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 interface CommentItemProps {
   comment: Comment;
+  isLast: boolean;
 }
 
-const CommentItem: React.FC<CommentItemProps> = ({ comment }) => {
+const CommentItem: React.FC<CommentItemProps> = ({ comment, isLast }) => {
   return (
-    <div className="flex items-start space-x-3">
-      <UserAvatar 
-        user={comment.user} 
-        size="small"
-        className="mt-1"
-      />
-      <div className="flex-1 bg-muted/30 p-3 rounded-lg border border-muted/50">
-        <div className="flex items-center space-x-2 mb-1">
-          <span className="font-semibold text-sm text-foreground">
-            {comment.user?.name ?? comment.user?.email}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            commented {format(new Date(comment.createdAt), 'MMM d, yyyy h:mm a')}
-          </span>
+    <div className={`relative pl-12 ${!isLast ? 'pb-6' : 'pb-0'}`}>
+      {/* Avatar container with background circle */}
+      <div className="absolute left-0 flex items-center justify-center">
+        <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center">
+          <UserAvatar 
+            user={comment.user} 
+            size="small"
+            className="w-6 h-6"
+          />
         </div>
-        <div className="text-sm text-foreground whitespace-pre-wrap">
-          <Markdown content={comment.content} className="prose-sm" />
+      </div>
+      
+      {/* Comment content */}
+      <div className="bg-muted/20 border border-border rounded-lg">
+        {/* Comment header */}
+        <div className="flex items-center justify-between px-4 py-2 bg-muted/10 border-b border-border rounded-t-lg">
+          <div className="flex items-center space-x-2">
+            <span className="font-semibold text-sm text-foreground">
+              {comment.user?.name || comment.user?.email}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              commented {format(new Date(comment.createdAt), 'MMM d, yyyy \'at\' h:mm a')}
+            </span>
+          </div>
+        </div>
+        
+        {/* Comment body */}
+        <div className="px-4 py-3">
+          <div className="text-sm text-foreground prose prose-sm dark:prose-invert max-w-none">
+            <Markdown 
+              content={comment.content} 
+              className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" 
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -164,33 +213,45 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment }) => {
 
 interface ActivityItemProps {
   activity: ActivityLog;
+  isLast: boolean;
 }
 
-const ActivityItem: React.FC<ActivityItemProps> = ({ activity }) => {
+const ActivityItem: React.FC<ActivityItemProps> = ({ activity, isLast }) => {
   return (
-    <div className="flex items-start space-x-3 text-xs py-1">
-      <UserAvatar 
-        user={activity.user} 
-        size="small"
-      />
-      <div className="flex-1 pt-1 text-muted-foreground">
-        <span className="font-semibold">
-          {activity.user?.name ?? activity.user?.email ?? 'System'}
-        </span>
-        <span> {formatActivity(activity)} </span>
-        <span className="opacity-80 ml-1">
-          ({format(new Date(activity.createdAt), 'MMM d, h:mm a')})
-        </span>
+    <div className={`relative pl-12 ${!isLast ? 'pb-4' : 'pb-0'}`}>
+      {/* Avatar container - replacing icon with user avatar */}
+      <div className="absolute left-0 flex items-center justify-center">
+        <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center">
+          <UserAvatar 
+            user={activity.user} 
+            size="small"
+            className="w-6 h-6"
+          />
+        </div>
+      </div>
+      
+      {/* Activity content */}
+      <div className="py-2">
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">
+            {activity.user?.name || activity.user?.email || 'System'}
+          </span>
+          <span className="mx-1">{formatActivity(activity)}</span>
+          <span className="text-xs opacity-80">
+            {format(new Date(activity.createdAt), 'MMM d \'at\' h:mm a')}
+          </span>
+        </div>
       </div>
     </div>
   );
 };
 
 interface UserAvatarProps {
-  user?: {
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
+  user?: { 
+    id: string; 
+    name?: string | null; 
+    email?: string | null; 
+    image?: string | null; 
   } | null;
   size?: 'small' | 'medium';
   className?: string;
@@ -198,30 +259,30 @@ interface UserAvatarProps {
 
 const UserAvatar: React.FC<UserAvatarProps> = ({ user, size = 'medium', className = '' }) => {
   const sizeClasses = {
-    small: 'w-7 h-7',
-    medium: 'w-10 h-10'
+    small: 'w-6 h-6',
+    medium: 'w-8 h-8'
   };
   
   const textSizes = {
     small: 'text-[10px]',
-    medium: 'text-sm'
+    medium: 'text-xs'
   };
 
-  const initials = (user?.name ?? user?.email ?? 'U').substring(0, size === 'small' ? 1 : 2).toUpperCase();
+  const initials = (user?.name || user?.email || 'U').substring(0, size === 'small' ? 1 : 2).toUpperCase();
 
   if (user?.image) {
     return (
       <img 
         src={user.image} 
-        alt={user.name ?? 'User avatar'} 
-        className={`${sizeClasses[size]} rounded-full ${className}`} 
+        alt={user.name || 'User avatar'} 
+        className={`${sizeClasses[size]} rounded-full object-cover ${className}`} 
       />
     );
   }
 
   return (
-    <span className={`${sizeClasses[size]} rounded-full bg-muted flex items-center justify-center ${textSizes[size]} font-semibold ${className}`}>
+    <div className={`${sizeClasses[size]} rounded-full bg-muted border flex items-center justify-center ${textSizes[size]} font-medium text-muted-foreground ${className}`}>
       {initials}
-    </span>
+    </div>
   );
 }; 

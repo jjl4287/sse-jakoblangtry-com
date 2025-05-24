@@ -1,9 +1,20 @@
 'use client';
 
-import React from 'react';
-import { Paperclip, XIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import { Paperclip, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { Button } from '~/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '~/components/ui/alert-dialog';
 
 interface AttachmentPreviewProps {
   url: string;
@@ -14,6 +25,8 @@ interface AttachmentPreviewProps {
 }
 
 export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filename, type, onDelete, isOptimistic }) => {
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  
   // Function to check if a string is a valid URL
   const isValidUrl = (urlString: string) => {
     try {
@@ -24,9 +37,47 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filen
     }
   };
 
+  const handleConfirmDelete = () => {
+    onDelete();
+    setIsConfirmDialogOpen(false);
+  };
+
   // Use filename if provided, otherwise fallback to URL
   const displayName = filename || url;
-  const containerClasses = `border rounded-md p-2 flex justify-between items-start gap-2 mb-2 ${isOptimistic ? 'opacity-70' : ''}`;
+  const containerClasses = `bg-muted/20 border border-border rounded-md p-2 flex justify-between items-start gap-2 mb-2 ${isOptimistic ? 'opacity-70' : ''}`;
+  
+  // Render delete button with confirmation dialog
+  const renderDeleteButton = () => (
+    <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+      <AlertDialogTrigger asChild>
+        <Button 
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:text-destructive/80 p-1 h-7 w-7 flex-shrink-0"
+          aria-label="Delete attachment"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Attachment</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete "{displayName}"? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={handleConfirmDelete}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
   
   // For links or files that are not images/YouTube
   const renderGenericPreview = () => (
@@ -44,18 +95,7 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filen
         </a>
         {filename && url !== displayName && <p className="text-xs text-muted-foreground truncate">{url}</p>}
       </div>
-      <Button 
-        variant="ghost"
-        size="sm"
-        onClick={(e) => { 
-          e.stopPropagation();
-          onDelete(); 
-        }}
-        className="text-destructive hover:text-destructive/80 p-1 h-7 w-7 flex-shrink-0"
-        aria-label="Delete attachment"
-      >
-        <XIcon className="h-4 w-4" />
-      </Button>
+      {renderDeleteButton()}
     </div>
   );
 
@@ -86,15 +126,7 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filen
                 </div>
                 <p className="text-xs text-muted-foreground truncate">{displayName}</p>
               </div>
-              <Button 
-                variant="ghost"
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="text-destructive hover:text-destructive/80 p-1 h-7 w-7 flex-shrink-0"
-                aria-label="Delete attachment"
-              >
-                <XIcon className="h-4 w-4" />
-              </Button>
+              {renderDeleteButton()}
             </div>
           );
         }
@@ -126,15 +158,7 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filen
               </div>
               <p className="text-xs text-muted-foreground truncate">{displayName}</p>
             </div>
-            <Button 
-              variant="ghost"
-              size="sm"
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="text-destructive hover:text-destructive/80 p-1 h-7 w-7 flex-shrink-0"
-              aria-label="Delete attachment"
-            >
-              <XIcon className="h-4 w-4" />
-            </Button>
+            {renderDeleteButton()}
           </div>
         );
       }

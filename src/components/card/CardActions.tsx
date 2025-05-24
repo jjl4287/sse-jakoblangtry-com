@@ -56,7 +56,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold mb-2">Actions</h3>
+      <h3 className="text-sm font-semibold mb-1">Actions</h3>
       <div className="space-y-2">
         {/* Weight Input */}
         <div className="flex items-center w-full justify-start text-left font-normal gap-2 rounded-md border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-3">

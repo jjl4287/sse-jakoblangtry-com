@@ -33,6 +33,7 @@ export const CardAttachments: React.FC<CardAttachmentsProps> = ({
   const [attachmentLinkName, setAttachmentLinkName] = useState('');
   const [isLinkPopoverOpen, setIsLinkPopoverOpen] = useState(false);
   const [isSavingAttachment, setIsSavingAttachment] = useState(false);
+  const [urlError, setUrlError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,18 +53,49 @@ export const CardAttachments: React.FC<CardAttachmentsProps> = ({
     }
   };
 
+  // Helper function to validate and normalize URL
+  const normalizeUrl = (url: string): string => {
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) throw new Error('URL cannot be empty');
+    
+    // Check if it already starts with http:// or https://
+    if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+      return trimmedUrl;
+    }
+    
+    // Auto-add https:// if it looks like a valid domain
+    if (trimmedUrl.includes('.') && !trimmedUrl.includes(' ')) {
+      return `https://${trimmedUrl}`;
+    }
+    
+    throw new Error('Please enter a valid URL (e.g., google.com or https://google.com)');
+  };
+
   const handleAddLinkAttachment = async () => {
     if (!attachmentLinkUrl.trim()) return;
 
+    setUrlError('');
     setIsSavingAttachment(true);
+    
     try {
-      const name = attachmentLinkName.trim() || new URL(attachmentLinkUrl).hostname;
-      await onAddAttachmentUrl(attachmentLinkUrl, name, 'link');
+      const normalizedUrl = normalizeUrl(attachmentLinkUrl);
+      
+      // Validate that the normalized URL is actually valid
+      const urlObj = new URL(normalizedUrl);
+      const name = attachmentLinkName.trim() || urlObj.hostname;
+      
+      await onAddAttachmentUrl(normalizedUrl, name, 'link');
       setAttachmentLinkUrl('');
       setAttachmentLinkName('');
+      setUrlError('');
       setIsLinkPopoverOpen(false);
     } catch (error) {
       console.error('Error adding link:', error);
+      if (error instanceof Error) {
+        setUrlError(error.message);
+      } else {
+        setUrlError('Invalid URL format');
+      }
     } finally {
       setIsSavingAttachment(false);
     }
@@ -85,11 +117,11 @@ export const CardAttachments: React.FC<CardAttachmentsProps> = ({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold mb-2">Attachments</h3>
+      <h3 className="text-sm font-semibold mb-1">Attachments</h3>
       
       {/* Attachment Actions */}
-      <div className="pt-2 mt-2 border-t">
-        <div className="flex flex-col items-start gap-2 mt-2">
+      <div className="pt-1">
+        <div className="flex flex-col items-start gap-2">
           {/* Attach File Button */}
           <div className="w-full">
             <Button 
@@ -126,11 +158,20 @@ export const CardAttachments: React.FC<CardAttachmentsProps> = ({
               <PopoverContent portalled={false} className="w-80" align="start">
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium">Add Link</h4>
-                  <Input
-                    placeholder="URL"
-                    value={attachmentLinkUrl}
-                    onChange={(e) => setAttachmentLinkUrl(e.target.value)}
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="URL (e.g., google.com or https://google.com)"
+                      value={attachmentLinkUrl}
+                      onChange={(e) => {
+                        setAttachmentLinkUrl(e.target.value);
+                        if (urlError) setUrlError(''); // Clear error when user types
+                      }}
+                      className={urlError ? 'border-red-500 focus:border-red-500' : ''}
+                    />
+                    {urlError && (
+                      <p className="text-xs text-red-500 mt-1">{urlError}</p>
+                    )}
+                  </div>
                   <Input
                     placeholder="Display name (optional)"
                     value={attachmentLinkName}
@@ -149,6 +190,7 @@ export const CardAttachments: React.FC<CardAttachmentsProps> = ({
                       onClick={() => {
                         setAttachmentLinkUrl('');
                         setAttachmentLinkName('');
+                        setUrlError('');
                         setIsLinkPopoverOpen(false);
                       }}
                       size="sm"
@@ -165,7 +207,7 @@ export const CardAttachments: React.FC<CardAttachmentsProps> = ({
 
       {/* Display Attachments */}
       {allAttachments.length > 0 && (
-        <div className="mt-4 space-y-2">
+        <div className="mt-3 space-y-2">
           {allAttachments.map((attachment) => (
             <AttachmentPreview 
               key={attachment.id}

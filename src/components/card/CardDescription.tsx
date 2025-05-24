@@ -38,21 +38,7 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-2">
-        <h4 className="font-semibold text-sm">Description</h4>
-        {!isEditingDescription && description && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-0 h-6 w-6"
-            onClick={() => setIsEditingDescription(true)}
-          >
-            <Edit3Icon className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-
+    <div className="relative">
       {isEditingDescription ? (
         <div className="space-y-3" data-no-dnd="true">
           <MarkdownEditor
@@ -91,18 +77,31 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
           </div>
         </div>
       ) : (
-        description ? (
-          <div className="mt-2 text-foreground/80">
-            <Markdown content={description} className="prose-sm" />
-          </div>
-        ) : (
-          <div
-            className="mt-2 text-sm text-muted-foreground italic cursor-pointer hover:text-foreground/70 p-2 border border-dashed border-muted rounded-md"
-            onClick={() => setIsEditingDescription(true)}
-          >
-            Add a more detailed description...
-          </div>
-        )
+        <>
+          {description ? (
+            <div className="relative p-3 border border-border rounded-md bg-muted/20">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-2 right-2 p-0 h-6 w-6 opacity-60 hover:opacity-100 transition-opacity"
+                onClick={() => setIsEditingDescription(true)}
+              >
+                <Edit3Icon className="h-4 w-4" />
+              </Button>
+              <Markdown content={description} className="prose-sm text-foreground pr-8" />
+            </div>
+          ) : (
+            <div
+              className="text-sm text-muted-foreground italic cursor-pointer hover:text-foreground/70 p-3 border border-dashed border-muted rounded-md"
+              onClick={() => setIsEditingDescription(true)}
+            >
+              Add a more detailed description...
+            </div>
+          )}
+          
+          {/* Timeline connector line extending down */}
+          <div className="absolute left-4 top-full w-px h-4 bg-border" />
+        </>
       )}
     </div>
   );

@@ -55,7 +55,7 @@ export async function DELETE(
     const filePathOnServer = path.join(process.cwd(), 'public', attachmentToDelete.url);
     try {
       await fs.unlink(filePathOnServer);
-    } catch (fileError: any) {
+    } catch (fileError: unknown) {
       // Log if file deletion fails, but don't necessarily fail the whole request,
       // as the DB record is more critical. Or, decide to make it an atomic failure.
       console.error(`Failed to delete file ${filePathOnServer}:`, fileError);

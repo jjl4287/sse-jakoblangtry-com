@@ -1,6 +1,18 @@
 import { useCallback, useRef } from 'react';
 import { toast } from 'react-hot-toast';
-import type { Board, Card, Column, Label, User, Priority } from '~/types';
+import type { 
+  Board, 
+  Card, 
+  Column, 
+  Label, 
+  User, 
+  Priority,
+  CardUpdate,
+  ColumnUpdate,
+  BoardUpdate,
+  CardCreateData,
+  ColumnCreateData
+} from '~/types';
 
 // Enhanced operation types for better tracking and conflict resolution
 interface BaseOperation {
@@ -17,55 +29,55 @@ interface CardMoveOperation extends BaseOperation {
   sourceColumnId: string;
   targetColumnId: string;
   newOrder: number;
-  originalState?: any;
+  originalState?: Partial<Card>;
 }
 
 interface ColumnReorderOperation extends BaseOperation {
   type: 'column_reorder';
   boardId: string;
   columnOrders: { id: string; order: number }[];
-  originalState?: any;
+  originalState?: Column[];
 }
 
 interface CardUpdateOperation extends BaseOperation {
   type: 'card_update';
   cardId: string;
-  updates: any;
-  originalState?: any;
+  updates: CardUpdate;
+  originalState?: Partial<Card>;
 }
 
 interface CardCreateOperation extends BaseOperation {
   type: 'card_create';
   tempId: string;
-  cardData: any;
+  cardData: CardCreateData;
 }
 
 interface ColumnCreateOperation extends BaseOperation {
   type: 'column_create';
   tempId: string;
   boardId: string;
-  columnData: any;
+  columnData: ColumnCreateData;
 }
 
 interface ColumnUpdateOperation extends BaseOperation {
   type: 'column_update';
   columnId: string;
-  updates: any;
-  originalState?: any;
+  updates: ColumnUpdate;
+  originalState?: Partial<Column>;
 }
 
 interface ColumnDeleteOperation extends BaseOperation {
   type: 'column_delete';
   columnId: string;
   boardId: string;
-  originalState?: any;
+  originalState?: Column;
 }
 
 interface BoardUpdateOperation extends BaseOperation {
   type: 'board_update';
   boardId: string;
-  updates: any;
-  originalState?: any;
+  updates: BoardUpdate;
+  originalState?: Partial<Board>;
 }
 
 type Operation = 
@@ -293,7 +305,7 @@ export function useOptimizedMutations(
     }
 
     // Capture original state for rollback
-    let originalState: any = null;
+    let originalState: Partial<Card> | null = null;
 
     // Immediate optimistic update with rollback tracking
     updateBoardLocal((board) => {
@@ -373,7 +385,7 @@ export function useOptimizedMutations(
   }, [boardId, updateBoardLocal]);
 
   const reorderColumns = useCallback(async (boardId: string, columnOrders: { id: string; order: number }[]) => {
-    let originalState: any = null;
+    let originalState: Column[] | null = null;
 
     // Immediate optimistic update
     updateBoardLocal((board) => {
@@ -404,10 +416,10 @@ export function useOptimizedMutations(
     processTimeoutRef.current = setTimeout(processBatchOperations, 150);
   }, [updateBoardLocal]);
 
-  const updateCard = useCallback(async (cardId: string, updates: any) => {
+  const updateCard = useCallback(async (cardId: string, updates: CardUpdate) => {
     if (!boardId) return;
 
-    let originalState: any = null;
+    let originalState: Partial<Card> | null = null;
 
     updateBoardLocal((board) => {
       const newColumns = board.columns.map(col => ({
@@ -454,7 +466,7 @@ export function useOptimizedMutations(
     processTimeoutRef.current = setTimeout(processBatchOperations, 200);
   }, [boardId, updateBoardLocal]);
 
-  const createCard = useCallback(async (cardData: any) => {
+  const createCard = useCallback(async (cardData: CardCreateData) => {
     const tempId = `temp_${Date.now()}_${Math.random()}`;
     
     updateBoardLocal((board) => {
@@ -466,15 +478,13 @@ export function useOptimizedMutations(
             description: cardData.description || '',
             order: col.cards.length,
             priority: cardData.priority || 'medium',
-            dueDate: cardData.dueDate || null,
-            weight: cardData.weight || null,
+            dueDate: cardData.dueDate || undefined,
+            weight: cardData.weight || undefined,
             columnId: cardData.columnId,
-            boardId: cardData.boardId,
             labels: [],
             assignees: [],
             attachments: [],
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            comments: []
           };
           
           return { ...col, cards: [...col.cards, newCard] };
@@ -492,7 +502,7 @@ export function useOptimizedMutations(
     });
   }, [updateBoardLocal]);
 
-  const createColumn = useCallback(async (boardId: string, columnData: any) => {
+  const createColumn = useCallback(async (boardId: string, columnData: ColumnCreateData) => {
     const tempId = `temp_col_${Date.now()}_${Math.random()}`;
     
     updateBoardLocal((board) => {
@@ -501,10 +511,7 @@ export function useOptimizedMutations(
         title: columnData.title,
         order: board.columns.length,
         width: columnData.width || 300,
-        boardId,
-        cards: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        cards: []
       };
       
       return { ...board, columns: [...board.columns, newColumn] };
@@ -524,14 +531,14 @@ export function useOptimizedMutations(
     processTimeoutRef.current = setTimeout(processBatchOperations, 50);
   }, [updateBoardLocal]);
 
-  const updateColumn = useCallback(async (columnId: string, updates: any) => {
-    let originalState: any = null;
+  const updateColumn = useCallback(async (columnId: string, updates: ColumnUpdate) => {
+    let originalState: Partial<Column> | null = null;
 
     updateBoardLocal((board) => {
       const newColumns = board.columns.map(col => {
         if (col.id === columnId) {
           originalState = { ...col };
-          return { ...col, ...updates, updatedAt: new Date() };
+          return { ...col, ...updates };
         }
         return col;
       });
@@ -554,12 +561,12 @@ export function useOptimizedMutations(
   }, [updateBoardLocal]);
 
   const deleteColumn = useCallback(async (columnId: string) => {
-    let originalState: any = null;
+    let originalState: Column | null = null;
 
     updateBoardLocal((board) => {
       const columnToDelete = board.columns.find(col => col.id === columnId);
       if (columnToDelete) {
-        originalState = { column: columnToDelete, boardState: board };
+        originalState = columnToDelete;
         const newColumns = board.columns.filter(col => col.id !== columnId);
         return { ...board, columns: newColumns };
       }
@@ -582,8 +589,8 @@ export function useOptimizedMutations(
     }
   }, [updateBoardLocal, boardId]);
 
-  const updateBoard = useCallback(async (boardId: string, updates: any) => {
-    let originalState: any = null;
+  const updateBoard = useCallback(async (boardId: string, updates: BoardUpdate) => {
+    let originalState: Partial<Board> | null = null;
 
     updateBoardLocal((board) => {
       originalState = { ...board };
@@ -805,7 +812,7 @@ export function useOptimizedMutations(
           break;
           
         default:
-          throw new Error(`Unknown operation type: ${(operation as any).type}`);
+          throw new Error(`Unknown operation type: ${operation.type}`);
       }
 
       console.log(`📡 Response status for ${operation.type}:`, response.status, response.ok);
@@ -827,7 +834,7 @@ export function useOptimizedMutations(
         
         // Enhanced error message for validation errors
         if (response.status === 400 && errorData.error === 'Validation failed') {
-          const validationDetails = errorData.issues?.map((issue: any) => 
+          const validationDetails = errorData.issues?.map((issue: { path?: string[]; message: string }) => 
             `${issue.path?.join('.')}: ${issue.message}`
           ).join(', ') || 'Unknown validation error';
           

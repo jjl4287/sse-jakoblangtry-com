@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, memo, useState, useCallback } from 'react';
+import React, { useRef, memo, useState, useCallback, useEffect } from 'react';
 import { CardDetailsSheet } from './CardDetailsSheet';
 import { Button } from '~/components/ui/button';
 import {
@@ -42,12 +42,12 @@ interface CardProps {
 }
 
 export const Card = memo(({ 
-  card, 
+  card: initialCard, 
   isDragging,
   boardId
 }: CardProps) => {
   // Log invalid data but maintain hook order
-  if (!card?.id) {
+  if (!initialCard?.id) {
     console.warn('Card component received undefined or invalid card data');
   }
 
@@ -56,6 +56,14 @@ export const Card = memo(({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCardDeleteConfirmOpen, setIsCardDeleteConfirmOpen] = useState(false);
+  
+  // Local card state to support optimistic updates
+  const [card, setCard] = useState(initialCard);
+
+  // Update local state when prop changes
+  useEffect(() => {
+    setCard(initialCard);
+  }, [initialCard]);
   
   // Use the custom hook for the lighting effect
   useMousePositionStyle(ref);
@@ -92,6 +100,11 @@ export const Card = memo(({
     }
     setIsCardDeleteConfirmOpen(false); // Close dialog
   }, [card.id, deleteCard]);
+
+  // Handler for card updates from the details sheet
+  const handleCardUpdate = useCallback((updatedCard: CardType) => {
+    setCard(updatedCard);
+  }, []);
 
   // Helper function to get priority icon and color
   const getPriorityInfo = (priority: 'low' | 'medium' | 'high') => {
@@ -221,6 +234,7 @@ export const Card = memo(({
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
           boardId={boardId}
+          onCardUpdate={handleCardUpdate}
         />
       )}
       {/* Card Delete Confirmation Dialog */}

@@ -1,5 +1,5 @@
 import prisma from '~/lib/prisma';
-import type { ActivityLog } from '~/types';
+import type { ActivityLog, ActivityDetails } from '~/types';
 import type { BaseRepository } from './base-repository';
 import type { Prisma } from '@prisma/client';
 
@@ -13,7 +13,7 @@ export interface ActivityRepository extends BaseRepository<ActivityLog> {
   findByCardId(cardId: string): Promise<ActivityLog[]>;
   createActivityLog(data: {
     actionType: string;
-    details?: any;
+    details?: ActivityDetails;
     cardId: string;
     userId?: string;
   }): Promise<ActivityLog>;
@@ -68,7 +68,7 @@ class PrismaActivityRepository implements ActivityRepository {
 
   async create(data: {
     actionType: string;
-    details?: any;
+    details?: ActivityDetails;
     cardId: string;
     userId?: string;
   }): Promise<ActivityLog> {
@@ -82,7 +82,7 @@ class PrismaActivityRepository implements ActivityRepository {
 
   async createActivityLog(data: {
     actionType: string;
-    details?: any;
+    details?: ActivityDetails;
     cardId: string;
     userId?: string;
   }): Promise<ActivityLog> {
@@ -91,7 +91,7 @@ class PrismaActivityRepository implements ActivityRepository {
 
   async update(id: string, data: Partial<{
     actionType: string;
-    details: any;
+    details: ActivityDetails;
   }>): Promise<ActivityLog> {
     const activity = await prisma.activityLog.update({
       where: { id },

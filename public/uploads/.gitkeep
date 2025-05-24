@@ -1,0 +1,2 @@
+# This file ensures the uploads directory structure is maintained
+# while user-uploaded files are ignored by git 

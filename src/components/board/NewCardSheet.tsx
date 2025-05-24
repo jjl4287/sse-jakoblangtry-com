@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { XIcon, CalendarIcon, PlusCircleIcon, CheckIcon, UsersIcon, TagIcon, Weight, Paperclip, ArrowDown, ArrowRight, ArrowUp } from 'lucide-react';
+import { XIcon, CalendarIcon, PlusCircleIcon, CheckIcon, UsersIcon, TagIcon, Weight, Paperclip, ArrowDown, ArrowRight, ArrowUp, Trash2 } from 'lucide-react';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
 import {
@@ -95,6 +95,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, boardId, i
     try {
       // Create the card with the correct structure for the newer createCard hook
       const newCardData = { 
+        columnId,
         title, 
         description, 
         boardId,
@@ -106,7 +107,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, boardId, i
       };
       
       // Create the card and get the new card data (including ID)
-      const newCard = await createCard(columnId, newCardData);
+      const newCard = await createCard(newCardData);
       
       // Upload any selected files to the newly created card
       if (selectedFiles.length > 0 && newCard?.id) {
@@ -273,7 +274,7 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({ columnId, boardId, i
                                 onClick={() => handleRemoveFile(index)}
                                 className="h-6 w-6 p-0"
                               >
-                                <XIcon className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           ))}

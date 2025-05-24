@@ -25,9 +25,10 @@ export async function PATCH(
       data: updates,
     });
     return NextResponse.json(column);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[API PATCH /api/columns/${id}] Error:`, error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -51,8 +52,9 @@ export async function DELETE(
   try {
     await prisma.column.delete({ where: { id } });
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[API DELETE /api/columns/${id}] Error:`, error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 } 

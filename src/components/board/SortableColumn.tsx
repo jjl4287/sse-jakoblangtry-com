@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo, useEffect, type CSSProperties, u
 import { useDroppable } from '@dnd-kit/core';
 import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Column as ColumnType } from '~/types';
+import type { Column as ColumnType, ColumnUpdate } from '~/types';
 import { useColumn, useColumnMutations } from '~/hooks/useColumn';
 import { SortableCard } from './SortableCard'; 
 import { Trash2, Weight, Plus } from 'lucide-react';
@@ -29,7 +29,7 @@ interface SortableColumnProps {
   overlayStyle?: React.CSSProperties;
   boardId?: string;
   /** Optimized mutation functions */
-  updateColumn?: (columnId: string, updates: any) => Promise<void>;
+  updateColumn?: (columnId: string, updates: ColumnUpdate) => Promise<void>;
   deleteColumn?: (columnId: string) => Promise<void>;
 }
 
