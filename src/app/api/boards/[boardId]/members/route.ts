@@ -10,7 +10,7 @@ export async function GET(
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    return new NextResponse('Unauthorized', { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { boardId } = await params;
