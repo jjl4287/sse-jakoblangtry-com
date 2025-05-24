@@ -42,12 +42,8 @@ export async function PATCH(
     }
     const { name, color } = parsed.data;
 
-    if (!name || typeof name !== 'string' || name.trim() === '') {
-      return NextResponse.json({ error: 'Label name is required' }, { status: 400 });
-    }
-    if (!color || typeof color !== 'string' || !/^#[0-9A-F]{6}$/i.test(color)) {
-      return NextResponse.json({ error: 'Valid hex color code is required' }, { status: 400 });
-    }
+// Removed redundant manual validation checks for `name` and `color`.
+// Validation is already handled by the Zod schema (LabelUpdateSchema).
 
     const updatedLabel = await prisma.label.updateMany({ // updateMany to ensure it's for the correct board
       where: {
