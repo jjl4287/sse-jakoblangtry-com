@@ -2,6 +2,49 @@ import { NextResponse } from 'next/server';
 import prisma from '~/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
+import { formatCardForAPI } from '~/lib/utils/cardFormatting';
+
+// GET /api/cards?columnId=...
+export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const url = new URL(request.url);
+    const columnId = url.searchParams.get('columnId');
+
+    if (!columnId) {
+      return NextResponse.json({ error: 'Column ID is required' }, { status: 400 });
+    }
+
+    // Fetch cards for the specified column
+    const cards = await prisma.card.findMany({
+      where: { columnId },
+      orderBy: { order: 'asc' },
+      include: {
+        labels: true,
+        assignees: true,
+        attachments: true,
+        comments: {
+          include: {
+            user: true
+          }
+        }
+      }
+    });
+
+    // Map to the expected Card format using shared utility
+    const formattedCards = cards.map(formatCardForAPI);
+
+    return NextResponse.json(formattedCards);
+  } catch (_error: unknown) {
+    console.error('[API GET /api/cards] Error:', _error);
+    const message = _error instanceof Error ? _error.message : 'Failed to fetch cards';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
 
 // POST /api/cards
 export async function POST(request: Request) {
@@ -40,13 +83,13 @@ export async function POST(request: Request) {
     // Fetch the column to get the boardId
     const column = await prisma.column.findUnique({
         where: { id: columnId },
-        select: { projectId: true } // projectId in Column is the boardId for the Card
+        select: { boardId: true } // boardId in Column is the boardId for the Card
     });
 
-    if (!column?.projectId) {
+    if (!column?.boardId) {
         return NextResponse.json({ error: 'Column not found or does not belong to a board' }, { status: 404 });
     }
-    const boardId = column.projectId;
+    const boardId = column.boardId;
 
     // Determine next order index
     const maxOrderCard = await prisma.card.findFirst({

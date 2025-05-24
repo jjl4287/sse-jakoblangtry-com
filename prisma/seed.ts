@@ -15,438 +15,416 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function main() {
-  // Clear existing data to avoid duplicate-ID errors and ensure clean slate
-  console.log('Clearing existing seeded data...');
-  await prisma.attachment.deleteMany({});
-  await prisma.comment.deleteMany({});
-  await prisma.boardMembership.deleteMany({}); // Clear memberships first
-  await prisma.card.deleteMany({});
-  await prisma.column.deleteMany({});
-  await prisma.board.deleteMany({});
-  await prisma.user.deleteMany({});
-  
-  const boardPath = path.join(__dirname, '..', 'data', 'board.json');
-  const raw = fs.readFileSync(boardPath, 'utf-8');
-  const boardFromFile = JSON.parse(raw); // Renamed to avoid conflict
+  console.log('🌱 Seeding database...');
 
-  console.log('Seeding database...');
-
-  // --- Helper for password hashing ---
-  const getSaltRounds = () => {
-    const saltRoundsEnv = process.env.BCRYPT_SALT_ROUNDS;
-    const saltRounds = parseInt(saltRoundsEnv ?? '10', 10);
-    if (isNaN(saltRounds) || saltRounds <= 0) {
-      console.warn(
-        `Invalid BCRYPT_SALT_ROUNDS value: "${saltRoundsEnv}". Falling back to default value of 10.`
-      );
-      return 10;
+  // Create test users
+  const user1 = await prisma.user.upsert({
+    where: { email: 'john@example.com' },
+    update: {},
+    create: {
+      email: 'john@example.com',
+      name: 'John Doe',
+      image: 'https://avatar.iran.liara.run/public/1'
     }
-    return saltRounds;
-  };
-  const saltRounds = getSaltRounds();
-  const hashPassword = (password: string) => bcrypt.hash(password, saltRounds);
+  });
 
-  // --- Create Users ---
-  console.log('Creating users...');
-  const adminUser = await prisma.user.create({
-    data: {
-      id: 'admin', // fixed ID for admin user
+  const user2 = await prisma.user.upsert({
+    where: { email: 'jane@example.com' },
+    update: {},
+    create: {
+      email: 'jane@example.com',
+      name: 'Jane Smith',
+      image: 'https://avatar.iran.liara.run/public/2'
+    }
+  });
+
+  const user3 = await prisma.user.upsert({
+    where: { email: 'admin@example.com' },
+    update: {},
+    create: {
+      email: 'admin@example.com',
       name: 'Admin User',
-      email: process.env.ADMIN_EMAIL || (() => {
-        console.warn('ADMIN_EMAIL environment variable is not set. Falling back to default email: admin@example.com');
-        return 'admin@example.com';
-      })(),
-      hashedPassword: await hashPassword('AdminPass123!'),
-    },
+      image: 'https://avatar.iran.liara.run/public/3'
+    }
   });
 
-  const aliceUser = await prisma.user.create({
-    data: {
-      name: 'Alice Wonder',
-      email: 'alice@example.com',
-      hashedPassword: await hashPassword('AlicePass123!'),
-    },
-  });
+  console.log('✅ Created users');
 
-  const bobUser = await prisma.user.create({
+  // Create Board 1: Product Development
+  const board1 = await prisma.board.create({
     data: {
-      name: 'Bob The Builder',
-      email: 'bob@example.com',
-      hashedPassword: await hashPassword('BobPass123!'),
-    },
-  });
-  console.log(`Created users: ${adminUser.name}, ${aliceUser.name}, ${bobUser.name}`);
-
-  // --- Create Admin's Board (from JSON file) ---
-  console.log(`Creating board for ${adminUser.name} from board.json...`);
-  const adminBoard = await prisma.board.create({
-    data: {
-      title: boardFromFile.title || 'Admin Board (from JSON)',
-      theme: boardFromFile.theme || 'dark',
-      isPublic: false,
-      creator: { connect: { id: adminUser.id } },
-      columns: {
-        create: boardFromFile.columns.map((col: any, index: number) => ({ // Create columns without cards initially
-          id: col.id, 
-          title: col.title,
-          width: col.width,
-          order: index,
-          // Cards will be created in a separate step
-        })),
+      title: 'Product Development',
+      theme: 'dark',
+      creator: { connect: { id: user1.id } },
+      members: {
+        create: [
+          { userId: user1.id, role: 'owner' },
+          { userId: user2.id, role: 'member' }
+        ]
       },
-    },
-    include: { columns: true } // Include columns to get their IDs for card creation
-  });
-  console.log(`Created board: ${adminBoard.title} with columns.`);
-
-  // Now, create cards for each column in Admin's Board
-  for (const colData of boardFromFile.columns) {
-    const createdColumn = adminBoard.columns.find(c => c.id === colData.id);
-    if (createdColumn && colData.cards && colData.cards.length > 0) {
-      await prisma.card.createMany({
-        data: colData.cards.map((card: any) => ({
-          id: card.id, 
-          title: card.title,
-          description: card.description || '',
-          dueDate: card.dueDate ? new Date(card.dueDate) : undefined,
-          priority: card.priority as Priority,
-          order: card.order,
-          columnId: createdColumn.id, // Connect to the created column
-          boardId: adminBoard.id,    // Explicitly connect to the board
-        })),
-      });
-    }
-  }
-  console.log("Created cards for Admin's board.");
-
-  // Create sample labels for Admin's Board
-  const adminLabelBug = await prisma.label.create({
-    data: { name: 'Bug', color: '#D93F30', boardId: adminBoard.id },
-  });
-  const adminLabelFeature = await prisma.label.create({
-    data: { name: 'Feature Request', color: '#0E8A16', boardId: adminBoard.id },
-  });
-  const adminLabelDocs = await prisma.label.create({
-    data: { name: 'Documentation', color: '#5319E7', boardId: adminBoard.id },
-  });
-  console.log(`Created labels for Admin's board.`);
-
-  // Update cards in Admin's Board with labels and assignees
-  for (const column of boardFromFile.columns) {
-    for (const card of column.cards) {
-      let labelsToConnect = [];
-      if (card.id === 'card-1') labelsToConnect.push({ id: adminLabelBug.id });
-      if (card.id === 'card-2') labelsToConnect.push({ id: adminLabelFeature.id }, { id: adminLabelDocs.id });
-      if (card.id === 'card-3') labelsToConnect.push({ id: adminLabelDocs.id });
-
-      let assigneesToConnect = [];
-      if (card.id === 'card-1') assigneesToConnect.push({ id: adminUser.id });
-      if (card.id === 'card-2') assigneesToConnect.push({ id: aliceUser.id });
-      if (card.id === 'card-3') assigneesToConnect.push({ id: adminUser.id }, { id: bobUser.id });
-      
-      if (labelsToConnect.length > 0 || assigneesToConnect.length > 0) {
-        await prisma.card.update({
-          where: { id: card.id },
-          data: {
-            labels: labelsToConnect.length > 0 ? { connect: labelsToConnect } : undefined,
-            assignees: assigneesToConnect.length > 0 ? { connect: assigneesToConnect } : undefined,
-          },
-        });
+      labels: {
+        create: [
+          { name: 'Bug', color: '#ef4444' },
+          { name: 'Feature', color: '#3b82f6' },
+          { name: 'Enhancement', color: '#8b5cf6' },
+          { name: 'Documentation', color: '#10b981' },
+          { name: 'Critical', color: '#dc2626' },
+          { name: 'Nice to Have', color: '#f59e0b' }
+        ]
       }
     }
-  }
-  console.log("Updated Admin's board cards with labels and assignees.");
-  console.log('Adding adminUser as owner in BoardMembership...');
-  await prisma.boardMembership.create({
-    data: { boardId: adminBoard.id, userId: adminUser.id, role: 'owner' },
   });
 
-  // --- Create Alice's Board ---
-  console.log(`Creating board for ${aliceUser.name}...`);
-  const aliceBoardData = {
-    title: "Alice's Project Board",
-    theme: 'light',
-    creator: { connect: { id: aliceUser.id } },
-    columns: {
-      create: [
+  // Create columns for Board 1
+  const board1Columns = await Promise.all([
+    prisma.column.create({
+      data: { title: 'Backlog', order: 0, width: 320, boardId: board1.id }
+    }),
+    prisma.column.create({
+      data: { title: 'In Progress', order: 1, width: 320, boardId: board1.id }
+    }),
+    prisma.column.create({
+      data: { title: 'Review', order: 2, width: 320, boardId: board1.id }
+    }),
+    prisma.column.create({
+      data: { title: 'Done', order: 3, width: 320, boardId: board1.id }
+    })
+  ]);
+
+  // Create cards for Board 1
+  await Promise.all([
+    // Backlog cards
+    prisma.card.create({
+      data: {
+        title: 'Implement user authentication',
+        description: 'Add login/logout functionality with session management',
+        priority: 'high',
+        weight: 8,
+        order: 0,
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        columnId: board1Columns[0].id,
+        boardId: board1.id,
+        assignees: { connect: [{ id: user1.id }] }
+      }
+    }),
+    prisma.card.create({
+      data: {
+        title: 'Design new landing page',
+        description: 'Create mockups and wireframes for the new landing page',
+        priority: 'medium',
+        weight: 5,
+        order: 1,
+        columnId: board1Columns[0].id,
+        boardId: board1.id,
+        assignees: { connect: [{ id: user2.id }] }
+      }
+    }),
+    prisma.card.create({
+      data: {
+        title: 'Fix responsive design issues',
+        description: 'Address mobile layout problems on various screen sizes',
+        priority: 'high',
+        weight: 3,
+        order: 2,
+        columnId: board1Columns[0].id,
+        boardId: board1.id,
+        assignees: { connect: [{ id: user1.id }, { id: user2.id }] }
+      }
+    }),
+    // In Progress cards
+    prisma.card.create({
+      data: {
+        title: 'API endpoint optimization',
+        description: 'Improve performance of user data retrieval endpoints',
+        priority: 'medium',
+        weight: 6,
+        order: 0,
+        columnId: board1Columns[1].id,
+        boardId: board1.id,
+        assignees: { connect: [{ id: user1.id }] }
+      }
+    }),
+    prisma.card.create({
+      data: {
+        title: 'Database migration script',
+        description: 'Create migration to add new user preferences table',
+        priority: 'low',
+        weight: 2,
+        order: 1,
+        columnId: board1Columns[1].id,
+        boardId: board1.id
+      }
+    }),
+    // Review cards
+    prisma.card.create({
+      data: {
+        title: 'Security audit documentation',
+        description: 'Comprehensive security review of authentication system',
+        priority: 'high',
+        weight: 4,
+        order: 0,
+        columnId: board1Columns[2].id,
+        boardId: board1.id,
+        assignees: { connect: [{ id: user3.id }] }
+      }
+    }),
+    // Done cards
+    prisma.card.create({
+      data: {
+        title: 'Setup CI/CD pipeline',
+        description: 'Automated testing and deployment configured',
+        priority: 'medium',
+        weight: 7,
+        order: 0,
+        columnId: board1Columns[3].id,
+        boardId: board1.id,
+        assignees: { connect: [{ id: user1.id }] }
+      }
+    }),
+    prisma.card.create({
+      data: {
+        title: 'Update project dependencies',
+        description: 'Upgraded all packages to latest stable versions',
+        priority: 'low',
+        weight: 1,
+        order: 1,
+        columnId: board1Columns[3].id,
+        boardId: board1.id
+      }
+    })
+  ]);
+
+  // Create Board 2: Marketing Campaign
+  const board2 = await prisma.board.create({
+    data: {
+      title: 'Marketing Campaign',
+      theme: 'light',
+      creator: { connect: { id: user2.id } },
+      members: {
+        create: [
+          { userId: user2.id, role: 'owner' },
+          { userId: user3.id, role: 'member' }
+        ]
+      },
+      labels: {
+        create: [
+          { name: 'Social Media', color: '#ec4899' },
+          { name: 'Content', color: '#06b6d4' },
+          { name: 'Analytics', color: '#84cc16' },
+          { name: 'Urgent', color: '#f97316' }
+        ]
+      }
+    }
+  });
+
+  // Create columns for Board 2
+  const board2Columns = await Promise.all([
+    prisma.column.create({
+      data: { title: 'Ideas', order: 0, width: 300, boardId: board2.id }
+    }),
+    prisma.column.create({
+      data: { title: 'In Progress', order: 1, width: 300, boardId: board2.id }
+    }),
+    prisma.column.create({
+      data: { title: 'Completed', order: 2, width: 300, boardId: board2.id }
+    })
+  ]);
+
+  // Create cards for Board 2
+  await Promise.all([
+    prisma.card.create({
+      data: {
+        title: 'Launch Instagram campaign',
+        description: 'Plan and execute social media campaign for product launch',
+        priority: 'high',
+        weight: 10,
+        order: 0,
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        columnId: board2Columns[0].id,
+        boardId: board2.id,
+        assignees: { connect: [{ id: user2.id }] }
+      }
+    }),
+    prisma.card.create({
+      data: {
+        title: 'Create blog content series',
+        description: 'Write 5 blog posts about product features',
+        priority: 'medium',
+        weight: 8,
+        order: 1,
+        columnId: board2Columns[0].id,
+        boardId: board2.id,
+        assignees: { connect: [{ id: user3.id }] }
+      }
+    }),
+    prisma.card.create({
+      data: {
+        title: 'Design promotional graphics',
+        description: 'Create visual assets for social media posts',
+        priority: 'medium',
+        weight: 5,
+        order: 0,
+        columnId: board2Columns[1].id,
+        boardId: board2.id,
+        assignees: { connect: [{ id: user2.id }] }
+      }
+    }),
+    prisma.card.create({
+      data: {
+        title: 'Market research analysis',
+        description: 'Completed competitive analysis and target audience research',
+        priority: 'high',
+        weight: 6,
+        order: 0,
+        columnId: board2Columns[2].id,
+        boardId: board2.id,
+        assignees: { connect: [{ id: user3.id }] }
+      }
+    })
+  ]);
+
+  // Create Board 3: Personal Projects  
+  const board3 = await prisma.board.create({
+    data: {
+      title: 'Personal Projects',
+      theme: 'dark',
+      creator: { connect: { id: user1.id } },
+      members: {
+        create: [
+          { userId: user1.id, role: 'owner' }
+        ]
+      },
+      labels: {
+        create: [
+          { name: 'Learning', color: '#6366f1' },
+          { name: 'Side Project', color: '#8b5cf6' },
+          { name: 'Quick Win', color: '#10b981' }
+        ]
+      }
+    }
+  });
+
+  // Create columns for Board 3
+  const board3Columns = await Promise.all([
+    prisma.column.create({
+      data: { title: 'Todo', order: 0, width: 280, boardId: board3.id }
+    }),
+    prisma.column.create({
+      data: { title: 'Done', order: 1, width: 280, boardId: board3.id }
+    })
+  ]);
+
+  // Create cards for Board 3
+  await Promise.all([
+    prisma.card.create({
+      data: {
+        title: 'Learn Next.js 14',
+        description: 'Complete the official Next.js tutorial and build a demo app',
+        priority: 'medium',
+        weight: 5,
+        order: 0,
+        columnId: board3Columns[0].id,
+        boardId: board3.id,
+        assignees: { connect: [{ id: user1.id }] }
+      }
+    }),
+    prisma.card.create({
+      data: {
+        title: 'Build portfolio website',
+        description: 'Create a personal portfolio showcasing projects',
+        priority: 'low',
+        weight: 8,
+        order: 1,
+        columnId: board3Columns[0].id,
+        boardId: board3.id
+      }
+    }),
+    prisma.card.create({
+      data: {
+        title: 'Setup development environment',
+        description: 'Configured VS Code, installed extensions, and set up Git',
+        priority: 'high',
+        weight: 2,
+        order: 0,
+        columnId: board3Columns[1].id,
+        boardId: board3.id
+      }
+    })
+  ]);
+
+  console.log('✅ Created boards with columns and cards');
+
+  // Add some comments to the first card
+  const firstCard = await prisma.card.findFirst({
+    where: { boardId: board1.id },
+    orderBy: { order: 'asc' }
+  });
+
+  if (firstCard) {
+    await prisma.comment.createMany({
+      data: [
         {
-          id: 'alice-col-todo', // Added ID for easier reference
-          title: 'To Do',
-          width: 50,
-          order: 0,
-          // Cards will be created in a separate step
+          content: 'This is a high priority task. Let\'s make sure we get the authentication flow right.',
+          cardId: firstCard.id,
+          userId: user1.id
         },
         {
-          id: 'alice-col-done', // Added ID for easier reference
-          title: 'Done',
-          width: 50,
-          order: 1,
-          // Cards will be created in a separate step
-        },
-      ],
-    },
-  };
-  const aliceBoard = await prisma.board.create({
-    data: aliceBoardData,
-    include: { columns: true } 
-  });
-  console.log(`Created board: ${aliceBoard.title} with columns.`);
-
-  // Add Alice as an owner member for her board
-  console.log(`Adding ${aliceUser.name} as owner for board: ${aliceBoard.title}`);
-  await prisma.boardMembership.create({
-    data: {
-      boardId: aliceBoard.id,
-      userId: aliceUser.id,
-      role: 'owner',
-    },
-  });
-
-  // Create cards for Alice's board
-  const aliceCardsToDo = [
-    {
-      title: 'Setup project repository',
-      description: 'Initialize git and push to remote',
-      order: 0,
-      priority: 'high',
-      assignees: { connect: [{ id: aliceUser.id }] },
-      columnId: aliceBoard.columns.find(c => c.id === 'alice-col-todo')!.id,
-      boardId: aliceBoard.id
-    },
-    {
-      title: 'Define database schema',
-      description: 'Create initial Prisma schema',
-      order: 1,
-      priority: 'medium',
-      assignees: { connect: [{ id: aliceUser.id }] },
-      columnId: aliceBoard.columns.find(c => c.id === 'alice-col-todo')!.id,
-      boardId: aliceBoard.id
-    },
-  ];
-  await prisma.card.createMany({ data: aliceCardsToDo.map(card => ({...card, assignees: undefined})) }); // createMany doesn't support relation objects directly
-  // Re-fetch cards to connect assignees as createMany doesn't handle it well with other fields for some connectors/versions
-  for (const cardData of aliceCardsToDo) {
-      const createdCard = await prisma.card.findFirst({where: {title: cardData.title, boardId: aliceBoard.id}});
-      if (createdCard && cardData.assignees) {
-          await prisma.card.update({ where: {id: createdCard.id}, data: { assignees: cardData.assignees } });
-      }
-  }
-
-  const aliceCardsDone = [
-    {
-      title: 'Brainstorm feature ideas',
-      description: 'Initial planning session complete',
-      order: 0,
-      priority: 'low',
-      assignees: { connect: [{ id: aliceUser.id }] },
-      columnId: aliceBoard.columns.find(c => c.id === 'alice-col-done')!.id,
-      boardId: aliceBoard.id
-    },
-  ];
-  await prisma.card.createMany({ data: aliceCardsDone.map(card => ({...card, assignees: undefined})) });
-  for (const cardData of aliceCardsDone) {
-      const createdCard = await prisma.card.findFirst({where: {title: cardData.title, boardId: aliceBoard.id}});
-      if (createdCard && cardData.assignees) {
-          await prisma.card.update({ where: {id: createdCard.id}, data: { assignees: cardData.assignees } });
-      }
-  }
-  console.log("Created cards for Alice's board.");
-
-  // Create sample labels for Alice's Board
-  const aliceLabelTask = await prisma.label.create({
-    data: { name: 'Task', color: '#FBCA04', boardId: aliceBoard.id },
-  });
-  const aliceLabelUrgent = await prisma.label.create({
-    data: { name: 'Urgent', color: '#FF0000', boardId: aliceBoard.id },
-  });
-  console.log(`Created labels for Alice's board.`);
-
-  // Update Alice's cards with labels
-  const aliceToDoCards = aliceBoard.columns.find(c => c.title === 'To Do')?.cards;
-  if (aliceToDoCards) {
-    const setupRepoCard = aliceToDoCards.find(card => card.title === 'Setup project repository');
-    if (setupRepoCard) {
-      await prisma.card.update({
-        where: { id: setupRepoCard.id },
-        data: { labels: { connect: [{ id: aliceLabelTask.id }, { id: aliceLabelUrgent.id }] } },
-      });
-    }
-    const defineSchemaCard = aliceToDoCards.find(card => card.title === 'Define database schema');
-    if (defineSchemaCard) {
-      await prisma.card.update({
-        where: { id: defineSchemaCard.id },
-        data: { labels: { connect: [{ id: aliceLabelTask.id }] } },
-      });
-    }
-  }
-  const aliceDoneCards = aliceBoard.columns.find(c => c.title === 'Done')?.cards;
-  if (aliceDoneCards) {
-    const brainstormCard = aliceDoneCards.find(card => card.title === 'Brainstorm feature ideas');
-    if (brainstormCard) {
-      await prisma.card.update({
-        where: { id: brainstormCard.id },
-        data: { labels: { connect: [{ id: aliceLabelTask.id }] } },
-      });
-    }
-  }
-  console.log("Updated Alice's board cards with labels.");
-
-  // --- Create Bob's Board ---
-  console.log(`Creating board for ${bobUser.name}...`);
-  const bobBoardData = {
-    title: "Bob's Task List",
-    theme: 'dark',
-    creator: { connect: { id: bobUser.id } },
-    isPublic: true, 
-    columns: {
-      create: [
-        {
-          id: 'bob-col-pending', // Added ID
-          title: 'Pending',
-          width: 60,
-          order: 0,
+          content: 'I can help with the testing once the implementation is ready.',
+          cardId: firstCard.id,
+          userId: user2.id
         },
         {
-          id: 'bob-col-completed', // Added ID
-          title: 'Completed',
-          width: 40,
-          order: 1,
+          content: 'Great progress so far! Don\'t forget to include two-factor authentication.',
+          cardId: firstCard.id,
+          userId: user3.id
+        }
+      ]
+    });
+
+    console.log('✅ Added comments to cards');
+  }
+
+  // Add some activity logs
+  if (firstCard) {
+    await prisma.activityLog.createMany({
+      data: [
+        {
+          actionType: 'CREATE_CARD',
+          details: { title: 'Implement user authentication' },
+          cardId: firstCard.id,
+          userId: user1.id
         },
-      ],
-    },
-  };
-  const bobBoard = await prisma.board.create({
-    data: bobBoardData,
-    include: { columns: true } 
-  });
-  console.log(`Created board: ${bobBoard.title} with columns.`);
+        {
+          actionType: 'UPDATE_CARD_PRIORITY',
+          details: { oldPriority: 'medium', newPriority: 'high' },
+          cardId: firstCard.id,
+          userId: user1.id
+        },
+        {
+          actionType: 'ADD_ASSIGNEES_TO_CARD',
+          details: { assigneeIds: [user1.id] },
+          cardId: firstCard.id,
+          userId: user2.id
+        }
+      ]
+    });
 
-  // Add Bob as an owner member for his board
-  console.log(`Adding ${bobUser.name} as owner for board: ${bobBoard.title}`);
-  await prisma.boardMembership.create({
-    data: {
-      boardId: bobBoard.id,
-      userId: bobUser.id,
-      role: 'owner',
-    },
-  });
-
-  // Create cards for Bob's board
-  const bobCardsPending = [
-    {
-      title: 'Fix login bug',
-      description: 'Users reporting issues with social login',
-      order: 0,
-      priority: 'high',
-      assignees: { connect: [{ id: bobUser.id }, { id: adminUser.id }] },
-      columnId: bobBoard.columns.find(c => c.id === 'bob-col-pending')!.id,
-      boardId: bobBoard.id
-    },
-    {
-      title: 'Update documentation',
-      description: 'Add section for new API endpoints',
-      order: 1,
-      priority: 'medium',
-      assignees: { connect: [{ id: bobUser.id }] },
-      columnId: bobBoard.columns.find(c => c.id === 'bob-col-pending')!.id,
-      boardId: bobBoard.id
-    },
-  ];
-  await prisma.card.createMany({ data: bobCardsPending.map(card => ({...card, assignees: undefined})) });
-  for (const cardData of bobCardsPending) {
-      const createdCard = await prisma.card.findFirst({where: {title: cardData.title, boardId: bobBoard.id}});
-      if (createdCard && cardData.assignees) {
-          await prisma.card.update({ where: {id: createdCard.id}, data: { assignees: cardData.assignees } });
-      }
+    console.log('✅ Added activity logs');
   }
 
-  const bobCardsCompleted = [
-    {
-      title: 'Deploy to staging',
-      description: 'Version 1.2 deployed successfully',
-      order: 0,
-      priority: 'high',
-      assignees: { connect: [{ id: bobUser.id }] },
-      columnId: bobBoard.columns.find(c => c.id === 'bob-col-completed')!.id,
-      boardId: bobBoard.id
-    },
-  ];
-  await prisma.card.createMany({ data: bobCardsCompleted.map(card => ({...card, assignees: undefined})) });
-   for (const cardData of bobCardsCompleted) {
-      const createdCard = await prisma.card.findFirst({where: {title: cardData.title, boardId: bobBoard.id}});
-      if (createdCard && cardData.assignees) {
-          await prisma.card.update({ where: {id: createdCard.id}, data: { assignees: cardData.assignees } });
-      }
-  }
-  console.log("Created cards for Bob's board.");
-  
-  // Create sample labels for Bob's Board
-  const bobLabelImprovement = await prisma.label.create({
-    data: { name: 'Improvement', color: '#A2EEEF', boardId: bobBoard.id },
-  });
-  const bobLabelBugFix = await prisma.label.create({
-    data: { name: 'Bug Fix', color: '#D93F30', boardId: bobBoard.id },
-  });
-  console.log(`Created labels for Bob's board.`);
-
-  // Update Bob's cards with labels
-  const bobPendingCards = bobBoard.columns.find(c => c.title === 'Pending')?.cards;
-  if (bobPendingCards) {
-    const fixLoginCard = bobPendingCards.find(card => card.title === 'Fix login bug');
-    if (fixLoginCard) {
-      await prisma.card.update({
-        where: { id: fixLoginCard.id },
-        data: { labels: { connect: [{ id: bobLabelBugFix.id }] } },
-      });
-    }
-    const updateDocsCard = bobPendingCards.find(card => card.title === 'Update documentation');
-    if (updateDocsCard) {
-      await prisma.card.update({
-        where: { id: updateDocsCard.id },
-        data: { labels: { connect: [{ id: bobLabelImprovement.id }] } },
-      });
-    }
-  }
-  console.log("Updated Bob's board cards with labels.");
-
-  // --- Create Board Memberships (Sharing) ---
-  console.log('Creating board memberships (sharing boards)...');
-  // Admin shares their board with Alice
-  await prisma.boardMembership.create({
-    data: {
-      boardId: adminBoard.id,
-      userId: aliceUser.id,
-      role: 'member',
-    },
-  });
-  console.log(`${adminUser.name} shared "${adminBoard.title}" with ${aliceUser.name}`);
-
-  // Alice shares her board with Bob
-  await prisma.boardMembership.create({
-    data: {
-      boardId: aliceBoard.id,
-      userId: bobUser.id,
-      role: 'member',
-    },
-  });
-  console.log(`${aliceUser.name} shared "${aliceBoard.title}" with ${bobUser.name}`);
-
-  // Bob shares his board with Admin
-  await prisma.boardMembership.create({
-    data: {
-      boardId: bobBoard.id,
-      userId: adminUser.id,
-      role: 'member',
-    },
-  });
-  console.log(`${bobUser.name} shared "${bobBoard.title}" with ${adminUser.name}`);
-
-  console.log('Seeding completed successfully!');
+  console.log('\n🎉 Database seeded successfully!');
+  console.log('\nCreated:');
+  console.log('- 3 boards with different themes');
+  console.log('- Multiple columns per board');
+  console.log('- Sample cards with various priorities and assignments');
+  console.log('- Comments and activity logs');
+  console.log('- Users with different roles');
+  console.log('\nYou can now test the application with realistic data!');
 }
 
 main()
   .catch((e) => {
-    console.error('Seed error:', e);
+    console.error('❌ Error seeding database:', e);
     process.exit(1);
   })
   .finally(async () => {

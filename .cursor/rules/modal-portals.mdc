@@ -1,0 +1,52 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+- **Modal Portal Issues:**
+  - When using `Popover`, `Select`, or similar components inside modals/dialogs, always use `portalled={false}`
+  - Without this prop, content is rendered in a portal which can cause focus/blur event conflicts with the parent modal
+
+- **Affected Components:**
+  - `PopoverContent` from [~/components/ui/popover](mdc:src/components/ui/popover.tsx)
+  - `SelectContent` from [~/components/ui/select](mdc:src/components/ui/select.tsx)
+  - Any Radix UI component that supports portal rendering
+
+- **Correct Usage:**
+  ```typescript
+  // ✅ DO: Use portalled={false} inside modals/dialogs
+  <PopoverContent portalled={false} className="w-auto p-0" align="start">
+    <Calendar mode="single" selected={date} onSelect={handleSelect} />
+  </PopoverContent>
+  
+  <SelectContent portalled={false} className="z-[80]">
+    <SelectItem value="option1">Option 1</SelectItem>
+  </SelectContent>
+  
+  // ❌ DON'T: Use default portal behavior inside modals
+  <PopoverContent className="w-auto p-0" align="start">
+    <Calendar mode="single" selected={date} onSelect={handleSelect} />
+  </PopoverContent>
+  ```
+
+- **Common Symptoms:**
+  - Calendar picker closes immediately when clicked
+  - Select dropdown doesn't stay open
+  - Focus constantly jumps between elements
+  - "Blurs constantly" behavior
+
+- **Examples in Codebase:**
+  - [NewCardSheet.tsx](mdc:src/components/board/NewCardSheet.tsx) - Fixed calendar and priority select
+  - [CardActions.tsx](mdc:src/components/card/CardActions.tsx) - Calendar with portalled={false}
+  - [CardLabelManager.tsx](mdc:src/components/card/CardLabelManager.tsx) - Label picker with portalled={false}
+
+- **Why This Works:**
+  - Prevents portal from creating separate DOM hierarchy
+  - Keeps focus management within the modal's context
+  - Maintains proper event handling and z-index stacking
+
+- **Best Practices:**
+  - Always test interactive components inside modals
+  - Add `portalled={false}` as soon as you add a Popover/Select to a modal
+  - Use consistent z-index values (e.g., `z-[80]`) for content inside modals
+  - Consider using `modal={true}` prop on Popover for additional modal behavior when needed

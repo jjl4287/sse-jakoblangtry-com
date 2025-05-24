@@ -4,6 +4,49 @@ import { z } from 'zod';
 import { type Card, type Prisma } from '@prisma/client'; // Use type-only import for Card
 import { getServerSession } from "next-auth/next"; // Added for session
 import { authOptions } from "~/lib/auth/authOptions"; // Added for session
+import { formatCardForAPI } from '~/lib/utils/cardFormatting';
+
+// GET /api/cards/[cardId]
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ cardId: string }> }
+) {
+  const { cardId } = await params;
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const card = await prisma.card.findUnique({
+      where: { id: cardId },
+      include: {
+        labels: true,
+        assignees: true,
+        attachments: true,
+        comments: {
+          include: {
+            user: true
+          }
+        }
+      }
+    });
+
+    if (!card) {
+      return NextResponse.json({ error: "Card not found" }, { status: 404 });
+    }
+
+    // Map to the expected Card format using shared utility
+    const formattedCard = formatCardForAPI(card);
+
+    return NextResponse.json(formattedCard);
+  } catch (_error: unknown) {
+    console.error('[API GET /api/cards/[cardId]] Error:', _error);
+    const message = _error instanceof Error ? _error.message : 'Failed to fetch card';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
 
 // Schema for validating incoming card update data
 const CardUpdateSchema = z.object({
@@ -33,6 +76,16 @@ export async function PATCH(
   { params }: { params: Promise<{ cardId: string }> }
 ) {
   const { cardId } = await params;
+  
+  // Check if this is a temporary ID (optimistic update)
+  if (cardId.startsWith('temp_') || cardId.startsWith('temp_card_')) {
+    // For temporary IDs, just return success without doing anything
+    // The optimistic update system will replace this with the real ID once the card is created
+    return NextResponse.json({ 
+      id: cardId, 
+      message: 'Temporary card update ignored - will be processed when card is persisted' 
+    });
+  }
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -234,6 +287,16 @@ export async function DELETE(
   { params }: { params: { cardId: string } }
 ) {
   const { cardId } = params;
+  
+  // Check if this is a temporary ID (optimistic update)
+  if (cardId.startsWith('temp_') || cardId.startsWith('temp_card_')) {
+    // For temporary IDs, just return success without doing anything
+    // The optimistic update system will handle the local removal
+    return NextResponse.json({ 
+      success: true,
+      message: 'Temporary card delete ignored - handled by optimistic updates' 
+    });
+  }
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {

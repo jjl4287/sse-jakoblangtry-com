@@ -9,9 +9,9 @@ const CardMoveSchema = z.object({ targetColumnId: z.string().min(1), order: z.nu
 // POST /api/cards/[cardId]/move
 export async function POST(
   request: Request,
-  { params }: { params: { cardId: string } }
+  { params }: { params: Promise<{ cardId: string }> }
 ) {
-  const { cardId } = params;
+  const { cardId } = await params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -89,30 +89,33 @@ export async function POST(
             }
 
             // Log activity after successful move operations within the transaction
-            await tx.activityLog.create({
-              data: {
-                actionType: "MOVE_CARD",
-                cardId,
-                userId,
-                details: {
-                  cardTitle: originalCard.title,
-                  oldColumnId,
-                  oldColumnName: oldColumn?.title ?? 'Unknown Column',
-                  newColumnId: targetColumnId,
-                  newColumnName: newColumn?.title ?? 'Unknown Column',
-                  oldOrder: oldOrder,
-                  newOrder: newOrder,
+            // Only log if the card actually moved between columns (not intra-column reordering)
+            if (oldColumnId !== targetColumnId) {
+              await tx.activityLog.create({
+                data: {
+                  actionType: "MOVE_CARD",
+                  cardId,
+                  userId,
+                  details: {
+                    cardTitle: originalCard.title,
+                    oldColumnId,
+                    oldColumnName: oldColumn?.title ?? 'Unknown Column',
+                    newColumnId: targetColumnId,
+                    newColumnName: newColumn?.title ?? 'Unknown Column',
+                    oldOrder: oldOrder,
+                    newOrder: newOrder,
+                  }
                 }
-              }
-            });
+              });
+            }
           },
           { timeout: 60000, maxWait: 5000 }
         );
         // If we get here, transaction succeeded
         break;
-      } catch (txError: any) {
+      } catch (txError: unknown) {
         // Retry on write conflicts
-        if (txError?.code === 'P2034' && attempt < MAX_RETRIES - 1) {
+        if ((txError as any)?.code === 'P2034' && attempt < MAX_RETRIES - 1) {
           attempt++;
           const backoffMs = 200 * (2 ** (attempt - 1));
           console.log(`[API POST /api/cards/${cardId}/move] Retrying P2034. Attempt ${attempt}/${MAX_RETRIES - 1}. Waiting ${backoffMs}ms.`);

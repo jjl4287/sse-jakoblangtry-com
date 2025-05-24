@@ -12,11 +12,11 @@ const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'cards');
 async function ensureUploadDirExists() {
   try {
     await stat(UPLOAD_DIR);
-  } catch (e: any) {
-    if (e.code === 'ENOENT') {
+  } catch (e: unknown) {
+    if ((e as any).code === 'ENOENT') {
       try {
         await mkdir(UPLOAD_DIR, { recursive: true });
-      } catch (mkdirError: any) {
+      } catch (mkdirError: unknown) {
         console.error('Failed to create upload directory:', mkdirError);
         throw new Error('Failed to create upload directory.');
       }
@@ -72,8 +72,8 @@ export async function POST(
       const cardUploadDir = path.join(UPLOAD_DIR, cardId);
       try {
         await stat(cardUploadDir);
-      } catch (e: any) {
-        if (e.code === 'ENOENT') {
+      } catch (e: unknown) {
+        if ((e as any).code === 'ENOENT') {
           await mkdir(cardUploadDir, { recursive: true });
         } else {
           throw e;
