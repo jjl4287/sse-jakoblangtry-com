@@ -43,12 +43,12 @@ export const CardAssignees: React.FC<CardAssigneesProps> = ({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-1">
-        <h4 className="font-semibold text-sm">Assignees</h4>
+      <div className="flex justify-between items-center mb-2">
+        <h4 className="font-semibold text-base text-foreground">Assignees</h4>
         <div className="w-[28px] h-[28px] relative flex-shrink-0 flex items-center justify-center">
           <Popover open={isAssigneePickerOpen} onOpenChange={setIsAssigneePickerOpen} modal={true}>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="p-0 h-6 w-6">
+              <Button variant="ghost" size="sm" className="p-0 h-6 w-6 transition-transform hover:scale-110">
                 <PlusCircleIcon className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
@@ -70,6 +70,8 @@ export const CardAssignees: React.FC<CardAssigneesProps> = ({
                       <CommandItem
                         key={user.id}
                         onSelect={() => onToggleAssignee(user.id)}
+                        className={pendingAssigneeChanges.has(user.id) ? 'opacity-60' : ''}
+                        disabled={pendingAssigneeChanges.has(user.id)}
                       >
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center">
@@ -109,12 +111,12 @@ export const CardAssignees: React.FC<CardAssigneesProps> = ({
       </div>
 
       {/* Display current assignees */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2.5">
         {card.assignees && card.assignees.length > 0 ? (
           card.assignees.map(assignee => (
             <div 
               key={assignee.id} 
-              className={`flex items-center space-x-2 bg-muted/50 rounded-md px-2 py-1 cursor-pointer hover:bg-muted transition-all ${
+              className={`flex items-center space-x-2 bg-muted/50 rounded-md px-2.5 py-2 cursor-pointer hover:bg-muted transition-all duration-200 hover:scale-105 ${
                 pendingAssigneeChanges.has(assignee.id) ? 'opacity-60' : ''
               }`}
               onClick={() => onToggleAssignee(assignee.id)}

@@ -100,7 +100,7 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
           )}
           
           {/* Timeline connector line extending down */}
-          <div className="absolute left-4 top-full w-px h-4 bg-border" />
+          <div className="absolute left-4 top-full w-0.5 h-4 bg-border/60" />
         </>
       )}
     </div>

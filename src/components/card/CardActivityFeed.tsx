@@ -123,17 +123,17 @@ export const CardActivityFeed: React.FC<CardActivityFeedProps> = ({
       )}
       
       {!isLoading && combinedFeedItems.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No activity or comments yet.</p>
-          <p className="text-xs mt-1">Start the conversation!</p>
+        <div className="text-center py-12 text-muted-foreground">
+          <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-40" />
+          <p className="text-sm font-medium">No activity or comments yet</p>
+          <p className="text-xs mt-1.5 opacity-80">Be the first to start the conversation!</p>
         </div>
       )}
       
       {!isLoading && combinedFeedItems.length > 0 && (
         <div className="relative">
           {/* Timeline line - connects from description box to bottom */}
-          <div className="absolute left-4 -top-4 bottom-0 w-px bg-border" />
+          <div className="absolute left-4 -top-4 bottom-0 w-0.5 bg-border/60" />
           
           <div className="space-y-0">
             {combinedFeedItems.map((item, index) => {
@@ -171,35 +171,35 @@ interface CommentItemProps {
 
 const CommentItem: React.FC<CommentItemProps> = ({ comment, isLast }) => {
   return (
-    <div className={`relative pl-12 ${!isLast ? 'pb-6' : 'pb-0'}`}>
+    <div className={`relative pl-10 ${!isLast ? 'pb-5' : 'pb-0'}`}>
       {/* Avatar container with background circle */}
       <div className="absolute left-0 flex items-center justify-center">
-        <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center">
+        <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center border-[0.5px] border-border/40 shadow-sm">
           <UserAvatar 
             user={comment.user} 
             size="small"
-            className="w-6 h-6"
+            className="w-7 h-7"
           />
         </div>
       </div>
       
       {/* Comment content */}
-      <div className="bg-muted/20 border border-border rounded-lg">
+      <div className="bg-muted/20 border border-border rounded-lg shadow-sm transition-shadow hover:shadow-md">
         {/* Comment header */}
-        <div className="flex items-center justify-between px-4 py-2 bg-muted/10 border-b border-border rounded-t-lg">
-          <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-between px-4 py-3 bg-muted/10 border-b border-border rounded-t-lg">
+          <div className="flex items-center space-x-2.5">
             <span className="font-semibold text-sm text-foreground">
               {comment.user?.name || comment.user?.email}
             </span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground/80">
               commented {format(new Date(comment.createdAt), 'MMM d, yyyy \'at\' h:mm a')}
             </span>
           </div>
         </div>
         
         {/* Comment body */}
-        <div className="px-4 py-3">
-          <div className="text-sm text-foreground prose prose-sm dark:prose-invert max-w-none">
+        <div className="px-4 py-3.5">
+          <div className="text-sm text-foreground prose prose-sm dark:prose-invert max-w-none leading-relaxed">
             <Markdown 
               content={comment.content} 
               className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" 
@@ -218,26 +218,26 @@ interface ActivityItemProps {
 
 const ActivityItem: React.FC<ActivityItemProps> = ({ activity, isLast }) => {
   return (
-    <div className={`relative pl-12 ${!isLast ? 'pb-4' : 'pb-0'}`}>
+    <div className={`relative pl-10 ${!isLast ? 'pb-4' : 'pb-0'}`}>
       {/* Avatar container - replacing icon with user avatar */}
       <div className="absolute left-0 flex items-center justify-center">
-        <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center">
+        <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center border-[0.5px] border-border/40 shadow-sm">
           <UserAvatar 
             user={activity.user} 
             size="small"
-            className="w-6 h-6"
+            className="w-7 h-7"
           />
         </div>
       </div>
       
-      {/* Activity content */}
-      <div className="py-2">
-        <div className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">
+      {/* Activity content - perfectly aligned with avatar center */}
+      <div className="flex items-center min-h-[32px] pl-4">
+        <div className="text-sm text-muted-foreground leading-relaxed">
+          <span className="font-semibold text-foreground">
             {activity.user?.name || activity.user?.email || 'System'}
           </span>
-          <span className="mx-1">{formatActivity(activity)}</span>
-          <span className="text-xs opacity-80">
+          <span className="mx-1.5">{formatActivity(activity)}</span>
+          <span className="text-xs opacity-75 ml-1">
             {format(new Date(activity.createdAt), 'MMM d \'at\' h:mm a')}
           </span>
         </div>

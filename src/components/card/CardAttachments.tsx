@@ -117,18 +117,18 @@ export const CardAttachments: React.FC<CardAttachmentsProps> = ({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold mb-1">Attachments</h3>
+      <h3 className="text-base font-semibold mb-2 text-foreground">Attachments</h3>
       
       {/* Attachment Actions */}
       <div className="pt-1">
-        <div className="flex flex-col items-start gap-2">
+        <div className="flex flex-col items-start gap-3">
           {/* Attach File Button */}
           <div className="w-full">
             <Button 
               variant="outline" 
               onClick={() => fileInputRef.current?.click()} 
               disabled={isSavingAttachment}
-              className="w-full justify-start"
+              className="w-full justify-start h-10 transition-colors hover:scale-105"
             >
               <Paperclip className="h-4 w-4 mr-2" />
               {isSavingAttachment ? 'Uploading...' : 'Attach File'}
@@ -149,7 +149,7 @@ export const CardAttachments: React.FC<CardAttachmentsProps> = ({
                 <Button 
                   variant="outline" 
                   disabled={isSavingAttachment}
-                  className="w-full justify-start"
+                  className="w-full justify-start h-10 transition-colors hover:scale-105"
                 >
                   <Link2 className="h-4 w-4 mr-2" />
                   Add Link
@@ -182,6 +182,7 @@ export const CardAttachments: React.FC<CardAttachmentsProps> = ({
                       onClick={handleAddLinkAttachment}
                       disabled={!attachmentLinkUrl.trim() || isSavingAttachment}
                       size="sm"
+                      className="transition-transform hover:scale-105"
                     >
                       {isSavingAttachment ? 'Adding...' : 'Add Link'}
                     </Button>
@@ -207,7 +208,7 @@ export const CardAttachments: React.FC<CardAttachmentsProps> = ({
 
       {/* Display Attachments */}
       {allAttachments.length > 0 && (
-        <div className="mt-3 space-y-2">
+        <div className="mt-4 space-y-2.5">
           {allAttachments.map((attachment) => (
             <AttachmentPreview 
               key={attachment.id}

@@ -590,6 +590,7 @@ export function useOptimizedMutations(
   }, [updateBoardLocal, boardId]);
 
   const updateBoard = useCallback(async (boardId: string, updates: BoardUpdate) => {
+    console.log('[updateBoard] called with', boardId, updates);
     let originalState: Partial<Board> | null = null;
 
     updateBoardLocal((board) => {
@@ -603,6 +604,12 @@ export function useOptimizedMutations(
       updates,
       originalState
     });
+
+    // Trigger processing immediately for board operations
+    if (processTimeoutRef.current) {
+      clearTimeout(processTimeoutRef.current);
+    }
+    processTimeoutRef.current = setTimeout(processBatchOperations, 50);
   }, [updateBoardLocal]);
 
   // Enhanced batch processor with better error handling

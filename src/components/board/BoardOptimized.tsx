@@ -86,7 +86,7 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
     if (board?.title && headerTitle !== board.title) {
       setHeaderTitle(board.title);
     }
-  }, [board?.title, headerTitle]);
+  }, [board?.title]);
 
   // Focus edit trigger effect
   useEffect(() => {
@@ -306,6 +306,7 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
   }, []);
 
   const handleSaveTitle = useCallback(async () => {
+    console.log('[handleSaveTitle] called', { boardId: board?.id, headerTitle, boardTitle: board?.title });
     if (board && headerTitle.trim() && board.title !== headerTitle.trim()) {
       await mutations.updateBoard(board.id, { title: headerTitle.trim() });
     }

@@ -363,7 +363,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent 
         side="right" 
-        className="w-[70%] flex flex-col shadow-lg"
+        className="w-[80%] max-w-5xl flex flex-col shadow-2xl"
         data-no-dnd="true"
         onKeyDown={(e) => {
           // Prevent space and enter keys from bubbling up and triggering drag operations
@@ -372,26 +372,26 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
           }
         }}
       >
-        <SheetHeader className="flex-row items-center justify-between border-b px-4 py-2">
-          <div className="flex-1 min-w-0">
+        <SheetHeader className="flex-row items-center justify-between border-b px-6 py-4">
+          <div className="flex-1 min-w-0 max-w-[80%]">
             <CardHeader
               card={card}
               onUpdateTitle={handlers.handleUpdateTitle}
               isCardClosed={false}
             />
           </div>
-          <SheetClose asChild className="flex-shrink-0 ml-4">
+          <SheetClose asChild className="flex-shrink-0 ml-6">
             <Button variant="ghost" size="sm" className="p-2">
-              <XIcon className="h-5 w-5" />
+              <XIcon className="h-6 w-6" />
             </Button>
           </SheetClose>
           <SheetTitle className="sr-only">{card.title} - Open</SheetTitle>
         </SheetHeader>
         
-        <div className="flex-1 grid grid-cols-3 gap-4 overflow-hidden">
+        <div className="flex-1 grid grid-cols-5 gap-6 overflow-hidden">
           {/* Main Content */}
-          <div className="col-span-2 flex flex-col overflow-hidden px-4 py-3">
-            <div className="flex-1 space-y-4 overflow-y-auto pr-2">
+          <div className="col-span-3 flex flex-col overflow-hidden px-6 py-4">
+            <div className="flex-1 space-y-6 overflow-y-auto pr-3" style={{ lineHeight: '1.6' }}>
               {/* Description */}
               <CardDescription
                 card={card}
@@ -408,10 +408,10 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
             </div>
             
             {/* Comment Input */}
-            <div className="bg-background flex-shrink-0 pt-4 border-t" data-no-dnd="true">
-              <div className="space-y-3">
+            <div className="bg-background/80 backdrop-blur-sm flex-shrink-0 pt-6 border-t border-border/50" data-no-dnd="true">
+              <div className="space-y-4">
                 <MarkdownEditor
-                  className="rounded-md border border-border"
+                  className="rounded-lg border border-border/50 shadow-sm"
                   value={newCommentContent}
                   onChange={(value) => setNewCommentContent(value ?? '')}
                   placeholder="Leave a comment..."
@@ -429,17 +429,17 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
                   }}
                 />
                 <div className="flex items-center justify-between">
-                  <div className="text-xs text-muted-foreground">
-                    <kbd className="px-1.5 py-0.5 text-xs font-mono bg-muted border rounded">⌘</kbd>
-                    <span className="mx-1">+</span>
-                    <kbd className="px-1.5 py-0.5 text-xs font-mono bg-muted border rounded">↵</kbd>
-                    <span className="ml-1">to submit</span>
+                  <div className="text-xs text-muted-foreground/75 flex items-center">
+                    <kbd className="px-2 py-1 text-xs font-mono bg-muted/60 border border-border/50 rounded shadow-sm">⌘</kbd>
+                    <span className="mx-1.5">+</span>
+                    <kbd className="px-2 py-1 text-xs font-mono bg-muted/60 border border-border/50 rounded shadow-sm">↵</kbd>
+                    <span className="ml-2">to submit</span>
                   </div>
                   <Button 
                     onClick={handlePostComment} 
                     disabled={!newCommentContent.trim()} 
                     size="sm"
-                    className="px-4"
+                    className="px-6 py-2 transition-all duration-200 hover:scale-105 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
                     Comment
                   </Button>
@@ -449,7 +449,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
           </div>
 
           {/* Sidebar */}
-          <div className="col-span-1 space-y-4 overflow-y-auto px-4 py-3">
+          <div className="col-span-2 space-y-5 overflow-y-auto px-6 py-4 border-l border-border/50">
             {/* Labels */}
             <CardLabelManager
               cardId={card.id}

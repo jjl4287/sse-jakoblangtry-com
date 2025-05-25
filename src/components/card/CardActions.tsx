@@ -56,11 +56,11 @@ export const CardActions: React.FC<CardActionsProps> = ({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold mb-1">Actions</h3>
-      <div className="space-y-2">
+      <h3 className="text-base font-semibold mb-2 text-foreground">Actions</h3>
+      <div className="space-y-3">
         {/* Weight Input */}
-        <div className="flex items-center w-full justify-start text-left font-normal gap-2 rounded-md border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-3">
-          <Weight className="h-4 w-4 mr-2" />
+        <div className="flex items-center w-full justify-start text-left font-normal gap-2 rounded-md border bg-background shadow-sm hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-10 px-3 transition-colors">
+          <Weight className="h-4 w-4 mr-2 text-muted-foreground" />
           <Input
             type="number"
             min="0"
@@ -71,7 +71,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
               setWeight(val ? Number(val) : undefined);
             }}
             onBlur={handleWeightChange}
-            className="border-0 focus-visible:ring-0 bg-transparent w-full p-0 shadow-none dark:bg-transparent dark:text-foreground"
+            className="border-0 focus-visible:ring-0 bg-transparent w-full p-0 shadow-none dark:bg-transparent dark:text-foreground placeholder:text-muted-foreground"
             style={{ backgroundColor: 'transparent' }}
           />
         </div>
@@ -82,7 +82,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
             <Button
               variant="outline"
               className={cn(
-                "w-full justify-start text-left font-normal",
+                "w-full justify-start text-left font-normal h-10 transition-colors hover:scale-105",
                 !dueDate && "text-muted-foreground"
               )}
             >
@@ -102,7 +102,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
 
         {/* Priority Select */}
         <Select value={priority} onValueChange={(value) => handlePriorityChange(value as Priority)}>
-          <SelectTrigger className="w-full justify-start text-left font-normal [&>*:last-child]:hidden">
+          <SelectTrigger className="w-full justify-start text-left font-normal h-10 transition-colors hover:scale-105 [&>*:last-child]:hidden">
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
           <SelectContent>

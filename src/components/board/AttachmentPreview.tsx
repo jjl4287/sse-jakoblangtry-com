@@ -44,7 +44,7 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filen
 
   // Use filename if provided, otherwise fallback to URL
   const displayName = filename || url;
-  const containerClasses = `bg-muted/20 border border-border rounded-md p-2 flex justify-between items-start gap-2 mb-2 ${isOptimistic ? 'opacity-70' : ''}`;
+  const containerClasses = `bg-muted/20 border border-border rounded-md p-3 flex justify-between items-start gap-3 transition-colors hover:bg-muted/30 ${isOptimistic ? 'opacity-70' : ''}`;
   
   // Render delete button with confirmation dialog
   const renderDeleteButton = () => (
@@ -53,7 +53,7 @@ export const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ url, filen
         <Button 
           variant="ghost"
           size="sm"
-          className="text-destructive hover:text-destructive/80 p-1 h-7 w-7 flex-shrink-0"
+          className="text-destructive hover:text-destructive/80 hover:bg-destructive/10 p-1.5 h-8 w-8 flex-shrink-0 transition-all hover:scale-110"
           aria-label="Delete attachment"
         >
           <Trash2 className="h-4 w-4" />

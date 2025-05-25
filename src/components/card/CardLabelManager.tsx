@@ -66,12 +66,12 @@ export const CardLabelManager: React.FC<CardLabelManagerProps> = ({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-1">
-        <h4 className="font-semibold text-sm">Labels</h4>
+      <div className="flex justify-between items-center mb-2">
+        <h4 className="font-semibold text-base text-foreground">Labels</h4>
         <div className="w-[28px] h-[28px] relative flex-shrink-0 flex items-center justify-center">
           <Popover open={isLabelPickerOpen} onOpenChange={setIsLabelPickerOpen} modal={true}>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="p-0 h-6 w-6">
+              <Button variant="ghost" size="sm" className="p-0 h-6 w-6 transition-transform hover:scale-110">
                 <PlusCircleIcon className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
