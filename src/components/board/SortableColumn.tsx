@@ -265,8 +265,41 @@ export const SortableColumn = memo<SortableColumnProps>(function SortableColumn(
           
           {/* Empty column placeholder */}
           {sortedCards.length === 0 && (
-            <div className="flex items-center justify-center h-24 text-sm text-muted-foreground/60 border-2 border-dashed border-muted-foreground/20 rounded-md">
-              <span>Add a card to get started</span>
+            <div className="flex flex-col items-center justify-center h-32 p-4">
+              {/* Professional Empty State SVG for column */}
+              <div className="mb-3">
+                <svg 
+                  width="48" 
+                  height="48" 
+                  viewBox="0 0 48 48" 
+                  fill="none" 
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="opacity-40"
+                >
+                  {/* Card representation */}
+                  <g className="text-muted-foreground">
+                    {/* Stack of cards */}
+                    <rect x="8" y="14" width="28" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none" className="opacity-60" />
+                    <rect x="10" y="12" width="28" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none" className="opacity-40" />
+                    <rect x="12" y="10" width="28" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none" className="opacity-20" />
+                    
+                    {/* Plus icon */}
+                    <circle cx="24" cy="20" r="6" fill="currentColor" className="text-primary/30" />
+                    <path d="M21 20h6M24 17v6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                  </g>
+                </svg>
+              </div>
+              
+              {/* Empty state content */}
+              <p className="text-sm text-muted-foreground text-center leading-relaxed">
+                No cards yet
+              </p>
+              <button 
+                onClick={handleAddClick}
+                className="mt-2 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+              >
+                Add your first card
+              </button>
             </div>
           )}
         </div>

@@ -515,21 +515,75 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
             gap: 'calc(var(--column-gutter) * 2)' 
           }}
         >
-          <SortableContext 
-            items={columnsIds} 
-            strategy={horizontalListSortingStrategy}
-          >
-            {filteredBoard.columns.map((column) => (
-              <SortableColumn 
-                key={column.id} 
-                column={column} 
-                onAddCardClick={handleOpenNewCardDialog} 
-                boardId={board.id}
-                updateColumn={mutations.updateColumn}
-                deleteColumn={mutations.deleteColumn}
-              />
-            ))}
-          </SortableContext>
+          {(!filteredBoard || filteredBoard.columns.length === 0) ? (
+            /* Empty board state - no columns */
+            <div className="flex items-center justify-center w-full h-full">
+              <div className="text-center max-w-lg px-6">
+                {/* Professional Empty State SVG for no columns */}
+                <div className="mx-auto mb-6">
+                  <svg 
+                    width="100" 
+                    height="100" 
+                    viewBox="0 0 100 100" 
+                    fill="none" 
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="mx-auto opacity-50"
+                  >
+                    {/* Background circle */}
+                    <circle cx="50" cy="50" r="50" fill="currentColor" className="text-muted-foreground/8" />
+                    
+                    {/* Empty board frame */}
+                    <g className="text-muted-foreground/30">
+                      {/* Main board outline */}
+                      <rect x="20" y="25" width="60" height="50" rx="4" stroke="currentColor" strokeWidth="2" fill="none" />
+                      
+                      {/* Empty column placeholders */}
+                      <rect x="25" y="30" width="12" height="40" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" className="opacity-40" strokeDasharray="3,3" />
+                      <rect x="44" y="30" width="12" height="40" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" className="opacity-30" strokeDasharray="3,3" />
+                      <rect x="63" y="30" width="12" height="40" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" className="opacity-20" strokeDasharray="3,3" />
+                      
+                      {/* Plus icon in center */}
+                      <circle cx="50" cy="55" r="8" fill="currentColor" className="text-primary/25" />
+                      <path d="M46 55h8M50 51v8" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                    </g>
+                  </svg>
+                </div>
+                
+                {/* Empty state content */}
+                <h3 className="text-xl font-semibold text-foreground mb-3">
+                  Ready to Get Organized?
+                </h3>
+                <p className="text-muted-foreground mb-6 leading-relaxed">
+                  Your board is empty. Create your first column to start organizing your project with a workflow that works for you.
+                </p>
+                
+                {/* Call to action */}
+                <Button 
+                  onClick={handleAddColumnClick}
+                  variant="default"
+                  className="rounded-full px-6"
+                >
+                  Create First Column
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <SortableContext 
+              items={columnsIds} 
+              strategy={horizontalListSortingStrategy}
+            >
+              {filteredBoard!.columns.map((column) => (
+                <SortableColumn 
+                  key={column.id} 
+                  column={column} 
+                  onAddCardClick={handleOpenNewCardDialog} 
+                  boardId={board.id}
+                  updateColumn={mutations.updateColumn}
+                  deleteColumn={mutations.deleteColumn}
+                />
+              ))}
+            </SortableContext>
+          )}
         </div>
         
         <DragOverlay zIndex={9999}>
