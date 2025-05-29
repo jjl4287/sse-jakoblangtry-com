@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
@@ -242,6 +243,15 @@ export default function AuthPage() {
                           'Sign In'
                         )}
                       </Button>
+                    </div>
+
+                    <div className="text-center">
+                      <Link
+                        href="/auth/forgot-password"
+                        className="text-sm text-muted-foreground hover:text-primary underline"
+                      >
+                        Forgot your password?
+                      </Link>
                     </div>
                   </form>
                 </TabsContent>

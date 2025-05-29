@@ -41,25 +41,10 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
-        try {
-          // Potentially fetch user from DB here to ensure fresh data if needed
-          const dbUser = await prisma.user.findUnique({ where: { id: token.sub } });
-          if (dbUser) { 
-            session.user.name = dbUser.name; 
-            session.user.image = dbUser.image; 
-            session.user.email = dbUser.email; // Also ensure email is fresh
-          } else {
-            // User no longer exists in database, invalidate session
-            console.warn(`User with ID ${token.sub} not found in database during session callback`);
-            return null;
-          }
-        } catch (error) {
-          console.error('Error fetching user in session callback:', error);
-          // Return basic session info from token if DB lookup fails
-          session.user.name = token.name as string;
-          session.user.email = token.email as string;
-          session.user.image = token.image as string;
-        }
+        // Use token data instead of making DB queries for better performance
+        session.user.name = token.name as string;
+        session.user.email = token.email as string;
+        session.user.image = token.image as string;
       }
       return session;
     },

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { ProfileSettings } from './ProfileSettings';
 import { AttachmentsSettings } from './AttachmentsSettings';
 import { AppearanceSettings } from './AppearanceSettings';
+import { AccountSettings } from './AccountSettings';
 import { useRouter } from 'next/navigation';
 
 type SettingsTab = 'profile' | 'attachments' | 'appearance' | 'account';
@@ -53,18 +54,7 @@ export const SettingsLayout: React.FC = () => {
       case 'appearance':
         return <AppearanceSettings />;
       case 'account':
-        return (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Account settings will be available in a future update.</p>
-              </CardContent>
-            </Card>
-          </div>
-        );
+        return <AccountSettings />;
       default:
         return null;
     }

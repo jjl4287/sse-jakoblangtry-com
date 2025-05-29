@@ -30,6 +30,7 @@ const InnerBoardLayout: React.FC = () => {
   const [currentBoardId, setCurrentBoardId] = useState<string | null>(null);
   const [migrationResult, setMigrationResult] = useState<MigrationResult | null>(null);
   const [showMigrationBanner, setShowMigrationBanner] = useState(false);
+  const [migrationChecked, setMigrationChecked] = useState(false);
 
   // Select a board by ID: update URL without triggering unnecessary API calls
   const handleSelectBoard = useCallback((id: string) => {
@@ -154,17 +155,19 @@ const InnerBoardLayout: React.FC = () => {
     if (status === 'loading') return; // Don't do anything while loading
 
     if (session) {
-      // User just signed in - check for migration
-      if (boardMigrationService.hasBoardsToMigrate()) {
+      // Only check for migration if we haven't already checked and user has local boards
+      if (!migrationChecked && boardMigrationService.hasBoardsToMigrate()) {
+        setMigrationChecked(true);
         void handleMigration();
       } else {
         void loadAllBoards();
       }
     } else {
-      // User is not signed in - load local boards only
+      // User is not signed in - reset migration check and load local boards only
+      setMigrationChecked(false);
       void loadAllBoards();
     }
-  }, [session, status, loadAllBoards]);
+  }, [session, status, loadAllBoards, migrationChecked]);
 
   // Handle migration when user signs in
   const handleMigration = async () => {
