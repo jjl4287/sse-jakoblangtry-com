@@ -73,9 +73,10 @@ export const Sidebar: FC<SidebarProps> = ({
           <div 
             className="flex items-center justify-start border-b"
             style={{ 
-              height: 'var(--header-height, auto)',
-              padding: 'calc(var(--board-padding) * 1.5) var(--board-padding)',
-              marginBottom: 'var(--board-gutter)'
+              height: 'calc(var(--header-height) + 0.4rem)',
+              padding: 'calc(var(--board-padding) * 4) var(--board-padding)',
+              marginBottom: 'var(--board-gutter)',
+              paddingLeft: 'calc(var(--board-padding) * 2 + 0.4rem)'
             }}
           >
             <motion.button

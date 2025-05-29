@@ -41,7 +41,7 @@ export const BoardHeader: React.FC<BoardHeaderProps> = ({
   onToggleSidebar,
 }) => {
   return (
-    <header className="glass-column border rounded-lg shadow-md px-4 py-1.5 flex items-center justify-between" style={{ height: 'var(--header-height, auto)' }}>
+    <header className="glass-column border rounded-lg shadow-md py-1.5 flex items-center justify-between" style={{ height: 'var(--header-height, auto)', paddingLeft: 'var(--board-padding)', paddingRight: 'var(--board-padding) - 1rem' }}>
       <div className="flex items-center">
         {!sidebarOpen && (
           <motion.button
