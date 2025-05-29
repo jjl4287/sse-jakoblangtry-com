@@ -38,3 +38,34 @@ export function getContrastingTextColor(bgColor: string | undefined | null): str
     return '#000000'; // Default to black on error
   }
 }
+
+/**
+ * Extracts markdown headers (# or ##) from text, or returns cleaned text if no headers found
+ * @param text The input text that may contain markdown
+ * @returns The header text if found, or cleaned text without markdown characters
+ */
+export function extractMarkdownHeader(text: string): string {
+  if (!text) return '';
+  
+  // Look for # or ## headers (followed by a space)
+  const headerRegex = /^(##?\s+)(.+)$/m;
+  const headerMatch = headerRegex.exec(text);
+  
+  if (headerMatch) {
+    // Return just the header text (without the # symbols)
+    return headerMatch[2].trim();
+  }
+  
+  // If no header found, remove common markdown characters and return the text
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold **text**
+    .replace(/\*(.+?)\*/g, '$1') // Remove italic *text*
+    .replace(/`(.+?)`/g, '$1') // Remove code `text`
+    .replace(/~~(.+?)~~/g, '$1') // Remove strikethrough ~~text~~
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links [text](url) -> text
+    .replace(/^[-*+]\s+/gm, '') // Remove list bullets
+    .replace(/^\d+\.\s+/gm, '') // Remove numbered list
+    .replace(/^>\s+/gm, '') // Remove blockquotes
+    .replace(/^#{1,6}\s+/gm, '') // Remove any remaining headers
+    .trim();
+}

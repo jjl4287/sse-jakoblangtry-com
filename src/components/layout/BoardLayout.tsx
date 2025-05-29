@@ -146,7 +146,7 @@ const InnerBoardLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen transition-all duration-250 ease-out">
       <LayoutGroup>
         <Sidebar
           boards={projects}
@@ -158,7 +158,7 @@ const InnerBoardLayout: React.FC = () => {
           open={sidebarOpen}
           onOpenChange={setSidebarOpen}
         />
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 transition-all duration-250 ease-out">
           <BoardOptimized
             focusEditTitleBoardId={focusRenameId}
             clearFocusEdit={() => setFocusRenameId(null)}

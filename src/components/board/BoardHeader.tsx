@@ -3,7 +3,7 @@ import { InlineEdit } from '~/components/ui/InlineEdit';
 import { Search, UserPlus, PanelLeft } from 'lucide-react';
 import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export interface BoardHeaderProps {
   title: string;
@@ -42,7 +42,11 @@ export const BoardHeader: React.FC<BoardHeaderProps> = ({
 }) => {
   return (
     <header className="glass-column border rounded-lg shadow-md py-1.5 flex items-center justify-between" style={{ height: 'var(--header-height, auto)', paddingLeft: 'var(--board-padding)', paddingRight: 'var(--board-padding) - 1rem' }}>
-      <div className="flex items-center">
+      <motion.div 
+        className="flex items-center"
+        layout
+        transition={{ duration: 0.25, ease: "easeOut" }}
+      >
         {!sidebarOpen && (
           <motion.button
             layoutId="sidebar-toggle"
@@ -64,7 +68,7 @@ export const BoardHeader: React.FC<BoardHeaderProps> = ({
           placeholder="Board Title"
           ref={inputRef}
         />
-      </div>
+      </motion.div>
 
       <div className="flex items-center gap-3">
         <div className="text-sm font-medium">{columnCount} Columns</div>

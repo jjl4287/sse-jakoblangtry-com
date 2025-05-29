@@ -40,6 +40,7 @@ import { useOptimizedMutations } from '~/hooks/useMutationsOptimized';
 import { useBoard } from '~/hooks/useBoard';
 import { useBoardMutations } from '~/hooks/useBoardMutations';
 import { useDragSensors } from '~/hooks/useDragSensors';
+import { PanelLeft } from 'lucide-react';
 
 // Props for header inline editing and external focus control
 export interface BoardOptimizedProps {
@@ -345,10 +346,34 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
   // No board state
   if (!board) {
     return (
-      <div className="flex items-center justify-center h-full w-full">
-        <div className="glass-card glass-depth-2 p-4 max-w-md">
-          <h3 className="text-lg font-semibold mb-2">No Board Data</h3>
-          <p>Unable to load the board data. Please try again later.</p>
+      <div className="relative flex flex-col h-full w-full" style={{ padding: 'var(--board-padding)' }}>
+        {/* Minimal Header with Sidebar Toggle */}
+        <header className="glass-column border rounded-lg shadow-md py-1.5 flex items-center justify-between mb-2" style={{ height: 'var(--header-height, auto)', paddingLeft: 'var(--board-padding)', paddingRight: 'var(--board-padding) - 1rem' }}>
+          <motion.div 
+            className="flex items-center"
+            layout
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            {!sidebarOpen && (
+              <motion.button
+                layoutId="sidebar-toggle"
+                aria-label="Open sidebar"
+                className="mr-2 p-1 h-8 w-8 flex items-center justify-center rounded hover:bg-muted/10"
+                onClick={onToggleSidebar}
+              >
+                <PanelLeft size={16} />
+              </motion.button>
+            )}
+            <h1 className="text-2xl font-bold">No Board Selected</h1>
+          </motion.div>
+        </header>
+        
+        {/* No Board Message */}
+        <div className="flex items-center justify-center h-full w-full">
+          <div className="glass-card glass-depth-2 p-4 max-w-md">
+            <h3 className="text-lg font-semibold mb-2">No Board Data</h3>
+            <p>Create a new board from the sidebar to get started.</p>
+          </div>
         </div>
       </div>
     );

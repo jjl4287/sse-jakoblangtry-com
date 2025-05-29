@@ -17,7 +17,7 @@ import type { CardDragItem } from '~/constants/dnd-types';
 import { useCardMutations } from '~/hooks/useCard';
 import { Badge } from '~/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar';
-import { getContrastingTextColor } from '~/lib/utils';
+import { getContrastingTextColor, extractMarkdownHeader } from '~/lib/utils';
 import { StyledLabelBadge } from '~/components/ui/StyledLabelBadge';
 import {
   AlertDialog,
@@ -151,27 +151,11 @@ export const Card = memo(({
         )}
 
         <div className="flex-grow p-1">
-          <h3 className="font-semibold text-sm mb-1 text-gray-800 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-[50ms]">{card.title}</h3>
-          {card.description && (
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 mb-2 line-clamp-2 h-8">
-              {card.description}
-            </p>
-          )}
-          {/* Labels Display - Moved to its own row */}
-          {cardLabels.length > 0 && (
-            <div className="flex items-center flex-wrap gap-1 mb-2">
-              {cardLabels.slice(0, 3).map(label => (
-                <StyledLabelBadge key={label.id} label={label} />
-              ))}
-              {cardLabels.length > 3 && (
-                <Badge variant="outline" className="px-2 py-1 text-[10px] font-normal border">
-                  +{cardLabels.length - 3}
-                </Badge>
-              )}
-            </div>
-          )}
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
-            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+          {/* Title with Weight, Date, and Priority on same line */}
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-[50ms] flex-1 mr-2">{card.title}</h3>
+            
+            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
               {/* Weight Display */}
               {card.weight !== undefined && card.weight > 0 && (
                 <span className="flex items-center">
@@ -182,50 +166,76 @@ export const Card = memo(({
 
               {/* Due Date Display */}
               {card.dueDate && (
-                <span className="flex items-center ">
+                <span className="flex items-center">
                   <Calendar className="h-3 w-3 mr-1" />
                   {format(new Date(card.dueDate), 'MMM d')}
                 </span>
               )}
               
-              {/* Priority Display (moved to last in this group) */}
+              {/* Priority Display */}
               <span className={`flex items-center ${priorityColor}`}>
                 <PriorityIcon className="h-3 w-3 mr-1" />
               </span>
             </div>
+          </div>
 
-            {/* Display stacked assignee avatars */}
-            <div className="flex items-center">
-              {cardAssignees.slice(0, 3).map((assignee, idx) => (
-                <Avatar
-                  key={assignee.id}
-                  className="h-5 w-5"
-                  style={{ zIndex: cardAssignees.length - idx, marginLeft: idx > 0 ? '-4px' : '0px' }}
-                  title={assignee.name ?? assignee.email ?? 'Assignee'}
-                >
-                  {assignee.image ? (
-                    <AvatarImage
-                      src={assignee.image}
-                      alt={assignee.name ?? assignee.email ?? 'Assignee avatar'}
-                    />
-                  ) : (
-                    <AvatarFallback>
-                      {(assignee.name ?? assignee.email)?.charAt(0).toUpperCase() ?? '?'}
-                    </AvatarFallback>
+          {/* Description with markdown header extraction */}
+          {card.description && (
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 mb-2 line-clamp-2 h-8">
+              {extractMarkdownHeader(card.description)}
+            </p>
+          )}
+
+          {/* Labels and Avatars at bottom - same row */}
+          {(cardLabels.length > 0 || cardAssignees.length > 0) && (
+            <div className="flex items-center justify-between mt-2">
+              {/* Labels */}
+              <div className="flex items-center flex-wrap gap-1">
+                {cardLabels.slice(0, 3).map(label => (
+                  <StyledLabelBadge key={label.id} label={label} />
+                ))}
+                {cardLabels.length > 3 && (
+                  <Badge variant="outline" className="px-2 py-1 text-[10px] font-normal border">
+                    +{cardLabels.length - 3}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Assignee avatars */}
+              {cardAssignees.length > 0 && (
+                <div className="flex items-center">
+                  {cardAssignees.slice(0, 3).map((assignee, idx) => (
+                    <Avatar
+                      key={assignee.id}
+                      className="h-5 w-5"
+                      style={{ zIndex: cardAssignees.length - idx, marginLeft: idx > 0 ? '-4px' : '0px' }}
+                      title={assignee.name ?? assignee.email ?? 'Assignee'}
+                    >
+                      {assignee.image ? (
+                        <AvatarImage
+                          src={assignee.image}
+                          alt={assignee.name ?? assignee.email ?? 'Assignee avatar'}
+                        />
+                      ) : (
+                        <AvatarFallback>
+                          {(assignee.name ?? assignee.email)?.charAt(0).toUpperCase() ?? '?'}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  ))}
+                  {cardAssignees.length > 3 && (
+                    <Avatar
+                      className="h-5 w-5 bg-gray-200 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400"
+                      style={{ zIndex: 0, marginLeft: '-4px' }}
+                      title={`${cardAssignees.length - 3} more assignees`}
+                    >
+                      <AvatarFallback>+{cardAssignees.length - 3}</AvatarFallback>
+                    </Avatar>
                   )}
-                </Avatar>
-              ))}
-              {cardAssignees.length > 3 && (
-                <Avatar
-                  className="h-5 w-5 bg-gray-200 dark:bg-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400"
-                  style={{ zIndex: 0, marginLeft: '-4px' }}
-                  title={`${cardAssignees.length - 3} more assignees`}
-                >
-                  <AvatarFallback>+{cardAssignees.length - 3}</AvatarFallback>
-                </Avatar>
+                </div>
               )}
             </div>
-          </div>
+          )}
         </div>
       </div>
       {isModalOpen && (
