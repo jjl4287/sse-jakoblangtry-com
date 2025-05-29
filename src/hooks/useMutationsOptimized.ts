@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { 
   Board, 
   Card, 
@@ -467,8 +467,27 @@ export function useOptimizedMutations(
     processTimeoutRef.current = setTimeout(processBatchOperations, 200);
   }, [boardId, updateBoardLocal]);
 
-  const createCard = useCallback(async (cardData: CardCreateData) => {
+  // Interface for input data (without order field which is calculated)
+  interface NewCardInput {
+    columnId: string;
+    title: string;
+    description?: string;
+    boardId: string;
+    priority?: Priority;
+    dueDate?: Date;
+    weight?: number;
+    labelIds?: string[];
+    assigneeIds?: string[];
+  }
+
+  const createCard = useCallback(async (inputData: NewCardInput) => {
     const tempId = `temp_${Date.now()}_${Math.random()}`;
+    
+    // Transform input to match CardCreateData interface
+    const cardData: CardCreateData = {
+      ...inputData,
+      order: 0 // Will be overridden by actual position calculation
+    };
     
     updateBoardLocal((board) => {
       const newColumns = board.columns.map(col => {
@@ -477,7 +496,7 @@ export function useOptimizedMutations(
             id: tempId,
             title: cardData.title,
             description: cardData.description || '',
-            order: col.cards.length,
+            order: col.cards.length, // Calculate actual order
             priority: cardData.priority || 'medium',
             dueDate: cardData.dueDate || undefined,
             weight: cardData.weight || undefined,
@@ -496,10 +515,16 @@ export function useOptimizedMutations(
       return { ...board, columns: newColumns };
     });
 
+    // Update the cardData with the calculated order for the API
+    const finalCardData: CardCreateData = {
+      ...cardData,
+      order: 0 // The API will handle order calculation
+    };
+
     operationQueue.current.addOperation({
       type: 'card_create',
       tempId,
-      cardData
+      cardData: finalCardData
     });
 
     // Trigger processing immediately for card operations
@@ -509,26 +534,39 @@ export function useOptimizedMutations(
     processTimeoutRef.current = setTimeout(processBatchOperations, 50);
   }, [updateBoardLocal]);
 
-  const createColumn = useCallback(async (boardId: string, columnData: ColumnCreateData) => {
+  const createColumn = useCallback(async (boardId: string, columnData: { title: string; width?: number }) => {
     const tempId = `temp_col_${Date.now()}_${Math.random()}`;
+    
+    // Transform input to match ColumnCreateData interface
+    const fullColumnData: ColumnCreateData = {
+      title: columnData.title,
+      width: columnData.width || 300,
+      order: 0 // Will be calculated
+    };
     
     updateBoardLocal((board) => {
       const newColumn: Column = {
         id: tempId,
-        title: columnData.title,
-        order: board.columns.length,
-        width: columnData.width || 300,
+        title: fullColumnData.title,
+        order: board.columns.length, // Calculate actual order
+        width: fullColumnData.width || 300,
         cards: []
       };
       
       return { ...board, columns: [...board.columns, newColumn] };
     });
 
+    // Update the columnData with the calculated order for the API
+    const finalColumnData: ColumnCreateData = {
+      ...fullColumnData,
+      order: 0 // The API will handle order calculation
+    };
+
     operationQueue.current.addOperation({
       type: 'column_create',
       tempId,
       boardId,
-      columnData
+      columnData: finalColumnData
     });
 
     // Trigger processing immediately for column operations
@@ -894,6 +932,30 @@ export function useOptimizedMutations(
       
       operationQueue.current.markCompleted(operation.id);
       console.log(`✅ Operation ${operation.type} completed successfully`, operation);
+      
+      // Add success toasts for operations
+      switch (operation.type) {
+        case 'card_create':
+          // Toast is already shown in NewCardSheet
+          break;
+        case 'column_create':
+          toast.success('Column created successfully');
+          break;
+        case 'column_update':
+          toast.success('Column updated successfully');
+          break;
+        case 'board_update':
+          toast.success('Board title updated successfully');
+          // Dispatch global event for board title sync
+          window.dispatchEvent(new CustomEvent('boardTitleUpdated', { 
+            detail: { boardId: operation.boardId, updates: operation.updates } 
+          }));
+          break;
+        case 'column_delete':
+          toast.success('Column deleted successfully');
+          break;
+        // Don't show toasts for card moves and updates - they're frequent and would be annoying
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`❌ Operation ${operation.type} failed (attempt ${operation.retryCount + 1}):`, {

@@ -1,24 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { BoardOptimized } from '../board/BoardOptimized';
-import { ThemeProvider } from '~/contexts/ThemeContext';
-import { v4 as uuidv4 } from 'uuid';
 import { Sidebar } from '~/components/layout/Sidebar';
 import { LayoutGroup } from 'framer-motion';
 import { localStorageService } from '~/lib/services/local-storage-service';
 import { boardMigrationService, type MigrationResult } from '~/lib/services/board-migration-service';
-// import { MigrationBanner } from './MigrationBanner';
 import { LocalBoardBanner } from './LocalBoardBanner';
 import { toast } from 'react-hot-toast';
 
 export default function BoardLayout() {
-  return (
-    <ThemeProvider>
-      <InnerBoardLayout />
-    </ThemeProvider>
-  );
+  return <InnerBoardLayout />;
 }
 
 const InnerBoardLayout: React.FC = () => {
@@ -168,6 +161,25 @@ const InnerBoardLayout: React.FC = () => {
       void loadAllBoards();
     }
   }, [session, status, loadAllBoards, migrationChecked]);
+
+  // Listen for board title updates from optimized mutations
+  useEffect(() => {
+    const handleBoardTitleUpdated = (event: CustomEvent<{ boardId: string; updates: { title?: string } }>) => {
+      const { boardId, updates } = event.detail;
+      if (updates.title) {
+        // Update the board title in the sidebar list
+        setProjects(prev => prev.map(p => 
+          p.id === boardId ? { ...p, title: updates.title! } : p
+        ));
+      }
+    };
+
+    window.addEventListener('boardTitleUpdated', handleBoardTitleUpdated as EventListener);
+    
+    return () => {
+      window.removeEventListener('boardTitleUpdated', handleBoardTitleUpdated as EventListener);
+    };
+  }, []);
 
   // Handle migration when user signs in
   const handleMigration = async () => {

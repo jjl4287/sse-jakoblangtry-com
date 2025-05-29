@@ -37,8 +37,6 @@ import { BoardHeader } from './BoardHeader';
 import { ShareBoardSheet } from './ShareBoardSheet';
 import { useBoardOptimized } from '~/hooks/useBoardOptimized';
 import { useOptimizedMutations } from '~/hooks/useMutationsOptimized';
-import { useBoard } from '~/hooks/useBoard';
-import { useBoardMutations } from '~/hooks/useBoardMutations';
 import { useDragSensors } from '~/hooks/useDragSensors';
 import { PanelLeft } from 'lucide-react';
 import { Button } from "~/components/ui/button";
@@ -108,11 +106,11 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
 
   // Listen for local board data changes
   useEffect(() => {
-    const handleLocalBoardDataChanged = (event: CustomEvent) => {
+    const handleLocalBoardDataChanged = (event: CustomEvent<{ boardId: string }>) => {
       const { boardId } = event.detail;
       if (boardId === propBoardId) {
         console.log('Local board data changed, triggering refresh for board:', boardId);
-        smartRefetch();
+        void smartRefetch();
       }
     };
 
@@ -188,7 +186,7 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
     
     if (targetColumn) {
       const newOrder = targetColumn.cards.length;
-      mutations.moveCard(activeCardId, targetColumnId, newOrder);
+      void mutations.moveCard(activeCardId, targetColumnId, newOrder);
     } else {
       console.warn('handleDragOver: Target column not found', { targetColumnId });
     }
@@ -352,7 +350,7 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
 
   // Handler to refresh board data when a new column is added via sheet
   const handleColumnAdded = useCallback(() => {
-    smartRefetch();
+    void smartRefetch();
   }, [smartRefetch]);
 
   // Loading state
@@ -621,6 +619,7 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
           }}
           columnId={addingCardToColumnId}
           boardId={board.id}
+          createCard={mutations.createCard}
         />
       )}
 
