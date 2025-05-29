@@ -46,7 +46,6 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
             onChange={(value) => setDescription(value ?? '')}
             placeholder="Add a more detailed description... (Cmd/Ctrl+Enter to save)"
             height={200}
-            theme="dark"
             onKeyDown={(e) => {
               // Handle Cmd/Ctrl+Enter to save description
               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {

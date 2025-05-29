@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { BoardOptimized } from '../board/BoardOptimized';
-import { Sidebar } from '~/components/layout/Sidebar';
+import { ModernSidebar } from '~/components/layout/ModernSidebar';
 import { LayoutGroup } from 'framer-motion';
 import { localStorageService } from '~/lib/services/local-storage-service';
 import { boardMigrationService, type MigrationResult } from '~/lib/services/board-migration-service';
@@ -31,6 +31,10 @@ const InnerBoardLayout: React.FC = () => {
     params.set('boardId', id);
     window.history.pushState({}, '', `?${params.toString()}`);
     setCurrentBoardId(id);
+    // Close sidebar on mobile after selection
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
   }, []);
 
   // Pin or unpin a board by ID
@@ -255,7 +259,7 @@ const InnerBoardLayout: React.FC = () => {
   return (
     <div className="flex h-screen transition-all duration-250 ease-out">
       <LayoutGroup>
-        <Sidebar
+        <ModernSidebar
           boards={projects}
           onSelect={handleSelectBoard}
           onCreate={createBoard}
@@ -264,6 +268,7 @@ const InnerBoardLayout: React.FC = () => {
           onRename={handleRenameBoard}
           open={sidebarOpen}
           onOpenChange={setSidebarOpen}
+          selectedBoardId={currentBoardId}
         />
         <div className="flex flex-col flex-1 transition-all duration-250 ease-out">
           <BoardOptimized

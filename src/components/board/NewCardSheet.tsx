@@ -15,6 +15,7 @@ import { Calendar } from '~/components/ui/calendar';
 import { Button } from '~/components/ui/button';
 import { useCardMutations } from '~/hooks/useCard';
 import { useBoardLabels } from '~/hooks/useLabels';
+import { useLabelMutations } from '~/hooks/useLabels';
 import { useBoardMembers } from '~/hooks/useBoardMembers';
 import { Popover, PopoverTrigger, PopoverContent } from '~/components/ui/popover';
 import { format } from 'date-fns';
@@ -26,6 +27,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from '~/components/ui/command';
 import { Badge } from '~/components/ui/badge';
 import type { Label as LabelType, User as UserType, Priority } from '~/types';
@@ -63,12 +65,14 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({
 }) => {
   // Fallback to regular card mutations if optimized not provided
   const { createCard: fallbackCreateCard, addAttachment } = useCardMutations();
+  // Label mutations for creating new labels
+  const { createLabel } = useLabelMutations();
   
   // Use optimized createCard if provided, otherwise fallback
   const createCard = optimizedCreateCard || fallbackCreateCard;
   
   // Use proper hooks for board data access
-  const { labels: boardLabels = [] } = useBoardLabels(boardId);
+  const { labels: boardLabels = [], refetch: refetchLabels } = useBoardLabels(boardId);
   const { members: boardMembers = [] } = useBoardMembers(boardId);
 
   const [title, setTitle] = useState('');
@@ -83,6 +87,9 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({
   const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
   const [labelSearchText, setLabelSearchText] = useState('');
   const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(new Set());
+  const [labelPickerView, setLabelPickerView] = useState<'list' | 'create'>('list');
+  const [newLabelName, setNewLabelName] = useState('');
+  const [newLabelColor, setNewLabelColor] = useState('#4287f5');
 
   const [isAssigneePickerOpen, setIsAssigneePickerOpen] = useState(false);
   const [assigneeSearchText, setAssigneeSearchText] = useState('');
@@ -103,6 +110,9 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({
     setAssigneeSearchText('');
     setIsLabelPickerOpen(false);
     setIsAssigneePickerOpen(false);
+    setLabelPickerView('list');
+    setNewLabelName('');
+    setNewLabelColor('#4287f5');
   };
 
   useEffect(() => {
@@ -209,6 +219,36 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({
     }
     setSelectedAssigneeIds(newSelectedIds);
   };
+
+  const handleCreateNewLabel = async () => {
+    if (!newLabelName.trim()) return;
+    
+    try {
+      const createdLabel = await createLabel(boardId, { 
+        name: newLabelName.trim(), 
+        color: newLabelColor 
+      });
+      
+      if (createdLabel) {
+        // Add the new label to selected labels
+        setSelectedLabelIds(prev => new Set(prev).add(createdLabel.id));
+        
+        // Reset label creation form
+        setNewLabelName('');
+        setNewLabelColor('#4287f5');
+        setLabelPickerView('list');
+        setLabelSearchText('');
+        
+        // Refetch labels to update the list
+        await refetchLabels();
+        
+        toast.success('Label created and added successfully');
+      }
+    } catch (error) {
+      console.error('Error creating label:', error);
+      toast.error('Failed to create label');
+    }
+  };
   
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -265,7 +305,6 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({
                     onChange={(value) => setDescription(value ?? '')}
                     placeholder="Description (optional)"
                     height={180}
-                    theme="dark"
                   />
                   <div className="space-y-2">
                     {selectedLabelIds.size > 0 && (
@@ -400,34 +439,81 @@ export const NewCardSheet: React.FC<NewCardSheetProps> = ({
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent portalled={false} side="top" className="w-[250px] p-0 z-[80]" align="start">
-                            <Command>
-                                <CommandInput 
-                                    placeholder="Search labels..." 
-                                    value={labelSearchText}
-                                    onValueChange={setLabelSearchText}
-                                />
-                                <CommandList>
-                                    <CommandEmpty>No labels found.</CommandEmpty>
-                                    <CommandGroup>
-                                        {availableBoardLabels
-                                            .filter(label => !labelSearchText || label.name.toLowerCase().includes(labelSearchText.toLowerCase()))
-                                            .map((label) => (
-                                            <CommandItem
-                                                key={label.id}
-                                                value={label.name}
-                                                onSelect={() => handleToggleLabel(label.id)}
-                                                className="cursor-pointer flex justify-between items-center"
-                                            >
-                                                <div className="flex items-center">
-                                                    <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: label.color }} />
-                                                    {label.name}
-                                                </div>
-                                                {selectedLabelIds.has(label.id) && <CheckIcon className="ml-2 h-4 w-4" />}
+                            {labelPickerView === 'list' ? (
+                                <Command>
+                                    <CommandInput 
+                                        placeholder="Search labels..." 
+                                        value={labelSearchText}
+                                        onValueChange={setLabelSearchText}
+                                    />
+                                    <CommandList>
+                                        <CommandGroup>
+                                            {availableBoardLabels
+                                                .filter(label => !labelSearchText || label.name.toLowerCase().includes(labelSearchText.toLowerCase()))
+                                                .map((label) => (
+                                                <CommandItem
+                                                    key={label.id}
+                                                    value={label.name}
+                                                    onSelect={() => handleToggleLabel(label.id)}
+                                                    className="cursor-pointer flex justify-between items-center"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: label.color }} />
+                                                        {label.name}
+                                                    </div>
+                                                    {selectedLabelIds.has(label.id) && <CheckIcon className="ml-2 h-4 w-4" />}
+                                                </CommandItem>
+                                            ))}
+                                            {availableBoardLabels.filter(label => !labelSearchText || label.name.toLowerCase().includes(labelSearchText.toLowerCase())).length === 0 && (
+                                                <CommandEmpty>No labels found.</CommandEmpty>
+                                            )}
+                                        </CommandGroup>
+                                        <CommandSeparator />
+                                        <CommandGroup>
+                                            <CommandItem onSelect={() => setLabelPickerView('create')}>
+                                                <PlusCircleIcon className="h-4 w-4 mr-2" />
+                                                Create new label
                                             </CommandItem>
-                                        ))}
-                                    </CommandGroup>
-                                </CommandList>
-                            </Command>
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            ) : (
+                                <div className="p-4 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-sm font-medium">Create new label</h3>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="h-7 w-7 p-0" 
+                                            onClick={() => setLabelPickerView('list')}
+                                        >
+                                            <XIcon className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <Input
+                                            placeholder="Label name"
+                                            value={newLabelName}
+                                            onChange={(e) => setNewLabelName(e.target.value)}
+                                        />
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="color"
+                                                value={newLabelColor}
+                                                onChange={(e) => setNewLabelColor(e.target.value)}
+                                                className="w-10 h-10 rounded cursor-pointer"
+                                            />
+                                            <Button
+                                                className="flex-1"
+                                                onClick={handleCreateNewLabel}
+                                                disabled={!newLabelName.trim()}
+                                            >
+                                                Create and Add
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </PopoverContent>
                     </Popover>
 

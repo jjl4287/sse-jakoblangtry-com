@@ -69,3 +69,21 @@ export function extractMarkdownHeader(text: string): string {
     .replace(/^#{1,6}\s+/gm, '') // Remove any remaining headers
     .trim();
 }
+
+/**
+ * Returns a consistent pastel class for all cards
+ * Using a single, beautiful soft blue that works well for all cards
+ */
+export function getCardPastelClass(cardId: string): string {
+  // Use a single, consistent pastel blue for all cards
+  return 'pastel-blue';
+}
+
+/**
+ * Returns a consistent column color class for all columns
+ * Using a subtle neutral tone that doesn't compete with card colors
+ */
+export function getColumnColorClass(columnId: string): string {
+  // Use a single, subtle column color for all columns
+  return 'column-neutral';
+}

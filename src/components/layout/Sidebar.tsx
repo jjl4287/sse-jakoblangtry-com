@@ -75,7 +75,7 @@ export const Sidebar: FC<SidebarProps> = ({
             animate={{ width: 256, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="bg-background/95 backdrop-blur-sm shadow-lg flex flex-col border-r overflow-hidden"
+            className="bg-background/95 backdrop-blur-sm shadow-lg flex flex-col border-r overflow-hidden sidebar-rounded"
             style={{ flexShrink: 0 }}
           >
             <div 

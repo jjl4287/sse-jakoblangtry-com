@@ -17,7 +17,7 @@ import type { CardDragItem } from '~/constants/dnd-types';
 import { useCardMutations } from '~/hooks/useCard';
 import { Badge } from '~/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '~/components/ui/avatar';
-import { getContrastingTextColor, extractMarkdownHeader } from '~/lib/utils';
+import { getContrastingTextColor, extractMarkdownHeader, getCardPastelClass } from '~/lib/utils';
 import { StyledLabelBadge } from '~/components/ui/StyledLabelBadge';
 import {
   AlertDialog,
@@ -126,11 +126,14 @@ export const Card = memo(({
   
   const { Icon: PriorityIcon, color: priorityColor } = getPriorityInfo(cardPriority);
 
+  // Get consistent pastel class for this card
+  const pastelClass = getCardPastelClass(card.id);
+
   return (
     <>
       <div
         ref={ref}
-        className="relative glass-card p-1 cursor-pointer group border rounded-lg card-content"
+        className={`relative glass-card ${pastelClass} p-1 cursor-pointer group border rounded-lg card-content`}
         data-card-id={card.id}
         onClick={handleOpenModal}
         style={{ pointerEvents: 'auto' }}

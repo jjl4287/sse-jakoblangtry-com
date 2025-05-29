@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { XIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sheet,
   SheetContent,
@@ -363,7 +364,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent 
         side="right" 
-        className="w-[80%] max-w-5xl flex flex-col shadow-2xl"
+        className="w-[80%] max-w-5xl flex flex-col shadow-2xl card-details-sheet-rounded"
         data-no-dnd="true"
         onKeyDown={(e) => {
           // Prevent space and enter keys from bubbling up and triggering drag operations
@@ -411,14 +412,11 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
             <div className="bg-background/80 backdrop-blur-sm flex-shrink-0 pt-6 border-t border-border/50" data-no-dnd="true">
               <div className="space-y-4">
                 <MarkdownEditor
-                  className="rounded-lg border border-border/50 shadow-sm"
                   value={newCommentContent}
                   onChange={(value) => setNewCommentContent(value ?? '')}
                   placeholder="Leave a comment..."
                   height={120}
-                  theme="dark"
                   onKeyDown={(e) => {
-                    // Handle Cmd/Ctrl+Enter to submit comment
                     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                       e.preventDefault();
                       e.stopPropagation();

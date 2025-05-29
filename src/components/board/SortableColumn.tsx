@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '~/components/ui/alert-dialog';
+import { getColumnColorClass } from '~/lib/utils';
 
 interface SortableColumnProps {
   column: ColumnType;
@@ -195,13 +196,16 @@ export const SortableColumn = memo<SortableColumnProps>(function SortableColumn(
     onAddCardClick(column.id);
   }, [onAddCardClick, column.id]);
 
+  // Get consistent color class for this column
+  const columnColorClass = getColumnColorClass(column.id);
+
   return (
     <>
       <div
         ref={setNodeRef}
         data-column-id={column.id}
         style={style}
-        className="mx-2 flex flex-col flex-shrink h-full min-w-[250px] max-w-[350px] glass-column border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2"
+        className={`mx-2 flex flex-col flex-shrink h-full min-w-[250px] max-w-[350px] glass-column ${columnColorClass} border rounded-lg shadow-md hover:shadow-lg overflow-visible p-2`}
         {...attributes}
         {...listeners}
       >

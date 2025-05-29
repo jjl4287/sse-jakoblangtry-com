@@ -18,25 +18,52 @@
       "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     color-scheme: light;
     --transition-speed: 0.3s;
-    --primary-light: #26A96C;
-    --primary-dark: #198754;
-    --column-bg-light: rgba(66, 110, 140, 0.7);
+    --primary-light: #3b82f6;
+    --primary-dark: #1d4ed8;
+    
+    /* Enhanced light mode color system with less white */
+    --column-bg-light: rgba(241, 245, 249, 0.8); /* Warmer, less white */
     --column-bg-dark: rgba(66, 110, 140, 0.7);
-    --card-bg-light: rgba(82, 137, 175, 0.85);
+    --card-bg-light: rgba(248, 250, 252, 0.9); /* Softer white with subtle gray tint */
     --card-bg-dark: rgba(82, 137, 175, 0.85);
-    --border-light: rgba(210, 220, 230, 0.5);
+    
+    /* Improved border system for better visual hierarchy */
+    --border-light: rgba(203, 213, 225, 0.6); /* Warmer gray borders */
     --border-dark: rgba(255, 255, 255, 0.1);
-    --glass-blur: 12px;
+    --border-accent-light: rgba(59, 130, 246, 0.2); /* Subtle blue accent borders */
+    
+    /* Glass effect refinements */
+    --glass-blur: 16px; /* Increased blur for more premium feel */
     --glass-border-width: 1px;
-    --glass-shadow-intensity: 0.1;
-    --glass-bg-opacity-light: 0.65;
+    --glass-shadow-intensity: 0.08;
+    --glass-bg-opacity-light: 0.75; /* Slightly more opaque for better readability */
     --glass-bg-opacity-dark: 0.65;
-    --glass-border-opacity-light: 0.2;
+    --glass-border-opacity-light: 0.3; /* More visible borders */
     --glass-border-opacity-dark: 0.1;
-    --glass-hover-bg-opacity-light: 0.8;
+    --glass-hover-bg-opacity-light: 0.9;
     --glass-hover-bg-opacity-dark: 0.8;
-    --glass-hover-border-opacity-light: 0.4;
+    --glass-hover-border-opacity-light: 0.5;
     --glass-hover-border-opacity-dark: 0.2;
+    
+    /* New accent colors for visual interest */
+    --accent-blue-light: #3b82f6;
+    --accent-emerald-light: #10b981;
+    --accent-violet-light: #8b5cf6;
+    --accent-rose-light: #f43f5e;
+    --accent-amber-light: #f59e0b;
+    
+    /* Pastel card background variations for visual interest */
+    --pastel-blue-light: rgba(239, 246, 255, 0.6); /* Very soft blue */
+    
+    /* Pastel hover states - slightly more saturated */
+    --pastel-blue-hover: rgba(239, 246, 255, 0.8);
+    
+    /* Pastel sidebar and sheet backgrounds */
+    --pastel-sidebar-light: rgba(240, 248, 255, 0.85); /* Soft blue for sidebar */
+    --pastel-sidebar-hover: rgba(235, 245, 255, 0.95); /* Slightly more blue on hover */
+    --pastel-sheet-light: rgba(242, 249, 255, 0.90); /* Very soft blue for sheet */
+    --pastel-sheet-border: rgba(79, 157, 255, 0.15); /* Subtle blue border */
+    
     /* System-wide header height for consistent alignment */
     --header-height: 3.25rem; /* 52px - matches text height + padding */
     /* Board layout spacing system */
@@ -47,24 +74,54 @@
 
   .dark {
     color-scheme: dark;
-    --primary-light: #1A7F56;
-    --primary-dark: #0A3622;
-    --column-bg-light: rgba(66, 110, 140, 0.7);
-    --column-bg-dark: rgba(66, 110, 140, 0.7);
-    --card-bg-light: rgba(82, 137, 175, 0.85);
-    --card-bg-dark: rgba(82, 137, 175, 0.85);
-    --border-light: rgba(255, 255, 255, 0.2);
-    --border-dark: rgba(255, 255, 255, 0.1);
-    --glass-blur: 14px;
-    --glass-shadow-intensity: 0.2;
-    --glass-bg-opacity-light: 0.65;
-    --glass-bg-opacity-dark: 0.65;
-    --glass-border-opacity-light: 0.15;
-    --glass-border-opacity-dark: 0.1;
-    --glass-hover-bg-opacity-light: 0.8;
-    --glass-hover-bg-opacity-dark: 0.8;
-    --glass-hover-border-opacity-light: 0.3;
-    --glass-hover-border-opacity-dark: 0.2;
+    --primary-light: #60a5fa; /* Brighter blue for dark mode */
+    --primary-dark: #1e40af;
+    
+    /* Enhanced dark mode color system with richer, more sophisticated tones */
+    --column-bg-light: rgba(30, 41, 59, 0.85); /* Rich slate blue for columns */
+    --column-bg-dark: rgba(30, 41, 59, 0.85);
+    --card-bg-light: rgba(51, 65, 85, 0.9); /* Warmer slate for cards */
+    --card-bg-dark: rgba(51, 65, 85, 0.9);
+    
+    /* Enhanced dark mode borders with better contrast */
+    --border-light: rgba(148, 163, 184, 0.25); /* Warmer, more visible borders */
+    --border-dark: rgba(148, 163, 184, 0.15);
+    --border-accent-dark: rgba(96, 165, 250, 0.3); /* Blue accent borders for dark */
+    
+    /* Enhanced glass effect for dark mode */
+    --glass-blur: 18px; /* Slightly more blur for premium feel */
+    --glass-shadow-intensity: 0.15;
+    --glass-bg-opacity-light: 0.75;
+    --glass-bg-opacity-dark: 0.75;
+    --glass-border-opacity-light: 0.2;
+    --glass-border-opacity-dark: 0.15;
+    --glass-hover-bg-opacity-light: 0.85;
+    --glass-hover-bg-opacity-dark: 0.85;
+    --glass-hover-border-opacity-light: 0.35;
+    --glass-hover-border-opacity-dark: 0.25;
+    
+    /* Dark mode accent colors - brighter and more vibrant */
+    --accent-blue-dark: #60a5fa;
+    --accent-emerald-dark: #34d399;
+    --accent-violet-dark: #a78bfa;
+    --accent-rose-dark: #fb7185;
+    --accent-amber-dark: #fbbf24;
+    
+    /* Dark mode pastel variations - subtle colored tints */
+    --pastel-blue-dark: rgba(59, 130, 246, 0.08); /* Very subtle blue tint */
+    --pastel-emerald-dark: rgba(16, 185, 129, 0.08); /* Subtle emerald tint */
+    --pastel-violet-dark: rgba(139, 92, 246, 0.08); /* Subtle violet tint */
+    
+    /* Dark mode pastel hover states */
+    --pastel-blue-hover-dark: rgba(59, 130, 246, 0.15);
+    --pastel-emerald-hover-dark: rgba(16, 185, 129, 0.15);
+    --pastel-violet-hover-dark: rgba(139, 92, 246, 0.15);
+    
+    /* Dark mode sidebar and sheet backgrounds with subtle tints */
+    --pastel-sidebar-dark: rgba(30, 41, 59, 0.9); /* Rich slate with slight transparency */
+    --pastel-sidebar-hover-dark: rgba(51, 65, 85, 0.95); /* Warmer slate on hover */
+    --pastel-sheet-dark: rgba(30, 41, 59, 0.92); /* Slightly more opaque for sheets */
+    --pastel-sheet-border-dark: rgba(96, 165, 250, 0.2); /* Blue border for sheets */
   }
 
   /* Apply theme colors to html and body */
@@ -72,14 +129,14 @@
     color: var(--text-color);
   }
 
-  /* Remove background patterns and use solid color */
+  /* Enhanced light mode background with subtle gradient */
   html.light {
-    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%) !important;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #f8fafc 100%) !important;
   }
 
-  /* Remove background patterns for dark mode */
+  /* Enhanced dark mode background with sophisticated gradient */
   html.dark {
-    background: linear-gradient(180deg, #0f172a 0%, #000000 100%) !important;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #0f172a 75%, #000000 100%) !important;
   }
 
   /* Smooth theme transitions */
@@ -319,7 +376,8 @@
     border-width: var(--glass-border-width);
     transition: background-color var(--transition-speed) ease-in-out,
                 border-color var(--transition-speed) ease-in-out,
-                box-shadow var(--transition-speed) ease-in-out;
+                box-shadow var(--transition-speed) ease-in-out,
+                transform 0.2s ease-out;
     background-color: rgba(66, 110, 140, var(--glass-bg-opacity-dark)); 
     border-color: rgba(255, 255, 255, var(--glass-border-opacity-dark));
   }
@@ -393,17 +451,52 @@
     border-width: var(--glass-border-width);
     transition: background-color var(--transition-speed) ease-in-out,
                 border-color var(--transition-speed) ease-in-out,
-                box-shadow var(--transition-speed) ease-in-out;
+                box-shadow var(--transition-speed) ease-in-out,
+                transform 0.2s ease-out;
     background-color: rgba(82, 137, 175, var(--glass-bg-opacity-dark)); 
     border-color: rgba(255, 255, 255, var(--glass-border-opacity-dark));
     color: var(--text-color);
   }
 
   .light .glass-card {
-    /* Light theme overrides for cards */
-    background-color: rgba(82, 137, 175, var(--glass-bg-opacity-light));
-    border-color: rgba(210, 220, 230, var(--glass-border-opacity-light));
-    color: #ffffff; 
+    /* Enhanced light theme cards with warmer, less white appearance */
+    background-color: var(--card-bg-light);
+    border-color: rgba(203, 213, 225, var(--glass-border-opacity-light));
+    color: #1e293b; /* Improved text contrast */
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.05),
+      0 1px 2px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(248, 250, 252, 0.1) inset; /* Subtle inner highlight with softer tone */
+  }
+
+  .light .glass-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      0 2px 4px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(59, 130, 246, 0.1) inset; /* Blue inner glow on hover */
+    background-color: rgba(255, 255, 255, 0.85); /* Slightly more white on hover but not stark */
+  }
+
+  /* Enhanced dark mode glass card styling */
+  .dark .glass-card {
+    background-color: var(--card-bg-dark);
+    border-color: rgba(148, 163, 184, var(--glass-border-opacity-dark));
+    color: #e2e8f0; /* Improved text contrast for dark mode */
+    box-shadow: 
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(96, 165, 250, 0.08) inset; /* Subtle blue inner highlight */
+  }
+
+  .dark .glass-card:hover {
+    transform: translateY(-1px);
+    background-color: rgba(71, 85, 105, 0.95); /* Lighter slate on hover */
+    border-color: rgba(96, 165, 250, 0.3);
+    box-shadow: 
+      0 8px 25px rgba(0, 0, 0, 0.4),
+      0 4px 10px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(96, 165, 250, 0.15) inset; /* Blue inner glow on hover */
   }
 
   /* Elevated state (e.g., for dragging) - keep this */
@@ -417,12 +510,27 @@
   }
 
   .light .glass-card.elevated {
-    background-color: rgba(82, 137, 175, calc(var(--glass-hover-bg-opacity-light) * 1.1)); 
-    border-color: rgba(210, 220, 230, calc(var(--glass-hover-border-opacity-light) * 1.2));
-    box-shadow: 0 8px 15px rgba(50, 50, 80, calc(var(--glass-shadow-intensity) * 1.5));
+    background-color: rgba(248, 250, 252, 0.95); /* Softer elevated state */
+    border-color: rgba(59, 130, 246, 0.3);
+    box-shadow: 
+      0 20px 25px rgba(0, 0, 0, 0.1),
+      0 10px 10px rgba(0, 0, 0, 0.04),
+      0 0 0 1px rgba(59, 130, 246, 0.2) inset;
+    transform: scale(1.02);
   }
 
-  /* Refined glass column styles */
+  /* Enhanced dark mode elevated card state */
+  .dark .glass-card.elevated {
+    background-color: rgba(71, 85, 105, 0.98);
+    border-color: rgba(96, 165, 250, 0.4);
+    box-shadow: 
+      0 25px 50px rgba(0, 0, 0, 0.6),
+      0 12px 24px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(96, 165, 250, 0.25) inset;
+    transform: scale(1.02);
+  }
+
+  /* Enhanced glass column styles */
   .glass-column {
     /* Apply core glass styles directly */
     backdrop-filter: blur(var(--glass-blur));
@@ -430,7 +538,8 @@
     border-width: var(--glass-border-width);
     transition: background-color var(--transition-speed) ease-in-out,
                 border-color var(--transition-speed) ease-in-out,
-                box-shadow var(--transition-speed) ease-in-out;
+                box-shadow var(--transition-speed) ease-in-out,
+                transform 0.2s ease-out;
     background-color: rgba(66, 110, 140, var(--glass-bg-opacity-dark)); 
     border-color: rgba(255, 255, 255, var(--glass-border-opacity-dark));
     /* Layout (flex, flex-col) and shadow are applied in JSX */
@@ -442,21 +551,43 @@
   }
 
   .light .glass-column {
-     /* Light theme overrides for columns */
-     background-color: rgba(66, 110, 140, var(--glass-bg-opacity-light));
-     border-color: rgba(210, 220, 230, var(--glass-border-opacity-light));
+    /* Enhanced light theme columns with softer, warmer aesthetics */
+    background-color: var(--column-bg-light);
+    border-color: rgba(203, 213, 225, var(--glass-border-opacity-light));
+    box-shadow: 
+      0 2px 4px rgba(0, 0, 0, 0.04),
+      0 1px 2px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(241, 245, 249, 0.15) inset; /* Warmer inner border */
+  }
+
+  /* Enhanced dark mode column styling */
+  .dark .glass-column {
+    background-color: var(--column-bg-dark);
+    border-color: rgba(148, 163, 184, var(--glass-border-opacity-dark));
+    box-shadow: 
+      0 3px 6px rgba(0, 0, 0, 0.4),
+      0 2px 4px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(96, 165, 250, 0.08) inset; /* Subtle blue inner border */
   }
 
   /* Define hover styles directly on the column */
   .dark .glass-column:hover {
-    background-color: rgba(66, 110, 140, var(--glass-hover-bg-opacity-dark));
-    border-color: rgba(255, 255, 255, var(--glass-hover-border-opacity-dark));
+    background-color: var(--pastel-sidebar-hover-dark);
+    border-color: rgba(96, 165, 250, 0.25);
+    box-shadow: 
+      0 8px 25px rgba(0, 0, 0, 0.5),
+      0 4px 10px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(96, 165, 250, 0.12) inset;
     z-index: 15;
   }
 
   .light .glass-column:hover {
-    background-color: rgba(66, 110, 140, var(--glass-hover-bg-opacity-light));
-    border-color: rgba(210, 220, 230, var(--glass-hover-border-opacity-light));
+    background-color: rgba(241, 245, 249, 0.9); /* Softer hover state */
+    border-color: rgba(59, 130, 246, 0.2);
+    box-shadow: 
+      0 8px 25px rgba(0, 0, 0, 0.06),
+      0 3px 10px rgba(0, 0, 0, 0.04),
+      0 0 0 1px rgba(59, 130, 246, 0.1) inset;
     z-index: 15;
   }
 
@@ -538,7 +669,7 @@
     color: var(--primary-dark);
   }
 
-  /* Add smooth hover motion to elements */
+  /* Enhanced hover motion with premium feel */
   .hover-lift {
     transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
   }
@@ -550,6 +681,482 @@
 
   .dark .hover-lift:hover {
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Light mode specific enhancements */
+  .light .hover-lift:hover {
+    box-shadow: 
+      0 10px 20px rgba(0, 0, 0, 0.08),
+      0 4px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Enhanced button styles for light mode */
+  .btn-light-primary {
+    background: linear-gradient(135deg, var(--accent-blue-light), #2563eb);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: white;
+    box-shadow: 
+      0 2px 4px rgba(59, 130, 246, 0.2),
+      0 1px 2px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease-out;
+  }
+
+  .btn-light-primary:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    /* Removed transform: translateY(-1px) for more purposeful design */
+    box-shadow: 
+      0 4px 8px rgba(59, 130, 246, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Secondary button with glass effect */
+  .btn-light-secondary {
+    background: rgba(248, 250, 252, 0.8);
+    border: 1px solid rgba(203, 213, 225, 0.6);
+    color: #475569;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.2s ease-out;
+  }
+
+  .btn-light-secondary:hover {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(59, 130, 246, 0.2);
+    /* Removed transform: translateY(-1px) for more purposeful design */
+    box-shadow: 
+      0 4px 8px rgba(0, 0, 0, 0.06),
+      0 2px 4px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Enhanced focus states for better accessibility */
+  .focus-enhanced:focus {
+    outline: none;
+    box-shadow: 
+      0 0 0 2px rgba(59, 130, 246, 0.2),
+      0 0 0 4px rgba(59, 130, 246, 0.1);
+  }
+
+  /* Improved text contrast for light mode */
+  .light .text-primary-contrast {
+    color: #1e293b;
+  }
+
+  .light .text-secondary-contrast {
+    color: #475569;
+  }
+
+  .light .text-muted-contrast {
+    color: #64748b;
+  }
+
+  /* Accent color utilities for visual interest */
+  .accent-blue { color: var(--accent-blue-light); }
+  .accent-emerald { color: var(--accent-emerald-light); }
+  .accent-violet { color: var(--accent-violet-light); }
+  .accent-rose { color: var(--accent-rose-light); }
+  .accent-amber { color: var(--accent-amber-light); }
+
+  .bg-accent-blue { background-color: var(--accent-blue-light); }
+  .bg-accent-emerald { background-color: var(--accent-emerald-light); }
+  .bg-accent-violet { background-color: var(--accent-violet-light); }
+  .bg-accent-rose { background-color: var(--accent-rose-light); }
+  .bg-accent-amber { background-color: var(--accent-amber-light); }
+
+  /* Dark mode accent color utilities */
+  .dark .accent-blue { color: var(--accent-blue-dark); }
+  .dark .accent-emerald { color: var(--accent-emerald-dark); }
+  .dark .accent-violet { color: var(--accent-violet-dark); }
+  .dark .accent-rose { color: var(--accent-rose-dark); }
+  .dark .accent-amber { color: var(--accent-amber-dark); }
+
+  .dark .bg-accent-blue { background-color: var(--accent-blue-dark); }
+  .dark .bg-accent-emerald { background-color: var(--accent-emerald-dark); }
+  .dark .bg-accent-violet { background-color: var(--accent-violet-dark); }
+  .dark .bg-accent-rose { background-color: var(--accent-rose-dark); }
+  .dark .bg-accent-amber { background-color: var(--accent-amber-dark); }
+
+  /* Pastel utility classes for easy application */
+  .pastel-blue { background: var(--pastel-blue-light) !important; }
+
+  /* Dark mode pastel utility classes */
+  .dark .pastel-blue { background: var(--pastel-blue-dark) !important; }
+  .dark .pastel-emerald { background: var(--pastel-emerald-dark) !important; }
+  .dark .pastel-violet { background: var(--pastel-violet-dark) !important; }
+
+  /* Subtle pastel column variations */
+  .light .glass-column.column-neutral {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.4), var(--column-bg-light));
+    border-color: rgba(203, 213, 225, 0.15);
+  }
+
+  /* Enhanced glass morphism utilities */
+  .glass-light {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Pastel card variations for light mode */
+  .light .glass-card.pastel-blue {
+    background: linear-gradient(135deg, var(--pastel-blue-light), var(--card-bg-light));
+    border-color: rgba(59, 130, 246, 0.15);
+  }
+
+  .light .glass-card.pastel-blue:hover {
+    background: linear-gradient(135deg, var(--pastel-blue-hover), rgba(255, 255, 255, 0.9));
+    border-color: rgba(59, 130, 246, 0.25);
+  }
+
+  /* Default neutral pastel for cards without specific variation */
+  .light .glass-card.pastel-neutral {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.8), var(--card-bg-light));
+    border-color: rgba(203, 213, 225, 0.2);
+  }
+
+  .light .glass-card.pastel-neutral:hover {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.9));
+    border-color: rgba(203, 213, 225, 0.3);
+  }
+
+  /* Dark mode pastel card variations */
+  .dark .glass-card.pastel-blue {
+    background: linear-gradient(135deg, var(--pastel-blue-dark), var(--card-bg-dark));
+    border-color: rgba(96, 165, 250, 0.15);
+  }
+
+  .dark .glass-card.pastel-blue:hover {
+    background: linear-gradient(135deg, var(--pastel-blue-hover-dark), rgba(71, 85, 105, 0.95));
+    border-color: rgba(96, 165, 250, 0.25);
+  }
+
+  .dark .glass-card.pastel-emerald {
+    background: linear-gradient(135deg, var(--pastel-emerald-dark), var(--card-bg-dark));
+    border-color: rgba(52, 211, 153, 0.15);
+  }
+
+  .dark .glass-card.pastel-emerald:hover {
+    background: linear-gradient(135deg, var(--pastel-emerald-hover-dark), rgba(71, 85, 105, 0.95));
+    border-color: rgba(52, 211, 153, 0.25);
+  }
+
+  .dark .glass-card.pastel-violet {
+    background: linear-gradient(135deg, var(--pastel-violet-dark), var(--card-bg-dark));
+    border-color: rgba(167, 139, 250, 0.15);
+  }
+
+  .dark .glass-card.pastel-violet:hover {
+    background: linear-gradient(135deg, var(--pastel-violet-hover-dark), rgba(71, 85, 105, 0.95));
+    border-color: rgba(167, 139, 250, 0.25);
+  }
+
+  /* Default dark mode neutral pastel for cards */
+  .dark .glass-card.pastel-neutral {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), var(--card-bg-dark));
+    border-color: rgba(148, 163, 184, 0.2);
+  }
+
+  .dark .glass-card.pastel-neutral:hover {
+    background: linear-gradient(135deg, rgba(51, 65, 85, 0.9), rgba(71, 85, 105, 0.95));
+    border-color: rgba(148, 163, 184, 0.3);
+  }
+
+  /* Premium shadow system */
+  .shadow-premium {
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.05),
+      0 1px 3px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+
+  .light .shadow-premium {
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.05),
+      0 1px 3px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  }
+
+  /* Enhanced dark mode shadow system */
+  .dark .shadow-premium {
+    box-shadow: 
+      0 6px 12px rgba(0, 0, 0, 0.4),
+      0 2px 6px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(96, 165, 250, 0.08) inset;
+  }
+
+  .shadow-premium-hover {
+    box-shadow: 
+      0 10px 25px rgba(0, 0, 0, 0.1),
+      0 4px 10px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(59, 130, 246, 0.1) inset;
+  }
+
+  .dark .shadow-premium-hover {
+    box-shadow: 
+      0 20px 50px rgba(0, 0, 0, 0.6),
+      0 8px 20px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(96, 165, 250, 0.15) inset;
+  }
+
+  /* Enhanced card content for better readability */
+  .light .card-content h3 {
+    color: #1e293b !important;
+  }
+
+  .light .card-content p {
+    color: #475569 !important;
+  }
+
+  .light .card-content .text-muted {
+    color: #64748b !important;
+  }
+
+  /* Enhanced dark mode card content for better readability */
+  .dark .card-content h3 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .card-content p {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .card-content .text-muted {
+    color: #94a3b8 !important;
+  }
+
+  /* Enhanced dark mode text contrast utilities */
+  .dark .text-primary-contrast {
+    color: #f1f5f9;
+  }
+
+  .dark .text-secondary-contrast {
+    color: #cbd5e1;
+  }
+
+  .dark .text-muted-contrast {
+    color: #94a3b8;
+  }
+
+  /* Accent color utilities for visual interest */
+  .accent-blue { color: var(--accent-blue-light); }
+  .accent-emerald { color: var(--accent-emerald-light); }
+  .accent-violet { color: var(--accent-violet-light); }
+  .accent-rose { color: var(--accent-rose-light); }
+  .accent-amber { color: var(--accent-amber-light); }
+
+  .bg-accent-blue { background-color: var(--accent-blue-light); }
+  .bg-accent-emerald { background-color: var(--accent-emerald-light); }
+  .bg-accent-violet { background-color: var(--accent-violet-light); }
+  .bg-accent-rose { background-color: var(--accent-rose-light); }
+  .bg-accent-amber { background-color: var(--accent-amber-light); }
+
+  /* Dark mode accent color utilities */
+  .dark .accent-blue { color: var(--accent-blue-dark); }
+  .dark .accent-emerald { color: var(--accent-emerald-dark); }
+  .dark .accent-violet { color: var(--accent-violet-dark); }
+  .dark .accent-rose { color: var(--accent-rose-dark); }
+  .dark .accent-amber { color: var(--accent-amber-dark); }
+
+  .dark .bg-accent-blue { background-color: var(--accent-blue-dark); }
+  .dark .bg-accent-emerald { background-color: var(--accent-emerald-dark); }
+  .dark .bg-accent-violet { background-color: var(--accent-violet-dark); }
+  .dark .bg-accent-rose { background-color: var(--accent-rose-dark); }
+  .dark .bg-accent-amber { background-color: var(--accent-amber-dark); }
+
+  /* Pastel utility classes for easy application */
+  .pastel-blue { background: var(--pastel-blue-light) !important; }
+
+  /* Dark mode pastel utility classes */
+  .dark .pastel-blue { background: var(--pastel-blue-dark) !important; }
+  .dark .pastel-emerald { background: var(--pastel-emerald-dark) !important; }
+  .dark .pastel-violet { background: var(--pastel-violet-dark) !important; }
+
+  /* Subtle pastel column variations */
+  .light .glass-column.column-neutral {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.4), var(--column-bg-light));
+    border-color: rgba(203, 213, 225, 0.15);
+  }
+
+  /* Enhanced glass morphism utilities */
+  .glass-light {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Pastel card variations for light mode */
+  .light .glass-card.pastel-blue {
+    background: linear-gradient(135deg, var(--pastel-blue-light), var(--card-bg-light));
+    border-color: rgba(59, 130, 246, 0.15);
+  }
+
+  .light .glass-card.pastel-blue:hover {
+    background: linear-gradient(135deg, var(--pastel-blue-hover), rgba(255, 255, 255, 0.9));
+    border-color: rgba(59, 130, 246, 0.25);
+  }
+
+  /* Default neutral pastel for cards without specific variation */
+  .light .glass-card.pastel-neutral {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.8), var(--card-bg-light));
+    border-color: rgba(203, 213, 225, 0.2);
+  }
+
+  .light .glass-card.pastel-neutral:hover {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.9));
+    border-color: rgba(203, 213, 225, 0.3);
+  }
+
+  /* Dark mode pastel card variations */
+  .dark .glass-card.pastel-blue {
+    background: linear-gradient(135deg, var(--pastel-blue-dark), var(--card-bg-dark));
+    border-color: rgba(96, 165, 250, 0.15);
+  }
+
+  .dark .glass-card.pastel-blue:hover {
+    background: linear-gradient(135deg, var(--pastel-blue-hover-dark), rgba(71, 85, 105, 0.95));
+    border-color: rgba(96, 165, 250, 0.25);
+  }
+
+  .dark .glass-card.pastel-emerald {
+    background: linear-gradient(135deg, var(--pastel-emerald-dark), var(--card-bg-dark));
+    border-color: rgba(52, 211, 153, 0.15);
+  }
+
+  .dark .glass-card.pastel-emerald:hover {
+    background: linear-gradient(135deg, var(--pastel-emerald-hover-dark), rgba(71, 85, 105, 0.95));
+    border-color: rgba(52, 211, 153, 0.25);
+  }
+
+  .dark .glass-card.pastel-violet {
+    background: linear-gradient(135deg, var(--pastel-violet-dark), var(--card-bg-dark));
+    border-color: rgba(167, 139, 250, 0.15);
+  }
+
+  .dark .glass-card.pastel-violet:hover {
+    background: linear-gradient(135deg, var(--pastel-violet-hover-dark), rgba(71, 85, 105, 0.95));
+    border-color: rgba(167, 139, 250, 0.25);
+  }
+
+  /* Default dark mode neutral pastel for cards */
+  .dark .glass-card.pastel-neutral {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), var(--card-bg-dark));
+    border-color: rgba(148, 163, 184, 0.2);
+  }
+
+  .dark .glass-card.pastel-neutral:hover {
+    background: linear-gradient(135deg, rgba(51, 65, 85, 0.9), rgba(71, 85, 105, 0.95));
+    border-color: rgba(148, 163, 184, 0.3);
+  }
+
+  /* Premium shadow system */
+  .shadow-premium {
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.05),
+      0 1px 3px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+
+  .light .shadow-premium {
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.05),
+      0 1px 3px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  }
+
+  /* Enhanced dark mode shadow system */
+  .dark .shadow-premium {
+    box-shadow: 
+      0 6px 12px rgba(0, 0, 0, 0.4),
+      0 2px 6px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(96, 165, 250, 0.08) inset;
+  }
+
+  .shadow-premium-hover {
+    box-shadow: 
+      0 10px 25px rgba(0, 0, 0, 0.1),
+      0 4px 10px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(59, 130, 246, 0.1) inset;
+  }
+
+  .dark .shadow-premium-hover {
+    box-shadow: 
+      0 20px 50px rgba(0, 0, 0, 0.6),
+      0 8px 20px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(96, 165, 250, 0.15) inset;
+  }
+
+  /* Enhanced card content for better readability */
+  .light .card-content h3 {
+    color: #1e293b !important;
+  }
+
+  .light .card-content p {
+    color: #475569 !important;
+  }
+
+  .light .card-content .text-muted {
+    color: #64748b !important;
+  }
+
+  /* Enhanced dark mode card content for better readability */
+  .dark .card-content h3 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .card-content p {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .card-content .text-muted {
+    color: #94a3b8 !important;
+  }
+
+  /* Enhanced dark mode text contrast utilities */
+  .dark .text-primary-contrast {
+    color: #f1f5f9;
+  }
+
+  .dark .text-secondary-contrast {
+    color: #cbd5e1;
+  }
+
+  .dark .text-muted-contrast {
+    color: #94a3b8;
+  }
+
+  /* Enhanced glass morphism */
+  .glass-morph-light {
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    background-color: rgba(66, 110, 140, var(--glass-bg-opacity-dark)); 
+    border: var(--glass-border-width) solid rgba(255, 255, 255, var(--glass-border-opacity-dark));
+    transition: background-color var(--transition-speed) ease-in-out,
+                border-color var(--transition-speed) ease-in-out;
+  }
+
+  .light .glass-morph-light {
+    background-color: rgba(66, 110, 140, var(--glass-bg-opacity-light));
+    border-color: rgba(210, 220, 230, var(--glass-border-opacity-light));
+  }
+
+  .dark .glass-morph-light:hover {
+    background-color: var(--pastel-sidebar-hover-dark);
+    border-color: rgba(96, 165, 250, var(--glass-hover-border-opacity-dark));
   }
 }
 
@@ -593,37 +1200,37 @@
 
 :root {
   --radius: 0.625rem;
-  --card: oklch(1 0 0);
+  --card: oklch(0.99 0.003 247.858); /* Slightly warmer than pure white */
   --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.99 0.003 247.858); /* Slightly warmer than pure white */
   --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
+  --primary: oklch(0.5 0.233 264.052); /* Enhanced blue primary */
   --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
+  --secondary: oklch(0.976 0.006 247.896); /* Slightly warmer secondary */
   --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.976 0.006 247.896);
+  --muted-foreground: oklch(0.454 0.046 257.417); /* Improved contrast */
+  --accent: oklch(0.5 0.233 264.052); /* Match enhanced primary */
+  --accent-foreground: oklch(0.984 0.003 247.858);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --border: oklch(0.9 0.013 255.508); /* Slightly stronger border */
+  --input: oklch(0.9 0.013 255.508);
+  --ring: oklch(0.5 0.233 264.052); /* Enhanced focus ring */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar: oklch(0.985 0.003 247.858); /* Slightly less bright than pure white */
   --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary: oklch(0.5 0.233 264.052);
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent: oklch(0.976 0.006 247.896);
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
+  --sidebar-border: oklch(0.9 0.013 255.508);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --background: oklch(0.985 0.003 247.858); /* Warmer, less stark background */
+  --foreground: oklch(0.108 0.042 264.695); /* Better contrast */
 }
 
 .dark {
@@ -684,9 +1291,105 @@
   border-color: rgba(210, 220, 230, var(--glass-border-opacity-light));
 }
 
+/* Enhanced dark mode glass morphism */
+.dark .glass-morph-light {
+  background-color: var(--pastel-sidebar-dark);
+  border-color: rgba(148, 163, 184, var(--glass-border-opacity-dark));
+}
+
 .dark .glass-morph-light:hover {
-  background-color: rgba(66, 110, 140, var(--glass-hover-bg-opacity-dark));
-  border-color: rgba(255, 255, 255, var(--glass-hover-border-opacity-dark));
+  background-color: var(--pastel-sidebar-hover-dark);
+  border-color: rgba(96, 165, 250, var(--glass-hover-border-opacity-dark));
+}
+
+/* Enhanced board header styling for light mode */
+.light .board-header {
+  background: rgba(248, 250, 252, 0.85); /* Less white, warmer tone */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(203, 213, 225, 0.4);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced search input styling */
+.light .search-input {
+  background: rgba(241, 245, 249, 0.75); /* Warmer, less white background */
+  border: 1px solid rgba(203, 213, 225, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.2s ease-out;
+}
+
+.light .search-input:focus {
+  background: rgba(248, 250, 252, 0.9); /* Focused state still clean but not stark */
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 
+    0 0 0 3px rgba(59, 130, 246, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Enhanced button styling for light mode */
+.light .btn-enhanced {
+  background: rgba(241, 245, 249, 0.75); /* Warmer button background */
+  border: 1px solid rgba(203, 213, 225, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #475569;
+  transition: all 0.2s ease-out;
+}
+
+.light .btn-enhanced:hover {
+  background: rgba(248, 250, 252, 0.9); /* Hover state warmer too */
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #1e293b;
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* Primary action button styling for light mode */
+.light .btn-primary-enhanced {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: white;
+  box-shadow: 
+    0 2px 4px rgba(59, 130, 246, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease-out;
+}
+
+.light .btn-primary-enhanced:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  /* Removed transform: translateY(-1px) for more purposeful design */
+  box-shadow: 
+    0 4px 8px rgba(59, 130, 246, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Enhanced dropdown and popover styling */
+.light .dropdown-enhanced {
+  background: rgba(248, 250, 252, 0.9); /* Less stark dropdown background */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(203, 213, 225, 0.4);
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.1),
+    0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Enhanced card content for better readability */
+.light .card-content h3 {
+  color: #1e293b !important;
+}
+
+.light .card-content p {
+  color: #475569 !important;
+}
+
+.light .card-content .text-muted {
+  color: #64748b !important;
 }
 
 @media (max-width: 1200px) {
@@ -828,10 +1531,13 @@ html.card-dragging-active .light .glass-column:hover {
 /* Prevent card dragging when card details sheet is open */
 html.card-details-sheet-open .card-wrapper {
   pointer-events: none !important;
+  cursor: default !important;
 }
 
 html.card-details-sheet-open .card-wrapper .glass-card {
   cursor: default !important;
+  /* Remove hover effects when sheet is open */
+  transform: none !important;
 }
 
 /* Allow interactions with card content but not dragging */
@@ -839,11 +1545,152 @@ html.card-details-sheet-open .card-wrapper .glass-card > * {
   pointer-events: auto;
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+/* Visual indicator when dragging is disabled */
+.card-wrapper.sheet-open .glass-card {
+  opacity: 0.7;
+  cursor: default !important;
+}
+
+/* Ensure buttons and interactive elements still work */
+html.card-details-sheet-open .card-wrapper .glass-card button,
+html.card-details-sheet-open .card-wrapper .glass-card [role="button"],
+html.card-details-sheet-open .card-wrapper .glass-card [tabindex] {
+  pointer-events: auto;
+  cursor: pointer !important;
+}
+
+/* Subtle rounded corners for sidebar and sheets */
+/* Sidebar - rounded on the right (inner) edge */
+.sidebar-rounded {
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* Card details sheet - rounded on the left (inner) edge */
+.card-details-sheet-rounded {
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+/* Fix markdown editor styling issues in light mode */
+.light .w-md-editor {
+  background: var(--background) !important;
+  border-color: var(--border) !important;
+}
+
+.light .w-md-editor-text-container,
+.light .w-md-editor-text-input,
+.light .w-md-editor-text {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+
+.light .w-md-editor-preview {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+/* Remove weird borders from markdown editor container */
+.w-md-editor {
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+
+.w-md-editor .w-md-editor-text-container {
+  border: none !important;
+}
+
+.w-md-editor .w-md-editor-area {
+  border: none !important;
+}
+
+/* Fix the markdown editor wrapper styling */
+[data-color-mode="light"] .w-md-editor {
+  background: var(--background) !important;
+  border: 1px solid var(--border) !important;
+}
+
+[data-color-mode="light"] .w-md-editor-text,
+[data-color-mode="light"] .w-md-editor-preview {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+/* Enhanced dark mode button styling */
+.dark .btn-enhanced {
+  background: var(--pastel-sidebar-dark);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #cbd5e1;
+  transition: all 0.2s ease-out;
+}
+
+.dark .btn-enhanced:hover {
+  background: var(--pastel-sidebar-hover-dark);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #e2e8f0;
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode primary button styling */
+.dark .btn-primary-enhanced {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  color: white;
+  box-shadow: 
+    0 2px 4px rgba(59, 130, 246, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease-out;
+}
+
+.dark .btn-primary-enhanced:hover {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  box-shadow: 
+    0 4px 8px rgba(96, 165, 250, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Enhanced dark mode dropdown and popover styling */
+.dark .dropdown-enhanced {
+  background: var(--pastel-sheet-dark);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--pastel-sheet-border-dark);
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.6),
+    0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Enhanced dark mode search input styling */
+.dark .search-input {
+  background: var(--pastel-sidebar-dark);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #e2e8f0;
+  transition: all 0.2s ease-out;
+}
+
+.dark .search-input:focus {
+  background: var(--pastel-sidebar-hover-dark);
+  border-color: rgba(96, 165, 250, 0.4);
+  box-shadow: 
+    0 0 0 3px rgba(96, 165, 250, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Enhanced dark mode board header styling */
+.dark .board-header {
+  background: var(--pastel-sidebar-dark);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.4);
 }
