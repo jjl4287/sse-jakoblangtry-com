@@ -28,6 +28,7 @@ next-env.d.ts
 # user uploads (should not be tracked)
 /public/uploads/*
 !/public/uploads/.gitkeep
+!/public/uploads/avatars/.gitkeep
 
 # OS files
 **/.DS_Store

@@ -37,6 +37,12 @@
     --glass-hover-bg-opacity-dark: 0.8;
     --glass-hover-border-opacity-light: 0.4;
     --glass-hover-border-opacity-dark: 0.2;
+    /* System-wide header height for consistent alignment */
+    --header-height: 3.25rem; /* 52px - matches text height + padding */
+    /* Board layout spacing system */
+    --board-gutter: 0.5rem; /* 8px - matches pt-2 */
+    --board-padding: 0.5rem; /* 8px - matches p-2 */
+    --column-gutter: 0.25rem; /* 4px - matches gap-x-1 per side */
   }
 
   .dark {

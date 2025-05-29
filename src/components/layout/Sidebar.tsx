@@ -1,11 +1,12 @@
 import React from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { PanelLeft, Pin, Trash2, Plus } from 'lucide-react';
+import { PanelLeft, Pin, Trash2, Plus, Settings } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 // Using pure CSS transitions instead of Framer Motion for sidebar
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
+import { useRouter } from 'next/navigation';
 import type { FC } from 'react';
 import {
   AlertDialog,
@@ -45,6 +46,7 @@ export const Sidebar: FC<SidebarProps> = ({
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState('');
   const { data: session } = useSession();
+  const router = useRouter();
   // Ref for sidebar input selection
   const sidebarInputRef = React.useRef<HTMLInputElement>(null);
   const [boardToDelete, setBoardToDelete] = React.useState<null | { id: string; title: string }>(null);
@@ -59,138 +61,141 @@ export const Sidebar: FC<SidebarProps> = ({
     });
   };
 
+  const handleSettingsClick = () => {
+    router.push('/settings');
+  };
+
   return (
     <>
-      {/* Persistent toggle button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={open ? 'Close sidebar' : 'Open sidebar'}
-        className="fixed top-[0.82rem] left-4 z-[60] h-10 w-10 flex items-center justify-center transition-transform duration-300 ease-out"
-        onClick={() => onOpenChange(!open)}
-      >
-        <PanelLeft className={open ? 'rotate-180' : ''} />
-      </Button>
-
-      {/* Overlay */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            className="fixed inset-0 bg-black/50 z-40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.4 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            onClick={() => onOpenChange(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Sidebar panel */}
-      <AnimatePresence>
-        {open && (
-          <motion.aside
-            className="fixed inset-y-0 left-0 z-50 w-64 bg-background/95 backdrop-blur-sm shadow-lg flex flex-col"
-            initial={{ x: '-100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '-100%' }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
+      {/* Sidebar panel - now part of normal document flow */}
+      {open && (
+        <aside className="w-64 bg-background/95 backdrop-blur-sm shadow-lg flex flex-col border-r">
+          <div 
+            className="flex items-center justify-start border-b"
+            style={{ 
+              height: 'var(--header-height, auto)',
+              padding: 'calc(var(--board-padding) * 1.5) var(--board-padding)',
+              marginBottom: 'var(--board-gutter)'
+            }}
           >
-            <div className="mt-[.55rem] flex items-center justify-center p-2 border-b">
-              <span className="text-2xl font-bold">Boards</span>
-            </div>
-            <div className="p-4 space-y-4 overflow-y-auto flex-1">
-              {/* New Board: one-click create, then inline edit */}
-              <Button
-                variant="outline"
-                className="w-full rounded-full"
-                onClick={async () => {
-                  try {
-                    const id = await onCreate('New Board');
-                    // Start inline edit and select text
-                    startSidebarEdit(id, 'New Board');
-                  } catch (error) {
-                    console.error('Failed to create board:', error);
-                  }
-                }}
+            <motion.button
+              layoutId="sidebar-toggle"
+              aria-label="Close sidebar"
+              className="mr-2 p-1 h-8 w-8 flex items-center justify-center rounded hover:bg-muted/10"
+              onClick={() => onOpenChange(false)}
+            >
+              <PanelLeft size={16} className="rotate-180" />
+            </motion.button>
+            <span className="text-2xl font-bold">Boards</span>
+          </div>
+          <div className="p-4 space-y-4 overflow-y-auto flex-1">
+            {/* New Board: one-click create, then inline edit */}
+            <Button
+              variant="outline"
+              className="w-full rounded-full"
+              onClick={async () => {
+                try {
+                  const id = await onCreate('New Board');
+                  // Start inline edit and select text
+                  startSidebarEdit(id, 'New Board');
+                } catch (error) {
+                  console.error('Failed to create board:', error);
+                }
+              }}
+            >
+              <Plus className="mr-2" /> New Board
+            </Button>
+            {boards.map((b) => (
+              <div
+                key={b.id}
+                className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer transition-colors"
+                onClick={(e) => { e.stopPropagation(); onSelect(b.id); }}
               >
-                <Plus className="mr-2" /> New Board
-              </Button>
-              {boards.map((b) => (
-                <div
-                  key={b.id}
-                  className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer transition-colors"
-                  onClick={(e) => { e.stopPropagation(); onSelect(b.id); }}
-                >
-                  {editingId === b.id ? (
-                    <input
-                      autoFocus
-                      ref={sidebarInputRef}
-                      className="flex-1 min-w-0 text-sm bg-transparent border-b-2 border-transparent focus:border-foreground focus:outline-none mr-2"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      onBlur={() => {
+                {editingId === b.id ? (
+                  <input
+                    autoFocus
+                    ref={sidebarInputRef}
+                    className="flex-1 min-w-0 text-sm bg-transparent border-b-2 border-transparent focus:border-foreground focus:outline-none mr-2"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onBlur={() => {
+                      if (editTitle.trim()) onRename(b.id, editTitle.trim());
+                      setEditingId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
                         if (editTitle.trim()) onRename(b.id, editTitle.trim());
                         setEditingId(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          if (editTitle.trim()) onRename(b.id, editTitle.trim());
-                          setEditingId(null);
-                        }
-                        if (e.key === 'Escape') {
-                          setEditingId(null);
-                          setEditTitle(b.title);
-                        }
-                      }}
-                    />
-                  ) : (
-                    <span
-                      className="truncate flex-1 text-sm mr-2"
-                      onDoubleClick={(e) => { e.stopPropagation(); startSidebarEdit(b.id, b.title); }}
-                    >{b.title}</span>
-                  )}
-                  <div className="flex space-x-1 ml-auto">
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onPin(b.id); }}>
-                      <Pin size={14} />
-                    </Button>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="h-6 w-6" 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setBoardToDelete({ id: b.id, title: b.title });
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </Button>
-                  </div>
+                      }
+                      if (e.key === 'Escape') {
+                        setEditingId(null);
+                        setEditTitle(b.title);
+                      }
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="truncate flex-1 text-sm mr-2"
+                    onDoubleClick={(e) => { e.stopPropagation(); startSidebarEdit(b.id, b.title); }}
+                  >{b.title}</span>
+                )}
+                <div className="flex space-x-1 ml-auto">
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); onPin(b.id); }}>
+                    <Pin size={14} />
+                  </Button>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="h-6 w-6" 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setBoardToDelete({ id: b.id, title: b.title });
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
                 </div>
-              ))}
-            </div>
-            <Separator />
-            <div className="p-4">
-              {session?.user ? (
-                <div className="flex items-center space-x-2">
-                  <Avatar>
+              </div>
+            ))}
+          </div>
+          <Separator />
+          <div className="p-4">
+            {session?.user ? (
+              <div className="space-y-2">
+                {/* User Profile Section */}
+                <button
+                  onClick={handleSettingsClick}
+                  className="w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-muted transition-colors text-left"
+                >
+                  <Avatar className="cursor-pointer">
                     <AvatarImage src={session.user.image ?? undefined} />
                     <AvatarFallback>{session.user.name?.[0] ?? 'U'}</AvatarFallback>
                   </Avatar>
-                  <span className="flex-1 truncate">{session.user.name}</span>
-                  <Button variant="link" size="sm" onClick={() => signOut()}>
-                    Sign out
-                  </Button>
-                </div>
-              ) : (
-                <Button variant="link" size="sm" onClick={() => signIn()}>
-                  Sign in
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{session.user.name ?? session.user.email}</p>
+                    <p className="text-xs text-muted-foreground truncate">View profile & settings</p>
+                  </div>
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                </button>
+                
+                {/* Sign Out Button */}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => signOut()}
+                  className="w-full justify-start text-muted-foreground hover:text-foreground"
+                >
+                  Sign out
                 </Button>
-              )}
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
+              </div>
+            ) : (
+              <Button variant="link" size="sm" onClick={() => signIn()}>
+                Sign in
+              </Button>
+            )}
+          </div>
+        </aside>
+      )}
 
       {/* Board Delete Confirmation Dialog */}
       <AlertDialog open={!!boardToDelete} onOpenChange={(isOpen) => !isOpen && setBoardToDelete(null)}>
@@ -206,7 +211,7 @@ export const Sidebar: FC<SidebarProps> = ({
             <AlertDialogAction 
               onClick={async () => {
                 if (boardToDelete) {
-                  await onDelete(boardToDelete.id);
+                  onDelete(boardToDelete.id);
                   setBoardToDelete(null);
                 }
               }}

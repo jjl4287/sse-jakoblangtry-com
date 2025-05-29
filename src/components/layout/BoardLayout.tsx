@@ -6,7 +6,7 @@ import { BoardOptimized } from '../board/BoardOptimized';
 import { ThemeProvider } from '~/contexts/ThemeContext';
 import { v4 as uuidv4 } from 'uuid';
 import { Sidebar } from '~/components/layout/Sidebar';
-import { motion } from 'framer-motion';
+import { LayoutGroup } from 'framer-motion';
 
 export default function BoardLayout() {
   return (
@@ -146,17 +146,28 @@ const InnerBoardLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen relative justify-end">
-      <Sidebar
-        boards={projects}
-        onSelect={handleSelectBoard}
-        onCreate={createBoard}
-        onPin={handlePinBoard}
-        onDelete={handleDeleteBoard}
-        onRename={handleRenameBoard}
-        open={sidebarOpen}
-        onOpenChange={setSidebarOpen}
-      />
+    <div className="flex h-screen">
+      <LayoutGroup>
+        <Sidebar
+          boards={projects}
+          onSelect={handleSelectBoard}
+          onCreate={createBoard}
+          onPin={handlePinBoard}
+          onDelete={handleDeleteBoard}
+          onRename={handleRenameBoard}
+          open={sidebarOpen}
+          onOpenChange={setSidebarOpen}
+        />
+        <div className="flex flex-col flex-1">
+          <BoardOptimized
+            focusEditTitleBoardId={focusRenameId}
+            clearFocusEdit={() => setFocusRenameId(null)}
+            sidebarOpen={sidebarOpen}
+            boardId={currentBoardId}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          />
+        </div>
+      </LayoutGroup>
       {/* Banner reminding unauthenticated users to sign in for persistence */}
       {showSignInBanner && !session && (
         <div className="fixed top-0 left-0 right-0 bg-yellow-100 text-yellow-900 p-2 text-center z-50">
@@ -169,20 +180,6 @@ const InnerBoardLayout: React.FC = () => {
           </button>
         </div>
       )}
-      <motion.div
-        className="flex flex-col relative"
-        initial={{ width: '100%' }}
-        animate={{ width: sidebarOpen ? 'calc(100% - 16rem)' : '100%' }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
-        style={{ willChange: 'width' }}
-      >
-        <BoardOptimized
-          focusEditTitleBoardId={focusRenameId}
-          clearFocusEdit={() => setFocusRenameId(null)}
-          sidebarOpen={sidebarOpen}
-          boardId={currentBoardId}
-        />
-      </motion.div>
     </div>
   );
 };

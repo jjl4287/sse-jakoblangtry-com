@@ -1,11 +1,9 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { InlineEdit } from '~/components/ui/InlineEdit';
-import { Search, UserPlus } from 'lucide-react';
+import { Search, UserPlus, PanelLeft } from 'lucide-react';
 import { Input } from '~/components/ui/input';
-import { Sun, Moon } from 'lucide-react';
 import { Button } from '~/components/ui/button';
-import { useTheme } from '~/contexts/ThemeContext';
+import { motion } from 'framer-motion';
 
 export interface BoardHeaderProps {
   title: string;
@@ -20,10 +18,9 @@ export interface BoardHeaderProps {
   onAddColumnClick: () => void;
   searchQuery: string;
   onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  theme: 'light' | 'dark';
-  toggleTheme: () => void;
   inputRef: React.Ref<HTMLInputElement>;
   onOpenShareSheet: () => void;
+  onToggleSidebar: () => void;
 }
 
 export const BoardHeader: React.FC<BoardHeaderProps> = ({
@@ -39,19 +36,23 @@ export const BoardHeader: React.FC<BoardHeaderProps> = ({
   onAddColumnClick,
   searchQuery,
   onSearchChange,
-  theme,
-  toggleTheme,
   inputRef,
   onOpenShareSheet,
+  onToggleSidebar,
 }) => {
   return (
-    <header className="glass-column border rounded-lg shadow-md px-4 py-1.5 flex items-center justify-between">
-      <motion.div
-        initial={{ x: sidebarOpen ? 0 : 40 }}
-        animate={{ x: sidebarOpen ? 0 : 40 }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="flex items-center"
-      >
+    <header className="glass-column border rounded-lg shadow-md px-4 py-1.5 flex items-center justify-between" style={{ height: 'var(--header-height, auto)' }}>
+      <div className="flex items-center">
+        {!sidebarOpen && (
+          <motion.button
+            layoutId="sidebar-toggle"
+            aria-label="Open sidebar"
+            className="mr-2 p-1 h-8 w-8 flex items-center justify-center rounded hover:bg-muted/10"
+            onClick={onToggleSidebar}
+          >
+            <PanelLeft size={16} />
+          </motion.button>
+        )}
         <InlineEdit
           value={title}
           onChange={onChange}
@@ -59,11 +60,11 @@ export const BoardHeader: React.FC<BoardHeaderProps> = ({
           onEditStart={onEditStart}
           onSave={onSave}
           onCancel={onCancel}
-          className="text-2xl font-bold inline-block w-max mr-2"
+          className="text-2xl font-bold inline-block w-max"
           placeholder="Board Title"
           ref={inputRef}
         />
-      </motion.div>
+      </div>
 
       <div className="flex items-center gap-3">
         <div className="text-sm font-medium">{columnCount} Columns</div>
@@ -84,9 +85,6 @@ export const BoardHeader: React.FC<BoardHeaderProps> = ({
             className="pl-9 pr-3 py-1 h-8 w-48 bg-input border rounded-full"
           />
         </div>
-        <Button size="icon" variant="ghost" onClick={toggleTheme} aria-label="Toggle theme">
-          {theme === 'dark' ? <Sun className="h-5 w-5 text-yellow-400" /> : <Moon className="h-5 w-5 text-blue-200" />}
-        </Button>
       </div>
     </header>
   );

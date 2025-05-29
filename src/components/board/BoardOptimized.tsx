@@ -37,6 +37,9 @@ import { BoardHeader } from './BoardHeader';
 import { ShareBoardSheet } from './ShareBoardSheet';
 import { useBoardOptimized } from '~/hooks/useBoardOptimized';
 import { useOptimizedMutations } from '~/hooks/useMutationsOptimized';
+import { useBoard } from '~/hooks/useBoard';
+import { useBoardMutations } from '~/hooks/useBoardMutations';
+import { useDragSensors } from '~/hooks/useDragSensors';
 
 // Props for header inline editing and external focus control
 export interface BoardOptimizedProps {
@@ -44,17 +47,19 @@ export interface BoardOptimizedProps {
   clearFocusEdit?: () => void;
   sidebarOpen: boolean;
   boardId: string | null;
+  onToggleSidebar: () => void;
 }
 
-export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({ 
-  focusEditTitleBoardId, 
-  clearFocusEdit, 
+export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized({
+  focusEditTitleBoardId,
+  clearFocusEdit,
   sidebarOpen,
-  boardId,
-}) => {
+  boardId: propBoardId,
+  onToggleSidebar,
+}) {
   // Use optimized hooks
-  const { board, loading, error, refetch: smartRefetch, updateLocal: updateBoardLocal } = useBoardOptimized(boardId);
-  const mutations = useOptimizedMutations(boardId, updateBoardLocal, smartRefetch);
+  const { board, loading, error, refetch: smartRefetch, updateLocal: updateBoardLocal } = useBoardOptimized(propBoardId);
+  const mutations = useOptimizedMutations(propBoardId, updateBoardLocal, smartRefetch);
   const { theme, toggleTheme } = useTheme();
   
   // Local UI state - memoized to prevent unnecessary re-renders
@@ -102,14 +107,7 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
   useMousePositionStyle(headerRef);
 
   // Stable sensor configuration
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const sensors = useDragSensors();
 
   // Optimized drag handlers with immediate feedback
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -357,7 +355,7 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
   }
 
   return (
-    <div className="relative flex flex-col h-full w-full p-2">
+    <div className="relative flex flex-col h-full w-full" style={{ padding: 'var(--board-padding)' }}>
       {/* Board Header */}
       <BoardHeader
         title={headerTitle}
@@ -375,10 +373,9 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
         onAddColumnClick={handleAddColumnClick}
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
-        theme={theme}
-        toggleTheme={toggleTheme}
         inputRef={headerInputRef}
         onOpenShareSheet={() => setIsShareSheetOpen(true)}
+        onToggleSidebar={onToggleSidebar}
       />
       
       {/* Board Content with optimized dnd-kit */}
@@ -396,7 +393,13 @@ export const BoardOptimized: React.FC<BoardOptimizedProps> = memo(({
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pt-2 pb-0 gap-x-1 justify-start">
+        <div 
+          className="flex flex-grow overflow-x-auto overflow-y-hidden h-full transition-all duration-300 pb-0 justify-start"
+          style={{ 
+            paddingTop: 'var(--board-gutter)', 
+            gap: 'calc(var(--column-gutter) * 2)' 
+          }}
+        >
           <SortableContext 
             items={columnsIds} 
             strategy={horizontalListSortingStrategy}
