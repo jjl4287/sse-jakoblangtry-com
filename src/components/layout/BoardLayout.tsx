@@ -7,6 +7,11 @@ import { ThemeProvider } from '~/contexts/ThemeContext';
 import { v4 as uuidv4 } from 'uuid';
 import { Sidebar } from '~/components/layout/Sidebar';
 import { LayoutGroup } from 'framer-motion';
+import { localStorageService } from '~/lib/services/local-storage-service';
+import { boardMigrationService, type MigrationResult } from '~/lib/services/board-migration-service';
+// import { MigrationBanner } from './MigrationBanner';
+import { LocalBoardBanner } from './LocalBoardBanner';
+import { toast } from 'react-hot-toast';
 
 export default function BoardLayout() {
   return (
@@ -17,12 +22,14 @@ export default function BoardLayout() {
 }
 
 const InnerBoardLayout: React.FC = () => {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [projects, setProjects] = useState<{ id: string; title: string; pinned: boolean }[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSignInBanner, setShowSignInBanner] = useState(false);
   const [focusRenameId, setFocusRenameId] = useState<string | null>(null);
   const [currentBoardId, setCurrentBoardId] = useState<string | null>(null);
+  const [migrationResult, setMigrationResult] = useState<MigrationResult | null>(null);
+  const [showMigrationBanner, setShowMigrationBanner] = useState(false);
 
   // Select a board by ID: update URL without triggering unnecessary API calls
   const handleSelectBoard = useCallback((id: string) => {
@@ -39,6 +46,14 @@ const InnerBoardLayout: React.FC = () => {
 
   // Delete a board by ID
   const handleDeleteBoard = async (id: string) => {
+    // Check if it's a local board
+    if (localStorageService.isLocalBoard(id)) {
+      localStorageService.deleteLocalBoard(id);
+      setProjects(prev => prev.filter(p => p.id !== id));
+      return;
+    }
+
+    // Handle remote board deletion
     if (session) {
       try {
         const response = await fetch(`/api/boards/${id}`, { method: 'DELETE' });
@@ -56,7 +71,13 @@ const InnerBoardLayout: React.FC = () => {
     // Update local list immediately
     setProjects(prev => prev.map(p => p.id === id ? { ...p, title } : p));
     
-    // Background API call for persistence
+    // Check if it's a local board
+    if (localStorageService.isLocalBoard(id)) {
+      localStorageService.updateLocalBoard(id, { title });
+      return;
+    }
+
+    // Background API call for persistence for remote boards
     if (session) {
       try {
         const response = await fetch(`/api/boards/${id}`, {
@@ -71,46 +92,117 @@ const InnerBoardLayout: React.FC = () => {
         }
       } catch (error) {
         console.error('Error renaming board:', error);
-        // Revert on error
+        // Revert on error for remote boards
         const response = await fetch('/api/boards');
         if (response.ok) {
-          const boards = await response.json();
-          setProjects(boards);
+          const remoteBoards = await response.json() as { id: string; title: string; pinned: boolean }[];
+          const localBoards = localStorageService.getLocalBoards();
+          const combinedBoards = [
+            ...localBoards.map(b => ({ id: b.id, title: b.title, pinned: b.pinned })),
+            ...remoteBoards
+          ];
+          setProjects(combinedBoards);
         }
       }
     }
   };
 
-  useEffect(() => {
-    // Optimized board list fetch with caching
-    const fetchBoards = async () => {
-      try {
-        const response = await fetch('/api/boards');
-        if (!response.ok) throw new Error('Failed to fetch boards');
-        const boards = await response.json() as { id: string; title: string; pinned: boolean }[];
-        if (boards.length === 0) return;
-        setProjects(boards);
-        
-        const params = new URLSearchParams(window.location.search);
-        const boardId = params.get('boardId');
-        if (boardId) {
-          setCurrentBoardId(boardId);
-        } else if (!params.get('boardId')) {
-          handleSelectBoard(boards[0]!.id);
+  // Load both local and remote boards
+  const loadAllBoards = useCallback(async () => {
+    try {
+      // Always load local boards first
+      const localBoards = localStorageService.getLocalBoards();
+      const localBoardItems = localBoards.map(b => ({
+        id: b.id,
+        title: b.title,
+        pinned: b.pinned
+      }));
+
+      // If user is authenticated, fetch remote boards too
+      let remoteBoards: { id: string; title: string; pinned: boolean }[] = [];
+      if (session) {
+        try {
+          const response = await fetch('/api/boards');
+          if (response.ok) {
+            const data = await response.json() as { id: string; title: string; pinned: boolean }[];
+            remoteBoards = data;
+          }
+        } catch (error) {
+          console.error('Error fetching remote boards:', error);
         }
-      } catch (error: unknown) {
-        console.error('Error listing boards:', String(error));
       }
-    };
-    void fetchBoards();
-  }, [handleSelectBoard]);
+
+      // Combine local and remote boards (local first to maintain order)
+      const allBoards = [...localBoardItems, ...remoteBoards];
+      setProjects(allBoards);
+
+      // Handle board selection from URL
+      const params = new URLSearchParams(window.location.search);
+      const boardId = params.get('boardId');
+      if (boardId) {
+        setCurrentBoardId(boardId);
+      } else if (allBoards.length > 0) {
+        handleSelectBoard(allBoards[0]!.id);
+      }
+    } catch (error: unknown) {
+      console.error('Error loading boards:', String(error));
+    }
+  }, [session, handleSelectBoard]);
+
+  // Handle user authentication status changes
+  useEffect(() => {
+    if (status === 'loading') return; // Don't do anything while loading
+
+    if (session) {
+      // User just signed in - check for migration
+      if (boardMigrationService.hasBoardsToMigrate()) {
+        void handleMigration();
+      } else {
+        void loadAllBoards();
+      }
+    } else {
+      // User is not signed in - load local boards only
+      void loadAllBoards();
+    }
+  }, [session, status, loadAllBoards]);
+
+  // Handle migration when user signs in
+  const handleMigration = async () => {
+    try {
+      const result = await boardMigrationService.migrateLocalBoards();
+      setMigrationResult(result);
+      
+      if (result.success) {
+        if (result.migratedCount > 0) {
+          setShowMigrationBanner(true);
+          toast.success(`Successfully migrated ${result.migratedCount} local board${result.migratedCount !== 1 ? 's' : ''} to your account!`);
+        }
+        // Reload boards after successful migration
+        void loadAllBoards();
+      } else {
+        toast.error('Some boards could not be migrated. Check the migration details.');
+        setShowMigrationBanner(true);
+        // Still reload to show what was migrated
+        void loadAllBoards();
+      }
+    } catch (error) {
+      console.error('Migration failed:', error);
+      toast.error('Failed to migrate local boards. Please try signing in again.');
+      // Load boards anyway to show current state
+      void loadAllBoards();
+    }
+  };
 
   // Create a new board with optimistic updates
   const createBoard = async (title: string): Promise<string> => {
-    // Fallback for unauthenticated users: create local board only
+    // For unauthenticated users: create local board only
     if (!session) {
-      const localBoard = { id: uuidv4(), title, pinned: false };
-      setProjects(prev => [localBoard, ...prev]);
+      const localBoard = localStorageService.createLocalBoard(title);
+      
+      setProjects(prev => [
+        { id: localBoard.id, title: localBoard.title, pinned: localBoard.pinned },
+        ...prev
+      ]);
       handleSelectBoard(localBoard.id);
       setShowSignInBanner(true);
       setFocusRenameId(localBoard.id);
@@ -168,14 +260,26 @@ const InnerBoardLayout: React.FC = () => {
           />
         </div>
       </LayoutGroup>
-      {/* Banner reminding unauthenticated users to sign in for persistence */}
+      
+      {/* Enhanced banner for local boards */}
       {showSignInBanner && !session && (
-        <div className="fixed top-0 left-0 right-0 bg-yellow-100 text-yellow-900 p-2 text-center z-50">
-          You&apos;re creating boards locally.{' '}
-          <button onClick={() => signIn()} className="underline font-bold">
-            Sign in
-          </button>{' '}to save your boards.
-          <button onClick={() => setShowSignInBanner(false)} className="absolute top-1 right-2">
+        <LocalBoardBanner onClose={() => setShowSignInBanner(false)} />
+      )}
+
+      {/* Migration result banner */}
+      {showMigrationBanner && migrationResult && (
+        <div className="fixed top-0 left-0 right-0 bg-green-100 text-green-900 p-3 text-center z-50 shadow-lg border-b border-green-200">
+          <div className="font-medium">
+            {migrationResult.success 
+              ? `Successfully migrated ${migrationResult.migratedCount} board${migrationResult.migratedCount !== 1 ? 's' : ''} to your account!`
+              : 'Some boards could not be migrated. Please check the details.'
+            }
+          </div>
+          <button 
+            onClick={() => setShowMigrationBanner(false)} 
+            className="absolute top-2 right-3 text-green-700 hover:text-green-900 transition-colors"
+            aria-label="Close migration banner"
+          >
             ✕
           </button>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
+import { localStorageService } from '~/lib/services/local-storage-service';
 import type { Comment } from '~/types';
 
 // HTTP client functions for API calls
@@ -64,20 +65,24 @@ async function deleteCommentAPI(commentId: string): Promise<void> {
   }
 }
 
-// Hook interfaces
-export interface UseCommentsResult {
+// Check if a card belongs to a local board
+function isLocalCard(cardId: string): boolean {
+  // Try to find the card in any local board
+  const localBoards = localStorageService.getLocalBoards();
+  return localBoards.some(board =>
+    board.columns.some(column =>
+      column.cards.some(card => card.id === cardId)
+    )
+  );
+}
+
+// Hook return types
+interface UseCommentsResult {
   comments: Comment[];
   loading: boolean;
   error: Error | null;
   refreshComments: () => Promise<void>;
-  refetch: () => Promise<void>; // Alias for backward compatibility
-}
-
-export interface UseCommentMutationsResult {
-  createComment: (cardId: string, content: string) => Promise<Comment | null>;
-  updateComment: (commentId: string, content: string) => Promise<Comment | null>;
-  deleteComment: (commentId: string) => Promise<boolean>;
-  isLoading: boolean;
+  refetch: () => Promise<void>;
 }
 
 // Hooks
@@ -90,6 +95,15 @@ export function useComments(cardId?: string): UseCommentsResult {
     if (!cardId) {
       setComments([]);
       setLoading(false);
+      return;
+    }
+
+    // Check if this is a local card
+    if (isLocalCard(cardId)) {
+      console.log('Skipping comment fetch for local card:', cardId);
+      setComments([]);
+      setLoading(false);
+      setError(null);
       return;
     }
 
@@ -123,14 +137,24 @@ export function useComments(cardId?: string): UseCommentsResult {
   };
 }
 
-// Alias for backward compatibility
-export const useCardComments = useComments;
+interface UseCommentMutationsResult {
+  createComment: (cardId: string, content: string) => Promise<Comment | null>;
+  updateComment: (commentId: string, content: string) => Promise<Comment | null>;
+  deleteComment: (commentId: string) => Promise<boolean>;
+  isLoading: boolean;
+}
 
 export function useCommentMutations(): UseCommentMutationsResult {
   const [isLoading, setIsLoading] = useState(false);
   const { data: session } = useSession();
 
   const createComment = useCallback(async (cardId: string, content: string): Promise<Comment | null> => {
+    // Check if this is a local card
+    if (isLocalCard(cardId)) {
+      toast.error('Comments are not supported for local boards yet');
+      return null;
+    }
+
     if (!session?.user?.id) {
       toast.error('You must be logged in to add comments');
       return null;
@@ -194,6 +218,6 @@ export function useCommentMutations(): UseCommentMutationsResult {
     createComment,
     updateComment,
     deleteComment,
-    isLoading,
+    isLoading
   };
 } 

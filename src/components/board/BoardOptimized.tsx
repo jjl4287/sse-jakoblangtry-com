@@ -41,6 +41,7 @@ import { useBoard } from '~/hooks/useBoard';
 import { useBoardMutations } from '~/hooks/useBoardMutations';
 import { useDragSensors } from '~/hooks/useDragSensors';
 import { PanelLeft } from 'lucide-react';
+import { Button } from "~/components/ui/button";
 
 // Props for header inline editing and external focus control
 export interface BoardOptimizedProps {
@@ -105,6 +106,23 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
     }
   }, [focusEditTitleBoardId, board, clearFocusEdit]);
 
+  // Listen for local board data changes
+  useEffect(() => {
+    const handleLocalBoardDataChanged = (event: CustomEvent) => {
+      const { boardId } = event.detail;
+      if (boardId === propBoardId) {
+        console.log('Local board data changed, triggering refresh for board:', boardId);
+        smartRefetch();
+      }
+    };
+
+    window.addEventListener('localBoardDataChanged', handleLocalBoardDataChanged as EventListener);
+    
+    return () => {
+      window.removeEventListener('localBoardDataChanged', handleLocalBoardDataChanged as EventListener);
+    };
+  }, [propBoardId, smartRefetch]);
+
   useMousePositionStyle(headerRef);
 
   // Stable sensor configuration
@@ -117,16 +135,31 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
     const data = active.data?.current;
     if (!data) return;
 
-    if (data.type === 'card') {
-      document.documentElement.classList.add('card-dragging-active');
-    }
-    setActiveItem(data);
+    // Type guard to ensure data has the expected structure
+    const isValidDragData = (obj: unknown): obj is {
+      type: 'card' | 'column';
+      card?: CardType;
+      column?: ColumnType;
+      index?: number;
+      columnId?: string;
+    } => {
+      return typeof obj === 'object' && obj !== null && 
+             'type' in obj && 
+             (obj.type === 'card' || obj.type === 'column');
+    };
 
-    if (data.type === 'column') {
-      const el = document.querySelector(`[data-column-id="${active.id}"]`);
-      if (el instanceof HTMLElement) {
-        const { width, height } = el.getBoundingClientRect();
-        setOverlayStyle({ width, height });
+    if (isValidDragData(data)) {
+      if (data.type === 'card') {
+        document.documentElement.classList.add('card-dragging-active');
+      }
+      setActiveItem(data);
+
+      if (data.type === 'column') {
+        const el = document.querySelector(`[data-column-id="${active.id}"]`);
+        if (el instanceof HTMLElement) {
+          const { width, height } = el.getBoundingClientRect();
+          setOverlayStyle({ width, height });
+        }
       }
     }
   }, []);
@@ -370,9 +403,66 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
         
         {/* No Board Message */}
         <div className="flex items-center justify-center h-full w-full">
-          <div className="glass-card glass-depth-2 p-4 max-w-md">
-            <h3 className="text-lg font-semibold mb-2">No Board Data</h3>
-            <p>Create a new board from the sidebar to get started.</p>
+          <div className="text-center max-w-md px-6">
+            {/* Professional Empty State SVG */}
+            <div className="mx-auto mb-6">
+              <svg 
+                width="120" 
+                height="120" 
+                viewBox="0 0 120 120" 
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+                className="mx-auto opacity-60"
+              >
+                {/* Background circle */}
+                <circle cx="60" cy="60" r="60" fill="currentColor" className="text-muted-foreground/10" />
+                
+                {/* Board/Kanban representation */}
+                <g className="text-muted-foreground/40">
+                  {/* Board frame */}
+                  <rect x="20" y="30" width="80" height="60" rx="4" stroke="currentColor" strokeWidth="2" fill="none" />
+                  
+                  {/* Column dividers */}
+                  <line x1="40" y1="35" x2="40" y2="85" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="60" y1="35" x2="60" y2="85" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="80" y1="35" x2="80" y2="85" stroke="currentColor" strokeWidth="1.5" />
+                  
+                  {/* Column headers */}
+                  <rect x="22" y="32" width="16" height="3" rx="1.5" fill="currentColor" />
+                  <rect x="42" y="32" width="16" height="3" rx="1.5" fill="currentColor" />
+                  <rect x="62" y="32" width="16" height="3" rx="1.5" fill="currentColor" />
+                  <rect x="82" y="32" width="16" height="3" rx="1.5" fill="currentColor" />
+                  
+                  {/* Sample cards - very faded */}
+                  <rect x="24" y="40" width="12" height="8" rx="2" fill="currentColor" className="opacity-30" />
+                  <rect x="24" y="50" width="12" height="6" rx="2" fill="currentColor" className="opacity-20" />
+                  <rect x="44" y="40" width="12" height="10" rx="2" fill="currentColor" className="opacity-25" />
+                  <rect x="64" y="40" width="12" height="7" rx="2" fill="currentColor" className="opacity-30" />
+                  
+                  {/* Plus icon in center */}
+                  <circle cx="60" cy="65" r="8" fill="currentColor" className="text-primary/30" />
+                  <path d="M56 65h8M60 61v8" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                </g>
+              </svg>
+            </div>
+            
+            {/* Empty state content */}
+            <h3 className="text-xl font-semibold text-foreground mb-3">
+              No Board Selected
+            </h3>
+            <p className="text-muted-foreground mb-6 leading-relaxed">
+              Get started by creating your first board or selecting an existing one from the sidebar. 
+              Organize your projects with custom columns and cards.
+            </p>
+            
+            {/* Call to action */}
+            <Button 
+              onClick={onToggleSidebar}
+              variant="default"
+              className="rounded-full px-6"
+            >
+              Open Sidebar
+            </Button>
           </div>
         </div>
       </div>

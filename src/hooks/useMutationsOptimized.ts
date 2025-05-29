@@ -13,6 +13,7 @@ import type {
   CardCreateData,
   ColumnCreateData
 } from '~/types';
+import { localStorageService } from '~/lib/services/local-storage-service';
 
 // Enhanced operation types for better tracking and conflict resolution
 interface BaseOperation {
@@ -287,8 +288,8 @@ export function useOptimizedMutations(
   smartRefetch: () => void
 ) {
   const operationQueue = useRef(new OperationQueue());
-  const isProcessing = useRef(false);
   const processTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isProcessing = useRef(false);
 
   // Enhanced mutation functions with better conflict resolution
   const moveCard = useCallback(async (cardId: string, targetColumnId: string, newOrder: number) => {
@@ -500,6 +501,12 @@ export function useOptimizedMutations(
       tempId,
       cardData
     });
+
+    // Trigger processing immediately for card operations
+    if (processTimeoutRef.current) {
+      clearTimeout(processTimeoutRef.current);
+    }
+    processTimeoutRef.current = setTimeout(processBatchOperations, 50);
   }, [updateBoardLocal]);
 
   const createColumn = useCallback(async (boardId: string, columnData: ColumnCreateData) => {
@@ -684,6 +691,40 @@ export function useOptimizedMutations(
 
   const processOperation = useCallback(async (operation: Operation): Promise<void> => {
     console.log(`🔄 Processing operation: ${operation.type}`, operation);
+    
+    // Dynamically check if this operation involves a local board
+    const operationBoardId = (() => {
+      switch (operation.type) {
+        case 'card_move':
+        case 'card_update':
+        case 'card_create':
+          return boardId; // Current board
+        case 'column_reorder':
+        case 'column_create':
+        case 'column_update':
+        case 'column_delete':
+          return operation.boardId || boardId;
+        case 'board_update':
+          return operation.boardId;
+        default:
+          return boardId;
+      }
+    })();
+
+    console.log(`🔍 Operation board ID: ${operationBoardId}, Current board ID: ${boardId}`);
+    
+    const isOperationForLocalBoard = operationBoardId ? localStorageService.isLocalBoard(operationBoardId) : false;
+    
+    console.log(`🏠 Is operation for local board: ${isOperationForLocalBoard}`);
+    
+    // For local boards, skip API calls - optimistic updates already handled via updateBoardCache
+    if (isOperationForLocalBoard) {
+      console.log(`✅ Skipping API call for local board operation: ${operation.type}`);
+      operationQueue.current.markCompleted(operation.id);
+      return;
+    }
+    
+    console.log(`🌐 Proceeding with API call for remote board operation: ${operation.type}`);
     
     try {
       let response: Response;
@@ -873,7 +914,7 @@ export function useOptimizedMutations(
       
       throw error;
     }
-  }, [updateBoardLocal, smartRefetch]);
+  }, [updateBoardLocal, smartRefetch, boardId]);
 
   return {
     moveCard,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import type { Board } from '~/types';
+import { localStorageService } from '~/lib/services/local-storage-service';
 
 // Optimized board state interface
 interface BoardState {
@@ -22,6 +23,23 @@ const STALE_WHILE_REVALIDATE = 30 * 1000; // 30 seconds
 
 // HTTP client functions with optimized caching
 async function fetchBoardOptimized(boardId: string, useCache = true): Promise<Board> {
+  // Check if it's a local board first
+  const localBoard = localStorageService.getLocalBoard(boardId);
+  if (localBoard) {
+    const convertedBoard = localStorageService.convertToApiBoard(localBoard);
+    
+    // Cache local boards too for consistency
+    if (useCache) {
+      boardCache.set(boardId, {
+        data: convertedBoard,
+        timestamp: Date.now(),
+        isStale: false
+      });
+    }
+    
+    return convertedBoard;
+  }
+
   const now = Date.now();
   const cached = boardCache.get(boardId);
   
@@ -76,6 +94,44 @@ function updateBoardCache(boardId: string, updater: (board: Board) => Board) {
       data: updated,
       timestamp: Date.now()
     });
+
+    // If it's a local board, also update local storage
+    if (localStorageService.isLocalBoard(boardId)) {
+      // Convert back to local format and save
+      const localUpdate = {
+        title: updated.title,
+        pinned: updated.pinned,
+        columns: updated.columns.map(col => ({
+          id: col.id,
+          title: col.title,
+          order: col.order,
+          width: col.width,
+          cards: col.cards.map(card => ({
+            id: card.id,
+            title: card.title,
+            description: card.description,
+            order: card.order,
+            priority: card.priority,
+            dueDate: card.dueDate,
+            weight: card.weight,
+            columnId: card.columnId,
+            labels: card.labels.map(label => ({
+              id: label.id,
+              name: label.name,
+              color: label.color
+            })),
+            attachments: card.attachments.map(att => ({
+              id: att.id,
+              fileName: att.fileName,
+              fileSize: att.fileSize,
+              contentType: att.contentType,
+              url: att.url
+            }))
+          }))
+        }))
+      };
+      localStorageService.updateLocalBoard(boardId, localUpdate);
+    }
   }
 }
 

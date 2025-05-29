@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Label } from '~/types';
+import { localStorageService } from '~/lib/services/local-storage-service';
 
 // HTTP client functions for API calls
 async function fetchBoardLabels(boardId: string): Promise<Label[]> {
@@ -66,6 +67,17 @@ async function deleteLabelAPI(labelId: string): Promise<void> {
   }
 }
 
+// Generate a default set of labels for local boards
+function getDefaultLabels(boardId: string): Label[] {
+  return [
+    { id: `${boardId}_label_bug`, name: 'Bug', color: '#ef4444', boardId },
+    { id: `${boardId}_label_feature`, name: 'Feature', color: '#3b82f6', boardId },
+    { id: `${boardId}_label_enhancement`, name: 'Enhancement', color: '#8b5cf6', boardId },
+    { id: `${boardId}_label_urgent`, name: 'Urgent', color: '#f59e0b', boardId },
+    { id: `${boardId}_label_low_priority`, name: 'Low Priority', color: '#6b7280', boardId }
+  ];
+}
+
 export function useBoardLabels(boardId: string | null) {
   const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(false);
@@ -75,6 +87,37 @@ export function useBoardLabels(boardId: string | null) {
     if (!boardId) {
       setLabels([]);
       setLoading(false);
+      return;
+    }
+
+    // Check if this is a local board
+    if (localStorageService.isLocalBoard(boardId)) {
+      console.log('Loading labels for local board:', boardId);
+      setLoading(true);
+      
+      try {
+        const localBoard = localStorageService.getLocalBoard(boardId);
+        if (localBoard) {
+          // Convert local labels to Label format, or use defaults if none exist
+          const localLabels = localBoard.labels?.map(label => ({
+            id: label.id,
+            name: label.name,
+            color: label.color,
+            boardId: boardId
+          })) || getDefaultLabels(boardId);
+          
+          setLabels(localLabels);
+        } else {
+          setLabels(getDefaultLabels(boardId));
+        }
+        setError(null);
+      } catch (err) {
+        console.error('Error loading local board labels:', err);
+        setLabels(getDefaultLabels(boardId));
+        setError(null); // Don't show error for local boards, just use defaults
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 

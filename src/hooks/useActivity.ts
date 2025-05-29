@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { localStorageService } from '~/lib/services/local-storage-service';
 import type { ActivityLog } from '~/types';
 
 // HTTP client functions for API calls
@@ -9,10 +10,21 @@ async function fetchCardActivity(cardId: string): Promise<ActivityLog[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch activity: ${response.statusText}`);
+    throw new Error(`Failed to fetch card activity: ${response.statusText}`);
   }
 
   return response.json();
+}
+
+// Check if a card belongs to a local board
+function isLocalCard(cardId: string): boolean {
+  // Try to find the card in any local board
+  const localBoards = localStorageService.getLocalBoards();
+  return localBoards.some(board =>
+    board.columns.some(column =>
+      column.cards.some(card => card.id === cardId)
+    )
+  );
 }
 
 export function useCardActivity(cardId: string | null) {
@@ -24,6 +36,15 @@ export function useCardActivity(cardId: string | null) {
     if (!cardId) {
       setActivityLogs([]);
       setLoading(false);
+      return;
+    }
+
+    // Check if this is a local card
+    if (isLocalCard(cardId)) {
+      console.log('Skipping activity fetch for local card:', cardId);
+      setActivityLogs([]);
+      setLoading(false);
+      setError(null);
       return;
     }
 

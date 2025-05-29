@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { BoardMembership, User } from '~/types';
+import { localStorageService } from '~/lib/services/local-storage-service';
 
 // HTTP client functions for API calls
 async function fetchBoardMembers(boardId: string): Promise<BoardMembership[]> {
@@ -24,6 +25,15 @@ export function useBoardMembers(boardId: string | null) {
     if (!boardId) {
       setMembers([]);
       setLoading(false);
+      return;
+    }
+
+    // Check if this is a local board - if so, skip API calls
+    if (localStorageService.isLocalBoard(boardId)) {
+      console.log('Skipping member fetch for local board:', boardId);
+      setMembers([]);
+      setLoading(false);
+      setError(null);
       return;
     }
 
