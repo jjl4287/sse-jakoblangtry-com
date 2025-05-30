@@ -191,7 +191,7 @@ export const Sidebar: FC<SidebarProps> = ({
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => signOut()}
+                    onClick={() => signOut({ callbackUrl: '/' })}
                     className="w-full justify-start text-muted-foreground hover:text-foreground"
                   >
                     Sign out

@@ -415,7 +415,7 @@ export const ModernSidebar: React.FC<ModernSidebarProps> = ({
                         Settings
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => signOut()}>
+                      <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
                         <LogOut className="h-4 w-4 mr-2" />
                         Sign out
                       </DropdownMenuItem>

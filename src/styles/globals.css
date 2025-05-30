@@ -370,7 +370,7 @@
     /* Allow flexible columns to fill available space */
     flex: 1 1 0 !important;
     max-width: none !important;
-    /* Spacing between columns (adjust gutter as needed) */
+    /* Spacing between columns (back to original) */
     margin: 0 0.25rem !important;
     /* Core column styling without filter to prevent DnD fixed-preview offset */
     border-width: var(--glass-border-width);
@@ -471,11 +471,13 @@
 
   .light .glass-card:hover {
     transform: translateY(-1px);
+    /* Very subtle shadows that fit within card boundaries */
     box-shadow: 
-      0 4px 12px rgba(0, 0, 0, 0.08),
-      0 2px 4px rgba(0, 0, 0, 0.06),
-      0 0 0 1px rgba(59, 130, 246, 0.1) inset; /* Blue inner glow on hover */
+      0 2px 6px rgba(0, 0, 0, 0.06),
+      0 1px 3px rgba(0, 0, 0, 0.04),
+      0 0 0 1px rgba(59, 130, 246, 0.08) inset; /* Very subtle blue inner glow */
     background-color: rgba(255, 255, 255, 0.85); /* Slightly more white on hover but not stark */
+    border-color: rgba(59, 130, 246, 0.2); /* Subtle blue border change */
   }
 
   /* Enhanced dark mode glass card styling */
@@ -493,10 +495,11 @@
     transform: translateY(-1px);
     background-color: rgba(71, 85, 105, 0.95); /* Lighter slate on hover */
     border-color: rgba(96, 165, 250, 0.3);
+    /* Very subtle shadows that fit within card boundaries */
     box-shadow: 
-      0 8px 25px rgba(0, 0, 0, 0.4),
-      0 4px 10px rgba(0, 0, 0, 0.3),
-      0 0 0 1px rgba(96, 165, 250, 0.15) inset; /* Blue inner glow on hover */
+      0 3px 8px rgba(0, 0, 0, 0.4),
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(96, 165, 250, 0.12) inset; /* Subtle blue inner glow */
   }
 
   /* Elevated state (e.g., for dragging) - keep this */
@@ -547,7 +550,8 @@
 
   /* Override gutter margin for the sidebar (aside element) */
   aside.glass-column {
-    margin: 0 !important;
+    margin: 0 0.5rem 0 0 !important; /* Only right margin for sidebar to accommodate shadows */
+    padding: 0.5rem !important; /* Maintain padding for shadow space */
   }
 
   .light .glass-column {
@@ -574,20 +578,22 @@
   .dark .glass-column:hover {
     background-color: var(--pastel-sidebar-hover-dark);
     border-color: rgba(96, 165, 250, 0.25);
+    /* Very subtle shadow that doesn't extend beyond column */
     box-shadow: 
-      0 8px 25px rgba(0, 0, 0, 0.5),
-      0 4px 10px rgba(0, 0, 0, 0.4),
-      0 0 0 1px rgba(96, 165, 250, 0.12) inset;
+      0 2px 6px rgba(0, 0, 0, 0.3),
+      0 1px 3px rgba(0, 0, 0, 0.2),
+      0 0 0 1px rgba(96, 165, 250, 0.08) inset;
     z-index: 15;
   }
 
   .light .glass-column:hover {
     background-color: rgba(241, 245, 249, 0.9); /* Softer hover state */
     border-color: rgba(59, 130, 246, 0.2);
+    /* Very subtle shadow that doesn't extend beyond column */
     box-shadow: 
-      0 8px 25px rgba(0, 0, 0, 0.06),
-      0 3px 10px rgba(0, 0, 0, 0.04),
-      0 0 0 1px rgba(59, 130, 246, 0.1) inset;
+      0 2px 6px rgba(0, 0, 0, 0.04),
+      0 1px 3px rgba(0, 0, 0, 0.03),
+      0 0 0 1px rgba(59, 130, 246, 0.06) inset;
     z-index: 15;
   }
 
@@ -1693,4 +1699,26 @@ html.card-details-sheet-open .card-wrapper .glass-card [tabindex] {
   box-shadow: 
     0 2px 4px rgba(0, 0, 0, 0.3),
     0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Board container utility to prevent shadow clipping */
+.board-container {
+  padding: 0 1rem !important; /* Add horizontal padding to prevent shadow clipping */
+  overflow: visible !important;
+  contain: none !important;
+}
+
+/* Ensure flex containers don't clip shadows */
+.flex-shadow-safe {
+  overflow: visible !important;
+  contain: none !important;
+  clip-path: none !important;
+}
+
+/* Grid container utility for boards */
+.board-grid {
+  padding: 0.5rem 1rem !important; /* Adequate padding for shadows */
+  gap: 0.5rem !important; /* Minimum gap to prevent shadow overlap */
+  overflow: visible !important;
+  contain: none !important;
 }
