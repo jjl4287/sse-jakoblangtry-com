@@ -11,9 +11,10 @@ interface SortableCardProps {
   index: number;
   columnId: string;
   boardId?: string;
+  deleteCard?: (cardId: string) => Promise<void> | void;
 }
 
-export function SortableCard({ card, index, columnId, boardId }: SortableCardProps) {
+export function SortableCard({ card, index, columnId, boardId, deleteCard }: SortableCardProps) {
   const [isCardDetailsSheetOpen, setIsCardDetailsSheetOpen] = useState(false);
 
   // Check if card details sheet is open to disable dragging
@@ -85,6 +86,7 @@ export function SortableCard({ card, index, columnId, boardId }: SortableCardPro
         columnId={columnId} 
         isDragging={isDragging}
         boardId={boardId}
+        deleteCard={deleteCard}
       />
     </div>
   );

@@ -39,12 +39,14 @@ interface CardProps {
   onDragStart?: (item: CardDragItem) => void;
   onDragEnd?: () => void;
   boardId?: string;
+  deleteCard?: (cardId: string) => Promise<void> | void;
 }
 
 export const Card = memo(({ 
   card: initialCard, 
   isDragging,
-  boardId
+  boardId,
+  deleteCard: optimizedDeleteCard
 }: CardProps) => {
   // Log invalid data but maintain hook order
   if (!initialCard?.id) {
@@ -52,7 +54,11 @@ export const Card = memo(({
   }
 
   const ref = useRef<HTMLDivElement>(null);
-  const { deleteCard } = useCardMutations();
+  const { deleteCard: fallbackDeleteCard } = useCardMutations();
+  
+  // Use optimized deleteCard if provided, otherwise fall back to traditional hook
+  const deleteCard = optimizedDeleteCard || fallbackDeleteCard;
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCardDeleteConfirmOpen, setIsCardDeleteConfirmOpen] = useState(false);
@@ -93,10 +99,15 @@ export const Card = memo(({
   // Executes the card deletion
   const executeDeleteCard = useCallback(async () => {
     try {
-      await deleteCard(card.id);
+      const result = deleteCard(card.id);
+      // If it returns a promise (traditional hook), wait for it
+      if (result && typeof result.then === 'function') {
+        await result;
+      }
+      // If it's optimized mutation (void return), it handles success/error internally
     } catch (err) {
       console.error("Error deleting card:", err);
-      // Optionally show a toast message here
+      // Error handling is done by the respective deleteCard implementations
     }
     setIsCardDeleteConfirmOpen(false); // Close dialog
   }, [card.id, deleteCard]);
@@ -138,47 +149,53 @@ export const Card = memo(({
         onClick={handleOpenModal}
         style={{ pointerEvents: 'auto' }}
       >
-        {/* Conditionally render the Delete Button only when not dragging */}
-        {!isDragging && (
-          <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-[50ms]" onClick={(e) => e.stopPropagation()}> {/* Prevent card click through */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-6 w-6 rounded-full"
-              onClick={requestDeleteCard} 
-              aria-label="Delete card"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-
         <div className="flex-grow p-1">
-          {/* Title with Weight, Date, and Priority on same line */}
+          {/* Title with Weight, Date, Priority, and Delete Button on same line */}
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-base text-gray-800 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-white transition-colors duration-[50ms] flex-1 mr-2">{card.title}</h3>
             
-            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-              {/* Weight Display */}
-              {card.weight !== undefined && card.weight > 0 && (
-                <span className="flex items-center">
-                  <Weight className="h-3 w-3 mr-1" />
-                  {card.weight}
-                </span>
-              )}
+            <div className="relative flex items-center text-xs text-gray-500 dark:text-gray-400">
+              {/* Metadata container - positioned normally, shifts left on hover */}
+              <div className="card-metadata-items flex items-center gap-2">
+                {/* Weight Display */}
+                {card.weight !== undefined && card.weight > 0 && (
+                  <span className="flex items-center whitespace-nowrap">
+                    <Weight className="h-3 w-3 mr-1" />
+                    {card.weight}
+                  </span>
+                )}
 
-              {/* Due Date Display */}
-              {card.dueDate && (
-                <span className="flex items-center">
-                  <Calendar className="h-3 w-3 mr-1" />
-                  {format(new Date(card.dueDate), 'MMM d')}
+                {/* Due Date Display */}
+                {card.dueDate && (
+                  <span className="flex items-center whitespace-nowrap">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {format(new Date(card.dueDate), 'MMM d')}
+                  </span>
+                )}
+                
+                {/* Priority Display */}
+                <span className={`flex items-center whitespace-nowrap ${priorityColor}`}>
+                  <PriorityIcon className="h-3 w-3 mr-1" />
                 </span>
+              </div>
+
+              {/* Delete Button - absolutely positioned, slides in from right */}
+              {!isDragging && (
+                <div 
+                  className="card-trash-button absolute right-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-5 w-5 rounded-full hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                    onClick={requestDeleteCard} 
+                    aria-label="Delete card"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
-              
-              {/* Priority Display */}
-              <span className={`flex items-center ${priorityColor}`}>
-                <PriorityIcon className="h-3 w-3 mr-1" />
-              </span>
             </div>
           </div>
 

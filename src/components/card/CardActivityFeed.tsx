@@ -5,12 +5,14 @@ import { format } from 'date-fns';
 import { MessageSquare } from 'lucide-react';
 import type { Comment, ActivityLog } from '~/types';
 import Markdown from '~/components/ui/Markdown';
+import { useCommentMutations } from '~/hooks/useComments';
 
 interface CardActivityFeedProps {
   cardId: string;
   isLoadingComments: boolean;
   isLoadingActivityLogs: boolean;
   combinedFeedItems: FeedItem[];
+  onRefreshComments?: () => void; // Callback to refresh comments after updates
 }
 
 type FeedItem = (Comment & { itemType: 'comment' }) | (ActivityLog & { itemType: 'activity' });
@@ -108,11 +110,26 @@ function formatActivity(activity: ActivityLog): string {
 }
 
 export const CardActivityFeed: React.FC<CardActivityFeedProps> = ({
+  cardId,
   isLoadingComments,
   isLoadingActivityLogs,
-  combinedFeedItems
+  combinedFeedItems,
+  onRefreshComments
 }) => {
   const isLoading = isLoadingComments || isLoadingActivityLogs;
+  const { updateComment } = useCommentMutations();
+
+  const handleCommentUpdate = async (commentId: string, newContent: string) => {
+    try {
+      await updateComment(cardId, commentId, newContent);
+      // Refresh comments to show the updated content
+      if (onRefreshComments) {
+        onRefreshComments();
+      }
+    } catch (error) {
+      console.error('Failed to update comment:', error);
+    }
+  };
 
   return (
     <div className="text-sm">
@@ -145,6 +162,7 @@ export const CardActivityFeed: React.FC<CardActivityFeedProps> = ({
                     key={`comment-${item.id}`} 
                     comment={item} 
                     isLast={isLast}
+                    onCommentUpdate={handleCommentUpdate}
                   />
                 );
               }
@@ -167,9 +185,11 @@ export const CardActivityFeed: React.FC<CardActivityFeedProps> = ({
 interface CommentItemProps {
   comment: Comment;
   isLast: boolean;
+  onCommentUpdate: (commentId: string, newContent: string) => void;
 }
 
-const CommentItem: React.FC<CommentItemProps> = ({ comment, isLast }) => {
+const CommentItem: React.FC<CommentItemProps> = ({ comment, isLast, onCommentUpdate }) => {
+
   return (
     <div className={`relative pl-10 ${!isLast ? 'pb-5' : 'pb-0'}`}>
       {/* Avatar container with background circle */}

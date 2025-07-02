@@ -8,7 +8,7 @@ import { LayoutGroup } from 'framer-motion';
 import { localStorageService } from '~/lib/services/local-storage-service';
 import { boardMigrationService, type MigrationResult } from '~/lib/services/board-migration-service';
 import { LocalBoardBanner } from './LocalBoardBanner';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 export default function BoardLayout() {
   return <InnerBoardLayout />;

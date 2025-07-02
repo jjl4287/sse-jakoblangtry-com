@@ -32,6 +32,7 @@ interface SortableColumnProps {
   /** Optimized mutation functions */
   updateColumn?: (columnId: string, updates: ColumnUpdate) => Promise<void>;
   deleteColumn?: (columnId: string) => Promise<void>;
+  deleteCard?: (cardId: string) => Promise<void> | void; // Optimized card deletion function
 }
 
 export const SortableColumn = memo<SortableColumnProps>(function SortableColumn({ 
@@ -41,7 +42,8 @@ export const SortableColumn = memo<SortableColumnProps>(function SortableColumn(
   onAddCardClick, 
   boardId,
   updateColumn: optimizedUpdateColumn,
-  deleteColumn: optimizedDeleteColumn
+  deleteColumn: optimizedDeleteColumn,
+  deleteCard
 }) {
   // Column.id is assumed valid (validated by parent Column wrapper)
   const { updateColumn: fallbackUpdateColumn, deleteColumn: fallbackDeleteColumn } = useColumnMutations();
@@ -226,7 +228,7 @@ export const SortableColumn = memo<SortableColumnProps>(function SortableColumn(
             }}
             placeholder="Column Title"
           />
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-1 ml-auto">
             <span className="text-xs text-muted-foreground">
               {column.cards.length} {column.cards.length === 1 ? 'card' : 'cards'}
             </span>
@@ -236,20 +238,22 @@ export const SortableColumn = memo<SortableColumnProps>(function SortableColumn(
                 {totalWeight}
               </span>
             )}
-            <button 
-              onClick={handleAddClick}
-              className="p-1 rounded hover:bg-green-100 text-green-600 opacity-75 hover:opacity-100"
-              title="Add Card"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-            <button 
-              onClick={requestDeleteColumn}
-              className="p-1 rounded hover:bg-red-100 text-red-500 opacity-75 hover:opacity-100"
-              title="Delete Column"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
+            <div className="flex items-center gap-0.5">
+              <button 
+                onClick={handleAddClick}
+                className="px-2 py-1.5 rounded-md hover:bg-muted text-foreground hover:text-foreground transition-colors font-medium"
+                title="Add Card"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              <button 
+                onClick={requestDeleteColumn}
+                className="px-2 py-1.5 rounded-md hover:bg-muted text-foreground hover:text-foreground transition-colors font-medium"
+                title="Delete Column"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
         
@@ -263,6 +267,7 @@ export const SortableColumn = memo<SortableColumnProps>(function SortableColumn(
                 index={index} 
                 columnId={column.id}
                 boardId={boardId}
+                deleteCard={deleteCard}
               />
             ))}
           </SortableContext>

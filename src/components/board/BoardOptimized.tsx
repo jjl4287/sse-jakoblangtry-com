@@ -211,7 +211,7 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
         const columnOrders = arrayMove(board.columns, oldIndex, newIndex)
           .map((col, index) => ({ id: col.id, order: index }));
           
-        mutations.reorderColumns(board.id, columnOrders);
+        void mutations.reorderColumns(board.id, columnOrders);
       }
     }
     
@@ -236,7 +236,7 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
             }
             
             // Use direct mutation call
-            mutations.moveCard(activeId, sourceColumnId, newIndex);
+            void mutations.moveCard(activeId, sourceColumnId, newIndex);
           }
         } else {
           console.warn('handleDragEnd: Source column not found', { sourceColumnId });
@@ -344,7 +344,7 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
   }, [board, headerTitle, mutations]);
 
   const handleCancelTitle = useCallback(() => {
-    setHeaderTitle(board?.title || '');
+    setHeaderTitle(board?.title ?? '');
     setIsEditingHeader(false);
   }, [board?.title]);
 
@@ -578,6 +578,7 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
                   boardId={board.id}
                   updateColumn={mutations.updateColumn}
                   deleteColumn={mutations.deleteColumn}
+                  deleteCard={mutations.deleteCard}
                 />
               ))}
             </SortableContext>
@@ -594,6 +595,7 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
                 boardId={board.id}
                 updateColumn={mutations.updateColumn}
                 deleteColumn={mutations.deleteColumn}
+                deleteCard={mutations.deleteCard}
               />
             </div>
           )}
@@ -604,6 +606,7 @@ export const BoardOptimized = memo<BoardOptimizedProps>(function BoardOptimized(
                 index={activeItem.index} 
                 columnId={activeItem.columnId}
                 boardId={board.id}
+                deleteCard={mutations.deleteCard}
               />
             </div>
           )}

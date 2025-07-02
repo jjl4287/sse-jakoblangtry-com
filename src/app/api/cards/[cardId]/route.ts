@@ -284,9 +284,9 @@ export async function PATCH(
 // DELETE /api/cards/[cardId]
 export async function DELETE(
   request: Request, // request is not used, but required for Next.js route handlers
-  { params }: { params: { cardId: string } }
+  { params }: { params: Promise<{ cardId: string }> }
 ) {
-  const { cardId } = params;
+  const { cardId } = await params;
   
   // Check if this is a temporary ID (optimistic update)
   if (cardId.startsWith('temp_') || cardId.startsWith('temp_card_')) {
@@ -308,7 +308,11 @@ export async function DELETE(
     // Fetch card details for logging before deleting
     const cardToDelete = await prisma.card.findUnique({
       where: { id: cardId },
-      select: { title: true }
+      select: { 
+        title: true,
+        labels: true,
+        assignees: true,
+      }
     });
 
     if (!cardToDelete) {
@@ -316,18 +320,44 @@ export async function DELETE(
       return NextResponse.json({ success: true, message: "Card not found or already deleted." });
     }
 
-    await prisma.card.delete({ where: { id: cardId } });
-
-    // Log the deletion activity
+    // Log the deletion activity BEFORE deleting the card (since ActivityLog has foreign key to Card)
     await prisma.activityLog.create({
       data: {
         actionType: "DELETE_CARD",
-        cardId, // cardId itself is the main info, as the card record is gone
+        cardId,
         userId,
         details: {
           title: cardToDelete.title ?? 'Untitled Card',
+          labelCount: cardToDelete.labels.length,
+          assigneeCount: cardToDelete.assignees.length,
         }
       }
+    });
+
+    // Start a transaction to ensure all deletes happen atomically
+    await prisma.$transaction(async (tx) => {
+      // 1. Disconnect all many-to-many relationships
+      await tx.card.update({
+        where: { id: cardId },
+        data: {
+          labels: {
+            disconnect: cardToDelete.labels.map(label => ({ id: label.id }))
+          },
+          assignees: {
+            disconnect: cardToDelete.assignees.map(assignee => ({ id: assignee.id }))
+          }
+        }
+      });
+
+      // 2. Delete attachments (no cascading delete in schema)
+      await tx.attachment.deleteMany({
+        where: { cardId }
+      });
+
+      // 3. Comments and ActivityLogs will be automatically deleted due to onDelete: Cascade
+      
+      // 4. Finally delete the card
+      await tx.card.delete({ where: { id: cardId } });
     });
 
     return NextResponse.json({ success: true });

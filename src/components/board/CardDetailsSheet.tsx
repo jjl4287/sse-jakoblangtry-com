@@ -405,6 +405,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
                 isLoadingComments={isLoadingComments}
                 isLoadingActivityLogs={isLoadingActivityLogs}
                 combinedFeedItems={combinedFeedItems}
+                onRefreshComments={refetchComments}
               />
             </div>
             

@@ -1,5 +1,6 @@
 "use client";
 
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -9,7 +10,10 @@ interface MarkdownProps {
   className?: string;
 }
 
-const Markdown: React.FC<MarkdownProps> = ({ content, className }) => {
+const Markdown: React.FC<MarkdownProps> = ({ 
+  content, 
+  className
+}) => {
   // If content is empty or just whitespace, return nothing
   if (!content || !content.trim()) {
     return null;
@@ -65,16 +69,6 @@ const Markdown: React.FC<MarkdownProps> = ({ content, className }) => {
           // Handle paragraphs to preserve line breaks
           p: ({ node, ...props }) => (
             <p className="whitespace-pre-wrap text-foreground mb-3 last:mb-0" {...props} />
-          ),
-          // Better list styling
-          ul: ({ node, ...props }) => (
-            <ul className="list-disc pl-6 mb-3 text-foreground" {...props} />
-          ),
-          ol: ({ node, ...props }) => (
-            <ol className="list-decimal pl-6 mb-3 text-foreground" {...props} />
-          ),
-          li: ({ node, ...props }) => (
-            <li className="mb-1 text-foreground" {...props} />
           ),
           // Better strong/bold styling
           strong: ({ node, ...props }) => (

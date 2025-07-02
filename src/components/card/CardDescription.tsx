@@ -37,6 +37,8 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
     setIsEditingDescription(false);
   };
 
+
+
   return (
     <div className="relative">
       {isEditingDescription ? (
@@ -87,7 +89,10 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
               >
                 <Edit3Icon className="h-4 w-4" />
               </Button>
-              <Markdown content={description} className="prose-sm text-foreground pr-8" />
+              <Markdown 
+                content={description} 
+                className="prose-sm text-foreground pr-8" 
+              />
             </div>
           ) : (
             <div

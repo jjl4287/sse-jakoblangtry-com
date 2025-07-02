@@ -23,9 +23,7 @@ async function fetchComments(cardId: string): Promise<Comment[]> {
 async function createCommentAPI(cardId: string, content: string): Promise<Comment> {
   const response = await fetch(`/api/cards/${cardId}/comments`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({ content }),
   });
@@ -37,12 +35,10 @@ async function createCommentAPI(cardId: string, content: string): Promise<Commen
   return response.json();
 }
 
-async function updateCommentAPI(commentId: string, content: string): Promise<Comment> {
-  const response = await fetch(`/api/comments/${commentId}`, {
+async function updateCommentAPI(cardId: string, commentId: string, content: string): Promise<Comment> {
+  const response = await fetch(`/api/cards/${cardId}/comments/${commentId}`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({ content }),
   });
@@ -139,7 +135,7 @@ export function useComments(cardId?: string): UseCommentsResult {
 
 interface UseCommentMutationsResult {
   createComment: (cardId: string, content: string) => Promise<Comment | null>;
-  updateComment: (commentId: string, content: string) => Promise<Comment | null>;
+  updateComment: (cardId: string, commentId: string, content: string) => Promise<Comment | null>;
   deleteComment: (commentId: string) => Promise<boolean>;
   isLoading: boolean;
 }
@@ -174,7 +170,13 @@ export function useCommentMutations(): UseCommentMutationsResult {
     }
   }, [session?.user?.id]);
 
-  const updateComment = useCallback(async (commentId: string, content: string): Promise<Comment | null> => {
+  const updateComment = useCallback(async (cardId: string, commentId: string, content: string): Promise<Comment | null> => {
+    // Check if this is a local card
+    if (isLocalCard(cardId)) {
+      toast.error('Comment editing is not supported for local boards yet');
+      return null;
+    }
+
     if (!session?.user?.id) {
       toast.error('You must be logged in to edit comments');
       return null;
@@ -182,8 +184,11 @@ export function useCommentMutations(): UseCommentMutationsResult {
 
     setIsLoading(true);
     try {
-      const comment = await updateCommentAPI(commentId, content);
-      toast.success('Comment updated successfully');
+      const comment = await updateCommentAPI(cardId, commentId, content);
+      // Don't show toast for checkbox interactions to avoid spam
+      if (!content.includes('- [')) {
+        toast.success('Comment updated successfully');
+      }
       return comment;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update comment';

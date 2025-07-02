@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { Board } from '~/types';
 import { localStorageService } from '~/lib/services/local-storage-service';
 

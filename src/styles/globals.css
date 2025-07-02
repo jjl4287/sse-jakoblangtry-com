@@ -80,8 +80,8 @@
     /* Enhanced dark mode color system with richer, more sophisticated tones */
     --column-bg-light: rgba(30, 41, 59, 0.85); /* Rich slate blue for columns */
     --column-bg-dark: rgba(30, 41, 59, 0.85);
-    --card-bg-light: rgba(51, 65, 85, 0.9); /* Warmer slate for cards */
-    --card-bg-dark: rgba(51, 65, 85, 0.9);
+    --card-bg-light: rgba(88, 108, 135, 0.85); /* Much lighter slate blue for better contrast with darker background */
+    --card-bg-dark: rgba(88, 108, 135, 0.85); /* Much lighter slate blue for better contrast with darker background */
     
     /* Enhanced dark mode borders with better contrast */
     --border-light: rgba(148, 163, 184, 0.25); /* Warmer, more visible borders */
@@ -108,12 +108,12 @@
     --accent-amber-dark: #fbbf24;
     
     /* Dark mode pastel variations - subtle colored tints */
-    --pastel-blue-dark: rgba(59, 130, 246, 0.08); /* Very subtle blue tint */
+    --pastel-blue-dark: rgba(59, 130, 246, 0.12); /* Slightly more visible blue tint for cards */
     --pastel-emerald-dark: rgba(16, 185, 129, 0.08); /* Subtle emerald tint */
     --pastel-violet-dark: rgba(139, 92, 246, 0.08); /* Subtle violet tint */
     
     /* Dark mode pastel hover states */
-    --pastel-blue-hover-dark: rgba(59, 130, 246, 0.15);
+    --pastel-blue-hover-dark: rgba(59, 130, 246, 0.18); /* More visible on hover */
     --pastel-emerald-hover-dark: rgba(16, 185, 129, 0.15);
     --pastel-violet-hover-dark: rgba(139, 92, 246, 0.15);
     
@@ -136,7 +136,7 @@
 
   /* Enhanced dark mode background with sophisticated gradient */
   html.dark {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #0f172a 75%, #000000 100%) !important;
+    background: linear-gradient(135deg, #0a0f1a 0%, #1a252f 25%, #0a0f1a 75%, #000000 100%) !important;
   }
 
   /* Smooth theme transitions */
@@ -493,13 +493,13 @@
 
   .dark .glass-card:hover {
     transform: translateY(-1px);
-    background-color: rgba(71, 85, 105, 0.95); /* Lighter slate on hover */
-    border-color: rgba(96, 165, 250, 0.3);
+    background-color: rgba(78, 92, 110, 0.9); /* Less bright hover state */
+    border-color: rgba(96, 165, 250, 0.25); /* Reduced border opacity */
     /* Very subtle shadows that fit within card boundaries */
     box-shadow: 
       0 3px 8px rgba(0, 0, 0, 0.4),
       0 2px 4px rgba(0, 0, 0, 0.3),
-      0 0 0 1px rgba(96, 165, 250, 0.12) inset; /* Subtle blue inner glow */
+      0 0 0 1px rgba(96, 165, 250, 0.1) inset; /* Reduced inner glow */
   }
 
   /* Elevated state (e.g., for dragging) - keep this */
@@ -524,12 +524,12 @@
 
   /* Enhanced dark mode elevated card state */
   .dark .glass-card.elevated {
-    background-color: rgba(71, 85, 105, 0.98);
-    border-color: rgba(96, 165, 250, 0.4);
+    background-color: rgba(80, 95, 118, 0.95); /* Toned down elevated state */
+    border-color: rgba(96, 165, 250, 0.35);
     box-shadow: 
       0 25px 50px rgba(0, 0, 0, 0.6),
       0 12px 24px rgba(0, 0, 0, 0.4),
-      0 0 0 1px rgba(96, 165, 250, 0.25) inset;
+      0 0 0 1px rgba(96, 165, 250, 0.2) inset; /* Reduced inner glow */
     transform: scale(1.02);
   }
 
@@ -753,6 +753,201 @@
 
   .light .text-muted-contrast {
     color: #64748b;
+  }
+
+  /* Accent color utilities for visual interest */
+  .accent-blue { color: var(--accent-blue-light); }
+  .accent-emerald { color: var(--accent-emerald-light); }
+  .accent-violet { color: var(--accent-violet-light); }
+  .accent-rose { color: var(--accent-rose-light); }
+  .accent-amber { color: var(--accent-amber-light); }
+
+  .bg-accent-blue { background-color: var(--accent-blue-light); }
+  .bg-accent-emerald { background-color: var(--accent-emerald-light); }
+  .bg-accent-violet { background-color: var(--accent-violet-light); }
+  .bg-accent-rose { background-color: var(--accent-rose-light); }
+  .bg-accent-amber { background-color: var(--accent-amber-light); }
+
+  /* Dark mode accent color utilities */
+  .dark .accent-blue { color: var(--accent-blue-dark); }
+  .dark .accent-emerald { color: var(--accent-emerald-dark); }
+  .dark .accent-violet { color: var(--accent-violet-dark); }
+  .dark .accent-rose { color: var(--accent-rose-dark); }
+  .dark .accent-amber { color: var(--accent-amber-dark); }
+
+  .dark .bg-accent-blue { background-color: var(--accent-blue-dark); }
+  .dark .bg-accent-emerald { background-color: var(--accent-emerald-dark); }
+  .dark .bg-accent-violet { background-color: var(--accent-violet-dark); }
+  .dark .bg-accent-rose { background-color: var(--accent-rose-dark); }
+  .dark .bg-accent-amber { background-color: var(--accent-amber-dark); }
+
+  /* Pastel utility classes for easy application */
+  .pastel-blue { background: var(--pastel-blue-light) !important; }
+
+  /* Dark mode pastel utility classes */
+  .dark .pastel-blue { background: var(--pastel-blue-dark) !important; }
+  .dark .pastel-emerald { background: var(--pastel-emerald-dark) !important; }
+  .dark .pastel-violet { background: var(--pastel-violet-dark) !important; }
+
+  /* Subtle pastel column variations */
+  .light .glass-column.column-neutral {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.4), var(--column-bg-light));
+    border-color: rgba(203, 213, 225, 0.15);
+  }
+
+  /* Enhanced glass morphism utilities */
+  .glass-light {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Pastel card variations for light mode */
+  .light .glass-card.pastel-blue {
+    background: linear-gradient(135deg, var(--pastel-blue-light), var(--card-bg-light));
+    border-color: rgba(59, 130, 246, 0.15);
+  }
+
+  .light .glass-card.pastel-blue:hover {
+    background: linear-gradient(135deg, var(--pastel-blue-hover), rgba(255, 255, 255, 0.9));
+    border-color: rgba(59, 130, 246, 0.25);
+  }
+
+  /* Default neutral pastel for cards without specific variation */
+  .light .glass-card.pastel-neutral {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.8), var(--card-bg-light));
+    border-color: rgba(203, 213, 225, 0.2);
+  }
+
+  .light .glass-card.pastel-neutral:hover {
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.9));
+    border-color: rgba(203, 213, 225, 0.3);
+  }
+
+  /* Dark mode pastel card variations */
+  .dark .glass-card.pastel-blue {
+    background: linear-gradient(135deg, var(--pastel-blue-dark), var(--card-bg-dark));
+    border-color: rgba(96, 165, 250, 0.15);
+  }
+
+  .dark .glass-card.pastel-blue:hover {
+    background: linear-gradient(135deg, var(--pastel-blue-hover-dark), rgba(71, 85, 105, 0.95));
+    border-color: rgba(96, 165, 250, 0.25);
+  }
+
+  .dark .glass-card.pastel-emerald {
+    background: linear-gradient(135deg, var(--pastel-emerald-dark), var(--card-bg-dark));
+    border-color: rgba(52, 211, 153, 0.15);
+  }
+
+  .dark .glass-card.pastel-emerald:hover {
+    background: linear-gradient(135deg, var(--pastel-emerald-hover-dark), rgba(71, 85, 105, 0.95));
+    border-color: rgba(52, 211, 153, 0.25);
+  }
+
+  .dark .glass-card.pastel-violet {
+    background: linear-gradient(135deg, var(--pastel-violet-dark), var(--card-bg-dark));
+    border-color: rgba(167, 139, 250, 0.15);
+  }
+
+  .dark .glass-card.pastel-violet:hover {
+    background: linear-gradient(135deg, var(--pastel-violet-hover-dark), rgba(71, 85, 105, 0.95));
+    border-color: rgba(167, 139, 250, 0.25);
+  }
+
+  /* Default dark mode neutral pastel for cards */
+  .dark .glass-card.pastel-neutral {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), var(--card-bg-dark));
+    border-color: rgba(148, 163, 184, 0.2);
+  }
+
+  .dark .glass-card.pastel-neutral:hover {
+    background: linear-gradient(135deg, rgba(51, 65, 85, 0.9), rgba(71, 85, 105, 0.95));
+    border-color: rgba(148, 163, 184, 0.3);
+  }
+
+  /* Premium shadow system */
+  .shadow-premium {
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.05),
+      0 1px 3px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+
+  .light .shadow-premium {
+    box-shadow: 
+      0 4px 6px rgba(0, 0, 0, 0.05),
+      0 1px 3px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  }
+
+  /* Enhanced dark mode shadow system */
+  .dark .shadow-premium {
+    box-shadow: 
+      0 6px 12px rgba(0, 0, 0, 0.4),
+      0 2px 6px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(96, 165, 250, 0.08) inset;
+  }
+
+  .shadow-premium-hover {
+    box-shadow: 
+      0 10px 25px rgba(0, 0, 0, 0.1),
+      0 4px 10px rgba(0, 0, 0, 0.06),
+      0 0 0 1px rgba(59, 130, 246, 0.1) inset;
+  }
+
+  .dark .shadow-premium-hover {
+    box-shadow: 
+      0 20px 50px rgba(0, 0, 0, 0.6),
+      0 8px 20px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(96, 165, 250, 0.15) inset;
+  }
+
+  /* Enhanced card content for better readability */
+  .light .card-content h3 {
+    color: #1e293b !important;
+  }
+
+  .light .card-content p {
+    color: #475569 !important;
+  }
+
+  .light .card-content .text-muted {
+    color: #64748b !important;
+  }
+
+  /* Enhanced dark mode card content for better readability */
+  .dark .card-content h3 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .card-content p {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .card-content .text-muted {
+    color: #94a3b8 !important;
+  }
+
+  /* Enhanced dark mode text contrast utilities */
+  .dark .text-primary-contrast {
+    color: #f1f5f9;
+  }
+
+  .dark .text-secondary-contrast {
+    color: #cbd5e1;
+  }
+
+  .dark .text-muted-contrast {
+    color: #94a3b8;
   }
 
   /* Accent color utilities for visual interest */
@@ -1721,4 +1916,116 @@ html.card-details-sheet-open .card-wrapper .glass-card [tabindex] {
   gap: 0.5rem !important; /* Minimum gap to prevent shadow overlap */
   overflow: visible !important;
   contain: none !important;
+}
+
+/* Enhanced sheet slide animations */
+@keyframes slide-in-from-right-smooth {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out-to-right-smooth {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Apply smooth sheet animations */
+[data-slot="sheet-content"][data-side="right"] {
+  animation-duration: 0.4s !important;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+[data-slot="sheet-content"][data-side="right"][data-state="open"] {
+  animation-name: slide-in-from-right-smooth !important;
+}
+
+[data-slot="sheet-content"][data-side="right"][data-state="closed"] {
+  animation-name: slide-out-to-right-smooth !important;
+}
+
+/* Enhanced card content for better readability */
+.light .card-content h3 {
+  color: #1e293b !important;
+}
+
+.light .card-content p {
+  color: #475569 !important;
+}
+
+.light .card-content .text-muted {
+  color: #64748b !important;
+}
+
+/* Enhanced dark mode card content for better readability */
+.dark .card-content h3 {
+  color: #f1f5f9 !important;
+}
+
+.dark .card-content p {
+  color: #cbd5e1 !important;
+}
+
+.dark .card-content .text-muted {
+  color: #94a3b8 !important;
+}
+
+/* Enhanced dark mode text contrast utilities */
+.dark .text-primary-contrast {
+  color: #f1f5f9;
+}
+
+.dark .text-secondary-contrast {
+  color: #cbd5e1;
+}
+
+.dark .text-muted-contrast {
+  color: #94a3b8;
+}
+
+/* Enhanced card trash button animations */
+.card-metadata-items {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.card-trash-button {
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  width: 1.25rem; /* 20px - h-5 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.group:hover .card-trash-button {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* Shift metadata items left by exactly the width of the trash button (20px + small gap) */
+.group:hover .card-metadata-items {
+  transform: translateX(-1.5rem); /* -24px to account for button width + small gap */
+}
+
+/* Enhanced sheet overlay */
+[data-slot="sheet-overlay"] {
+  animation-duration: 0.3s !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  background: rgba(0, 0, 0, 0.4) !important;
 }

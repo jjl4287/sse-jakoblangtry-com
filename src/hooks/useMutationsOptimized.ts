@@ -74,6 +74,16 @@ interface ColumnDeleteOperation extends BaseOperation {
   originalState?: Column;
 }
 
+interface CardDeleteOperation extends BaseOperation {
+  type: 'card_delete';
+  cardId: string;
+  originalState?: {
+    card: Card;
+    columnId: string;
+    cardIndex: number;
+  };
+}
+
 interface BoardUpdateOperation extends BaseOperation {
   type: 'board_update';
   boardId: string;
@@ -89,6 +99,7 @@ type Operation =
   | ColumnCreateOperation 
   | ColumnUpdateOperation 
   | ColumnDeleteOperation 
+  | CardDeleteOperation
   | BoardUpdateOperation;
 
 // Enhanced conflict resolution and operation merging
@@ -634,6 +645,79 @@ export function useOptimizedMutations(
     }
   }, [updateBoardLocal, boardId]);
 
+  const deleteCard = useCallback(async (cardId: string) => {
+    if (!boardId) {
+      console.warn('deleteCard: No boardId available');
+      return;
+    }
+
+    let originalState: { card: Card; columnId: string; cardIndex: number } | null = null;
+
+    // Immediate optimistic update - remove card from UI
+    updateBoardLocal((board) => {
+      const sourceColumn = board.columns.find(col => 
+        col.cards.some(card => card.id === cardId)
+      );
+      
+      if (!sourceColumn) {
+        console.warn(`deleteCard: Card ${cardId} not found in any column`);
+        return board;
+      }
+      
+      const cardIndex = sourceColumn.cards.findIndex(card => card.id === cardId);
+      const cardToDelete = sourceColumn.cards[cardIndex];
+      
+      if (cardIndex === -1 || !cardToDelete) {
+        console.warn(`deleteCard: Card ${cardId} not found`);
+        return board;
+      }
+
+      // Store original state for potential rollback
+      originalState = {
+        card: cardToDelete,
+        columnId: sourceColumn.id,
+        cardIndex
+      };
+
+      // Remove card from the column and reorder remaining cards
+      const newColumns = board.columns.map(col => {
+        if (col.id === sourceColumn.id) {
+          const filteredCards = col.cards.filter(c => c.id !== cardId);
+          // Reorder remaining cards to maintain proper order
+          const reorderedCards = filteredCards.map((card, index) => ({
+            ...card,
+            order: index
+          }));
+          return { ...col, cards: reorderedCards };
+        }
+        return col;
+      });
+      
+      return { ...board, columns: newColumns };
+    });
+
+    // Only queue operation if we successfully captured original state
+    if (originalState) {
+      operationQueue.current.addOperation({
+        type: 'card_delete',
+        cardId,
+        originalState
+      });
+
+      // Trigger processing immediately for card operations
+      if (processTimeoutRef.current) {
+        clearTimeout(processTimeoutRef.current);
+      }
+      processTimeoutRef.current = setTimeout(processBatchOperations, 50);
+      
+      // Show success toast immediately since the UI update is instant
+      toast.success('Card deleted successfully');
+    } else {
+      console.error('deleteCard: Failed to capture original state');
+      toast.error('Failed to delete card');
+    }
+  }, [updateBoardLocal, boardId]);
+
   const updateBoard = useCallback(async (boardId: string, updates: BoardUpdate) => {
     console.log('[updateBoard] called with', boardId, updates);
     let originalState: Partial<Board> | null = null;
@@ -887,6 +971,18 @@ export function useOptimizedMutations(
           });
           break;
           
+        case 'card_delete':
+          if (!operation.cardId) {
+            throw new Error(`Invalid card delete operation: cardId=${operation.cardId}`);
+          }
+          
+          console.log(`📦 Card delete API call: /api/cards/${operation.cardId}`);
+          response = await fetch(`/api/cards/${operation.cardId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+          break;
+          
         case 'board_update':
           console.log(`📦 Board update API call: /api/boards/${operation.boardId}`, operation.updates);
           response = await fetch(`/api/boards/${operation.boardId}`, {
@@ -938,6 +1034,9 @@ export function useOptimizedMutations(
         case 'card_create':
           // Toast is already shown in NewCardSheet
           break;
+        case 'card_delete':
+          // Toast is already shown immediately in deleteCard function
+          break;
         case 'column_create':
           toast.success('Column created successfully');
           break;
@@ -967,8 +1066,30 @@ export function useOptimizedMutations(
       operationQueue.current.markFailed(operation.id, error as Error);
       
       if (operation.retryCount >= 3) {
-        toast.error(`Failed to ${operation.type.replace('_', ' ')}: ${errorMessage}`);
-        if (operation.originalState) {
+        // Handle specific rollback logic for different operation types
+        if (operation.type === 'card_delete' && operation.originalState) {
+          console.log('🔄 Rolling back card deletion due to API failure');
+          
+          // Restore the card to its original position
+          updateBoardLocal((board) => {
+            const newColumns = board.columns.map(col => {
+              if (col.id === operation.originalState!.columnId) {
+                const newCards = [...col.cards];
+                // Insert the card back at its original index
+                newCards.splice(operation.originalState!.cardIndex, 0, operation.originalState!.card);
+                return { ...col, cards: newCards };
+              }
+              return col;
+            });
+            return { ...board, columns: newColumns };
+          });
+          
+          toast.error(`Failed to delete card: ${errorMessage}. Card has been restored.`);
+        } else {
+          toast.error(`Failed to ${operation.type.replace('_', ' ')}: ${errorMessage}`);
+        }
+        
+        if (operation.originalState && operation.type !== 'card_delete') {
           console.log('🔄 Triggering smart refetch due to final failure');
           smartRefetch();
         }
@@ -986,6 +1107,7 @@ export function useOptimizedMutations(
     createColumn,
     updateColumn,
     deleteColumn,
+    deleteCard,
     updateBoard,
     getOperationStatus: () => operationQueue.current.getStatus()
   };
