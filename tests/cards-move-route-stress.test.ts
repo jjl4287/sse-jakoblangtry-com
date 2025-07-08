@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { POST } from '~/app/api/cards/[cardId]/move/route';
 import prisma from '~/lib/prisma';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '~/lib/auth/authOptions';
-
 vi.mock('next-auth/next', () => ({ getServerSession: vi.fn() }));
 
 // Fake timers to control backoff delays
