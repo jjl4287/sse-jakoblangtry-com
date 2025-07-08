@@ -1,14 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { POST } from '~/app/api/cards/[id]/move/route';
+import { POST } from '~/app/api/cards/[cardId]/move/route';
 import prisma from '~/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '~/lib/auth/authOptions';
+
+vi.mock('next-auth/next', () => ({ getServerSession: vi.fn() }));
 
 // Fake timers to control backoff delays
 vi.useFakeTimers();
+
+const mockGetSession = getServerSession as unknown as ReturnType<typeof vi.fn>;
 
 describe('POST /api/cards/:id/move retry logic', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.useFakeTimers();
+    mockGetSession.mockResolvedValue({ user: { id: 'u1' } });
   });
 
   afterEach(() => {
@@ -95,6 +102,7 @@ describe('POST /api/cards/:id/move robust behavior under various scenarios', () 
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.useFakeTimers();
+    mockGetSession.mockResolvedValue({ user: { id: 'u1' } });
   });
 
   afterEach(() => {
