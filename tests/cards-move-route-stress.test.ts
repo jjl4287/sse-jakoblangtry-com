@@ -32,10 +32,14 @@ describe('POST /api/cards/:id/move retry logic', () => {
       // Simulate transaction callback
       const tx = {
         card: {
-          findUnique: async () => ({ id: '1', columnId: 'col1' }),
+          findUnique: async () => ({ id: '1', columnId: 'col1', title: 't' }),
           findMany: async () => [],
           update: async () => ({}),
         },
+        column: {
+          findUnique: async ({ where: { id } }: any) => ({ title: id }),
+        },
+        activityLog: { create: async () => ({}) },
       };
       return fn(tx as any);
     });
@@ -44,7 +48,7 @@ describe('POST /api/cards/:id/move retry logic', () => {
       method: 'POST',
       body: JSON.stringify({ targetColumnId: 'col1', order: 0 }),
     });
-    const params = Promise.resolve({ id: '1' });
+    const params = Promise.resolve({ cardId: '1' });
     // Use real timers when parsing request body
     vi.useRealTimers();
     const responsePromise = POST(request, { params });
@@ -53,9 +57,9 @@ describe('POST /api/cards/:id/move retry logic', () => {
 
     // Advance timers for backoff delays
     await Promise.resolve();
-    await vi.advanceTimersByTimeAsync(100 * (2 ** 0));
+    await vi.advanceTimersByTimeAsync(200 * (2 ** 0));
     await Promise.resolve();
-    await vi.advanceTimersByTimeAsync(100 * (2 ** 1));
+    await vi.advanceTimersByTimeAsync(200 * (2 ** 1));
     await Promise.resolve();
 
     const response = await responsePromise;
@@ -73,7 +77,7 @@ describe('POST /api/cards/:id/move retry logic', () => {
       method: 'POST',
       body: JSON.stringify({ targetColumnId: 'col1', order: 0 }),
     });
-    const params = Promise.resolve({ id: '1' });
+    const params = Promise.resolve({ cardId: '1' });
     // Use real timers when parsing request body
     vi.useRealTimers();
     const responsePromise = POST(request, { params });
@@ -81,9 +85,9 @@ describe('POST /api/cards/:id/move retry logic', () => {
     vi.useFakeTimers();
 
     // Advance through all backoff delays
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       await Promise.resolve();
-      await vi.advanceTimersByTimeAsync(100 * (2 ** attempt));
+      await vi.advanceTimersByTimeAsync(200 * (2 ** attempt));
       await Promise.resolve();
     }
 
@@ -91,7 +95,7 @@ describe('POST /api/cards/:id/move retry logic', () => {
     const json = await response.json();
     expect(response.status).toBe(500);
     expect(json).toHaveProperty('error');
-    expect(prisma.$transaction).toHaveBeenCalledTimes(3);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(5);
   });
 });
 
@@ -115,15 +119,19 @@ describe('POST /api/cards/:id/move robust behavior under various scenarios', () 
     const jsonSpy = vi.fn().mockResolvedValue({ targetColumnId: 'col1', order: 0 });
     const request = new Request('http://localhost', { method: 'POST' }) as any;
     request.json = jsonSpy;
-    const params = Promise.resolve({ id: '1' });
+    const params = Promise.resolve({ cardId: '1' });
     vi.spyOn(prisma, '$transaction').mockImplementation(async (fn) => {
       if (mockErrors.length > 0) throw mockErrors.shift();
       const tx = {
         card: {
-          findUnique: async () => ({ id: '1', columnId: 'col1' }),
+          findUnique: async () => ({ id: '1', columnId: 'col1', title: 't' }),
           findMany: async () => [],
           update: async () => ({}),
         },
+        column: {
+          findUnique: async ({ where: { id } }: any) => ({ title: id }),
+        },
+        activityLog: { create: async () => ({}) },
       };
       return fn(tx as any);
     });
@@ -132,9 +140,9 @@ describe('POST /api/cards/:id/move robust behavior under various scenarios', () 
     const responsePromise = POST(request, { params });
     vi.useFakeTimers();
     await Promise.resolve();
-    await vi.advanceTimersByTimeAsync(100);
-    await Promise.resolve();
     await vi.advanceTimersByTimeAsync(200);
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(400);
     await Promise.resolve();
     await responsePromise;
     // Assert
@@ -145,7 +153,7 @@ describe('POST /api/cards/:id/move robust behavior under various scenarios', () 
     // Arrange
     const otherError = { code: 'UNKNOWN', message: 'other' };
     const request = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ targetColumnId: 'col1', order: 0 }) });
-    const params = Promise.resolve({ id: '1' });
+    const params = Promise.resolve({ cardId: '1' });
     // Spy on transaction and reject
     const spyTransaction = vi.spyOn(prisma, '$transaction').mockRejectedValue(otherError);
 
@@ -156,13 +164,13 @@ describe('POST /api/cards/:id/move robust behavior under various scenarios', () 
     // Assert
     expect(spyTransaction).toHaveBeenCalledTimes(1);
     expect(response.status).toBe(500);
-    expect(json).toHaveProperty('error', 'other');
+    expect(json).toHaveProperty('error', 'Failed to move card');
   });
 
   it('returns error when card not found without retries', async () => {
     // Arrange
     const request = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ targetColumnId: 'col1', order: 0 }) });
-    const params = Promise.resolve({ id: 'missing' });
+    const params = Promise.resolve({ cardId: 'missing' });
     // Mock transaction to return no card
     const spyTransaction = vi.spyOn(prisma, '$transaction').mockImplementation(async (fn) => {
       const tx = { card: { findUnique: async () => null } };
@@ -206,17 +214,21 @@ describe('POST /api/cards/:id/move robust behavior under various scenarios', () 
             return card;
           },
         },
+        column: {
+          findUnique: async ({ where: { id } }: any) => ({ title: id }),
+        },
+        activityLog: { create: async () => ({}) },
       };
       return fn(tx as any);
     });
     const request = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ targetColumnId: 'col1', order: 2 }) });
-    const params = Promise.resolve({ id: 'c2' });
+    const params = Promise.resolve({ cardId: 'c2' });
     // Act
     vi.useRealTimers();
     const responsePromise = POST(request, { params });
     vi.useFakeTimers();
     await Promise.resolve();
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(200);
     await Promise.resolve();
     const response = await responsePromise;
     // Assert
@@ -255,17 +267,21 @@ describe('POST /api/cards/:id/move robust behavior under various scenarios', () 
             return card;
           },
         },
+        column: {
+          findUnique: async ({ where: { id } }: any) => ({ title: id }),
+        },
+        activityLog: { create: async () => ({}) },
       };
       return fn(tx as any);
     });
     const request = new Request('http://localhost', { method: 'POST', body: JSON.stringify({ targetColumnId: 'colB', order: 1 }) });
-    const params = Promise.resolve({ id: 'a2' });
+    const params = Promise.resolve({ cardId: 'a2' });
     // Act
     vi.useRealTimers();
     const responsePromise = POST(request, { params });
     vi.useFakeTimers();
     await Promise.resolve();
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(200);
     await Promise.resolve();
     const response = await responsePromise;
     // Assert

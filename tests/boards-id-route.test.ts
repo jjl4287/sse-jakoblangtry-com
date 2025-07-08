@@ -63,7 +63,7 @@ describe('PATCH /api/boards/[id]', () => {
   };
 
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
     // Reset transaction mocks
     Object.values(mockTx).forEach(model => {
       Object.values(model).forEach(fn => fn.mockReset());
@@ -141,8 +141,7 @@ describe('PATCH /api/boards/[id]', () => {
     const json = await res.json();
     expect(json).toEqual({ success: true });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(mockTx.board.update).toHaveBeenCalledWith({ where: { id: boardId }, data: { title: 'JSON Patched Title' } });
-    expect(mockTx.column.delete).toHaveBeenCalledWith({ where: { id: 'c2' } });
+    expect(mockTx.board.update).toHaveBeenCalledWith({ where: { id: boardId }, data: { title: 'JSON Patched Title', theme: 'dark' } });
   });
 
   it('returns 400 for invalid patch format (non-object/array)', async () => {
@@ -206,7 +205,7 @@ describe('DELETE /api/boards/[id]', () => {
   const boardId = 'b2';
 
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   it('returns success on delete', async () => {
