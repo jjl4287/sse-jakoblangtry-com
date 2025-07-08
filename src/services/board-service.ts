@@ -41,7 +41,7 @@ export const BoardService = {
     }
     const res = await fetch(`/api/boards?boardId=${boardId}`);
     if (!res.ok) {
-      throw new Error(`Failed to fetch boards list: ${res.status}`);
+      throw new Error(`Failed to fetch board: ${res.status}`);
     }
     return res.json();
   },
