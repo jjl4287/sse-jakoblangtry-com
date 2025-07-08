@@ -10,7 +10,7 @@ vi.mock('~/lib/prisma', () => ({
   default: {
     board: {
       findMany: vi.fn(),
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
     },
     user: { upsert: vi.fn() },
@@ -39,12 +39,12 @@ describe('GET /api/boards', () => {
 
   it('returns 404 when boardId provided but not found', async () => {
     mockGetSession.mockResolvedValue({ user: { id: 'u1' } });
-    mockPrisma.board.findUnique.mockResolvedValue(null);
+    mockPrisma.board.findFirst.mockResolvedValue(null);
     const req = new Request('https://test?boardId=123');
     const res = await GET(req);
     expect(res.status).toBe(404);
     const json = await res.json();
-    expect(json).toEqual({ error: 'No board found' });
+    expect(json).toEqual({ error: 'Board not found or access denied' });
   });
 });
 
@@ -69,6 +69,15 @@ describe('POST /api/boards', () => {
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual(newBoard);
     expect(mockPrisma.user.upsert).toHaveBeenCalled();
-    expect(mockPrisma.board.create).toHaveBeenCalledWith({ data: { title: 'T', userId: 'u2' } });
+    expect(mockPrisma.board.create).toHaveBeenCalledWith({
+      data: {
+        title: 'T',
+        creatorId: 'u2',
+        members: {
+          create: [{ userId: 'u2', role: 'owner' }],
+        },
+      },
+      include: { members: { include: { user: true } } },
+    });
   });
 }); 

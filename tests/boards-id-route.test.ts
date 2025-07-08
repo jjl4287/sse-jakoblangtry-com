@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import prisma from '~/lib/prisma';
-import { PATCH, DELETE, BoardInputSchema } from '~/app/api/boards/[id]/route';
+import { PATCH, DELETE, BoardInputSchema } from '~/app/api/boards/[boardId]/[id]/route';
 
 // Mock Prisma methods
 vi.mock('~/lib/prisma', () => ({
