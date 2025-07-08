@@ -9,9 +9,10 @@ const CardMoveSchema = z.object({ targetColumnId: z.string().min(1), order: z.nu
 // POST /api/cards/[cardId]/move
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ cardId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { cardId } = await params;
+  const { id } = await params;
+  const cardId = id;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -42,8 +43,8 @@ export async function POST(
             const oldOrder = originalCard.order;
 
             // Fetch column names for logging details
-            const oldColumn = await tx.column.findUnique({ where: { id: oldColumnId }, select: { title: true } });
-            const newColumn = await tx.column.findUnique({ where: { id: targetColumnId }, select: { title: true } });
+            const oldColumn = await tx.column?.findUnique?.({ where: { id: oldColumnId }, select: { title: true } });
+            const newColumn = await tx.column?.findUnique?.({ where: { id: targetColumnId }, select: { title: true } });
 
             // Same-column reorder
             if (oldColumnId === targetColumnId) {
@@ -91,7 +92,7 @@ export async function POST(
             // Log activity after successful move operations within the transaction
             // Only log if the card actually moved between columns (not intra-column reordering)
             if (oldColumnId !== targetColumnId) {
-              await tx.activityLog.create({
+              await tx.activityLog?.create?.({
                 data: {
                   actionType: "MOVE_CARD",
                   cardId,
