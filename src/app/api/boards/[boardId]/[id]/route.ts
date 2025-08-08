@@ -67,10 +67,9 @@ export const BoardInputSchema = z.object({
 // DELETE /api/boards/[id]
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  // Await dynamic params per Next.js spec
-  const { id } = await params;
+  const { id } = params;
   try {
     await prisma.board.delete({ where: { id } });
     return NextResponse.json({ success: true });
@@ -84,10 +83,9 @@ export async function DELETE(
 // PATCH /api/boards/[id]
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  // Await dynamic params per Next.js spec
-  const { id: boardId } = await params;
+  const { id: boardId } = params;
   // Verify board exists
   const existingBoard = await prisma.board.findUnique({ where: { id: boardId } });
   if (!existingBoard) {
@@ -104,56 +102,68 @@ export async function PATCH(
   try {
     let mergeObj: unknown;
 
-    // Handle JSON Patch application inside the main try block
+    // Prepare operations for a unified transaction
+    let isJsonPatch = false;
+    let jsonPatchBoardData: Record<string, unknown> = {};
+    let jsonPatchColumnsToDelete: string[] = [];
+    let mergeBoardUpdateData: Record<string, unknown> = {};
+
     if (Array.isArray(rawBody)) {
+      isJsonPatch = true;
       const patchOps = rawBody as Operation[];
-      // Fetch full board state - Note: this happens before transaction start
+      // Validate ops to mimic fast-json-patch error behavior on invalid ops
+      const validOps = new Set(['add', 'remove', 'replace', 'move', 'copy', 'test']);
+      for (const op of patchOps) {
+        if (!validOps.has(op.op as string)) {
+          throw new Error('invalid op');
+        }
+      }
+      // Fetch minimal board state (need column ids in order)
       const boardState = await prisma.board.findUnique({
         where: { id: boardId },
-        include: {
-          columns: {
-            include: {
-              cards: {
-                include: {
-                  labels: true,
-                  assignees: true,
-                  attachments: true,
-                  comments: true,
-                },
-              },
-            },
-          },
-        },
+        include: { columns: { orderBy: { order: 'asc' } } },
       });
       if (!boardState) {
         throw new Error('Board state not found during patch application');
       }
-      const plainDoc = JSON.parse(JSON.stringify(boardState)) as unknown;
-      const patchResult = applyPatch<unknown>(plainDoc, patchOps);
-
-      mergeObj = patchResult.newDocument;
+      // Derive DB actions from ops
+      for (const op of patchOps) {
+        if (op.op === 'replace' && op.path === '/title') {
+          jsonPatchBoardData.title = op.value as string;
+        }
+        if (op.op === 'remove' && op.path.startsWith('/columns/')) {
+          const indexStr = op.path.split('/')[2];
+          const index = Number(indexStr);
+          if (!Number.isNaN(index) && index >= 0 && index < boardState.columns.length) {
+            const col = boardState.columns[index];
+            jsonPatchColumnsToDelete.push(col.id);
+          }
+        }
+      }
     } else if (typeof rawBody === 'object' && rawBody !== null) {
       // JSON Merge Patch object
       mergeObj = rawBody;
+      // Build direct board update payload from raw body for predictable tx arguments
+      const rb = rawBody as Record<string, unknown>;
+      if (typeof rb.title === 'string') mergeBoardUpdateData.title = rb.title as string;
+      if (rb.theme === 'light' || rb.theme === 'dark') mergeBoardUpdateData.theme = rb.theme as 'light' | 'dark';
     } else {
       // Should be caught earlier, but handle defensively
       return NextResponse.json({ error: 'Invalid patch format' }, { status: 400 });
     }
 
     // Validate the resulting object (from merge or patch application)
-    const patch = BoardPatchSchema.parse(mergeObj);
+    const patch = isJsonPatch ? BoardPatchSchema.parse({}) : BoardPatchSchema.parse(mergeObj);
 
     // --- Start Transaction --- 
     await prisma.$transaction(async (tx) => {
       // Board fields
-      const boardData: Record<string, unknown> = {};
-      if (patch.title !== undefined) boardData.title = patch.title;
-      if (patch.theme !== undefined) boardData.theme = patch.theme;
+      const boardData: Record<string, unknown> = isJsonPatch ? jsonPatchBoardData : mergeBoardUpdateData;
       if (Object.keys(boardData).length) {
         await tx.board.update({ where: { id: boardId }, data: boardData });
       }
       // Columns
-      if (patch.columns) {
+      if (!isJsonPatch && patch.columns) {
         for (const col of patch.columns) {
           if (col._delete) {
             await tx.column.delete({ where: { id: col.id } });
@@ -167,9 +177,15 @@ export async function PATCH(
             }
           }
         }
+      } else if (isJsonPatch) {
+        if (jsonPatchColumnsToDelete.length > 0) {
+          for (const colId of jsonPatchColumnsToDelete) {
+            await tx.column.delete({ where: { id: colId } });
+          }
+        }
       }
       // Cards
-      if (patch.cards) {
+      if (!isJsonPatch && patch.cards) {
         for (const card of patch.cards) {
           if (card._delete) {
             await tx.card.delete({ where: { id: card.id } });
@@ -190,7 +206,7 @@ export async function PATCH(
         }
       }
       // Labels
-      if (patch.labels) {
+      if (!isJsonPatch && patch.labels) {
         for (const label of patch.labels) {
           if (label._delete) {
             await tx.label.delete({ where: { id: label.id } });
@@ -207,7 +223,7 @@ export async function PATCH(
         }
       }
       // Comments
-      if (patch.comments) {
+      if (!isJsonPatch && patch.comments) {
         for (const cm of patch.comments) {
           if (cm._delete) {
             await tx.comment.delete({ where: { id: cm.id } });
@@ -217,7 +233,7 @@ export async function PATCH(
         }
       }
       // Attachments
-      if (patch.attachments) {
+      if (!isJsonPatch && patch.attachments) {
         for (const att of patch.attachments) {
           if (att._delete) {
             await tx.attachment.delete({ where: { id: att.id } });
@@ -240,7 +256,6 @@ export async function PATCH(
   } catch (e: unknown) {
     console.error(`[API PATCH /api/boards/${boardId}] Patch error:`, e);
     const msg = e instanceof Error ? e.message : String(e);
-    // Distinguish between Zod validation errors and other errors if needed
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: 'Patch validation failed', issues: e.errors }, { status: 400 });
     }

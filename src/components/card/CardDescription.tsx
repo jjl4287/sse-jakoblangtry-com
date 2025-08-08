@@ -48,6 +48,7 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
             onChange={(value) => setDescription(value ?? '')}
             placeholder="Add a more detailed description... (Cmd/Ctrl+Enter to save)"
             height={200}
+            debounceMs={300}
             onKeyDown={(e) => {
               // Handle Cmd/Ctrl+Enter to save description
               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -92,6 +93,11 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({
               <Markdown 
                 content={description} 
                 className="prose-sm text-foreground pr-8" 
+                onTaskToggle={(next) => {
+                  setDescription(next);
+                  // Auto-save on toggle for snappy UX
+                  void onUpdateDescription(card.id, next);
+                }}
               />
             </div>
           ) : (

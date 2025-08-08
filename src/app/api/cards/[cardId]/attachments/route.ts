@@ -5,6 +5,7 @@ import { authOptions } from '~/lib/auth/authOptions';
 import fs from 'fs/promises';
 import path from 'path';
 import { stat, mkdir, writeFile } from 'fs/promises'; // For checking/creating directory and writing file
+import { getErrorMessage, hasErrorCode } from '~/lib/errors/utils';
 
 // Ensure the upload directory exists
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'cards');
@@ -13,7 +14,7 @@ async function ensureUploadDirExists() {
   try {
     await stat(UPLOAD_DIR);
   } catch (e: unknown) {
-    if ((e as any).code === 'ENOENT') {
+    if (hasErrorCode(e, 'ENOENT')) {
       try {
         await mkdir(UPLOAD_DIR, { recursive: true });
       } catch (mkdirError: unknown) {
@@ -73,7 +74,7 @@ export async function POST(
       try {
         await stat(cardUploadDir);
       } catch (e: unknown) {
-        if ((e as any).code === 'ENOENT') {
+        if (hasErrorCode(e, 'ENOENT')) {
           await mkdir(cardUploadDir, { recursive: true });
         } else {
           throw e;
@@ -144,10 +145,13 @@ export async function POST(
   } catch (error: unknown) {
     console.error(`[API POST /api/cards/${cardId}/attachments] Error:`, error);
     // It's good to distinguish between file system errors and other errors
-    if (error instanceof Error && (error.message.includes('upload directory') || (error as any).code === 'ENOENT' || (error as any).code === 'EACCES')) {
-        return NextResponse.json({ error: 'File system error during upload.' }, { status: 500 });
+    if (
+      error instanceof Error &&
+      (error.message.includes('upload directory') || hasErrorCode(error, 'ENOENT') || hasErrorCode(error, 'EACCES'))
+    ) {
+      return NextResponse.json({ error: 'File system error during upload.' }, { status: 500 });
     }
-    const message = error instanceof Error ? error.message : 'Failed to upload attachment';
+    const message = getErrorMessage(error) || 'Failed to upload attachment';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

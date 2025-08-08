@@ -4,6 +4,7 @@ import { authOptions } from '~/lib/auth/authOptions';
 import prisma from '~/lib/prisma';
 import { writeFile, mkdir, stat } from 'fs/promises';
 import path from 'path';
+import { getErrorMessage, hasErrorCode } from '~/lib/errors/utils';
 
 const AVATAR_UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'avatars');
 
@@ -11,7 +12,7 @@ async function ensureAvatarDirExists() {
   try {
     await stat(AVATAR_UPLOAD_DIR);
   } catch (e: unknown) {
-    if ((e as any).code === 'ENOENT') {
+    if (hasErrorCode(e, 'ENOENT')) {
       try {
         await mkdir(AVATAR_UPLOAD_DIR, { recursive: true });
       } catch (mkdirError: unknown) {
@@ -50,8 +51,7 @@ export async function GET() {
     return NextResponse.json(user);
   } catch (error: unknown) {
     console.error('[API GET /api/user/profile] Error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to fetch user profile';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -116,7 +116,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json(updatedUser);
   } catch (error: unknown) {
     console.error('[API PATCH /api/user/profile] Error:', error);
-    const message = error instanceof Error ? error.message : 'Failed to update user profile';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 } 

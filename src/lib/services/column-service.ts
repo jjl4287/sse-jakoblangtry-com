@@ -82,7 +82,7 @@ export class ColumnServiceImpl implements ColumnService {
 
     // Log activity for significant changes if there are cards in the column
     if (userId && updatedColumn.cards.length > 0) {
-      const activityPromises: Promise<any>[] = [];
+      const activityPromises: Promise<unknown>[] = [];
 
       if (updates.title && updates.title !== existingColumn.title) {
         // Log activity for all cards in the column
@@ -154,7 +154,7 @@ export class ColumnServiceImpl implements ColumnService {
 
     // Log activity for affected columns with cards
     if (userId) {
-      const activityPromises: Promise<any>[] = [];
+      const activityPromises: Promise<unknown>[] = [];
 
       for (const column of updatedColumns) {
         if (column.cards.length > 0) {

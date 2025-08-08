@@ -106,7 +106,7 @@ class BoardMigrationService {
     existingTitles.push(finalTitle.toLowerCase()); // Add to prevent future conflicts in same migration
   }
 
-  private async migrateColumn(boardId: string, localColumn: any): Promise<void> {
+  private async migrateColumn(boardId: string, localColumn: { title: string; order: number; width?: number; cards?: Array<unknown> }): Promise<void> {
     // Create the column
     const columnResponse = await fetch('/api/columns', {
       method: 'POST',
@@ -135,12 +135,19 @@ class BoardMigrationService {
     }
   }
 
-  private async migrateCard(columnId: string, localCard: any): Promise<void> {
+  private async migrateCard(columnId: string, localCard: {
+    title: string;
+    description?: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    order?: number;
+    dueDate?: string;
+    weight?: number;
+  }): Promise<void> {
     const cardData = {
       title: localCard.title,
       description: localCard.description || '',
       columnId: columnId,
-      priority: localCard.priority || 'medium',
+      priority: (localCard.priority as 'low' | 'medium' | 'high' | undefined) || 'medium',
       order: localCard.order || 0,
       dueDate: localCard.dueDate || undefined,
       weight: localCard.weight || undefined

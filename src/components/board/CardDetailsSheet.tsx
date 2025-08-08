@@ -49,9 +49,9 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
   const boardId = propBoardId || null;
   
   // Real hooks for fetching data
-  const { comments, loading: isLoadingComments, refetch: refetchComments } = useCardComments(isOpen ? card?.id : null);
-  const { activityLogs: rawActivityLogs, loading: isLoadingActivityLogs, refetch: refetchActivity } = useCardActivity(isOpen ? card?.id : null);
-  const { labels: boardLabels, refetch: refetchLabels } = useBoardLabels(boardId);
+  const { comments, loading: isLoadingComments, refetch: refetchComments } = useCardComments(isOpen ? card?.id : undefined);
+  const { activityLogs: rawActivityLogs, loading: isLoadingActivityLogs, refetch: refetchActivity } = useCardActivity(isOpen ? (card?.id ?? null) : null);
+  const { labels: boardLabels, refetch: refetchLabels } = useBoardLabels(boardId ?? null);
   const { availableUsers } = useBoardMembers(boardId);
   
   // Hooks for mutations
@@ -278,12 +278,11 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
         const newAttachment = await addAttachment(card.id, formData);
         
         // Update local card state with new attachment
-        if (onCardUpdate && newAttachment) {
-          const updatedCard = {
+         if (onCardUpdate && newAttachment) {
+          onCardUpdate({
             ...card,
-            attachments: [...card.attachments, newAttachment]
-          };
-          onCardUpdate(updatedCard);
+            attachments: [...card.attachments, newAttachment as any]
+          } as any);
         }
         
         // Refetch activity to show update
@@ -299,12 +298,11 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
         const newAttachment = await addAttachment(card.id, { url, name, type });
         
         // Update local card state with new attachment
-        if (onCardUpdate && newAttachment) {
-          const updatedCard = {
+         if (onCardUpdate && newAttachment) {
+          onCardUpdate({
             ...card,
-            attachments: [...card.attachments, newAttachment]
-          };
-          onCardUpdate(updatedCard);
+            attachments: [...card.attachments, newAttachment as any]
+          } as any);
         }
         
         // Refetch activity to show update
@@ -410,7 +408,7 @@ export const CardDetailsSheet: React.FC<CardDetailsSheetProps> = ({
             </div>
             
             {/* Comment Input */}
-            <div className="bg-background/80 backdrop-blur-sm flex-shrink-0 pt-6 border-t border-border/50" data-no-dnd="true">
+            <div className="bg-background/80 backdrop-blur-sm sticky bottom-0 flex-shrink-0 pt-4 border-t border-border/50" data-no-dnd="true">
               <div className="space-y-4">
                 <MarkdownEditor
                   value={newCommentContent}

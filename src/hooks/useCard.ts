@@ -415,7 +415,13 @@ export function useCardMutations(): UseCardMutationsResult {
         }
         
         // Convert updates to local storage format
-        const localUpdates: any = {};
+        const localUpdates: Partial<{
+          title: string;
+          description: string;
+          priority: 'low' | 'medium' | 'high' | 'urgent';
+          weight: number;
+          dueDate: Date;
+        }> = {};
         if (updates.title !== undefined) localUpdates.title = updates.title;
         if (updates.description !== undefined) localUpdates.description = updates.description;
         if (updates.priority !== undefined) localUpdates.priority = updates.priority;

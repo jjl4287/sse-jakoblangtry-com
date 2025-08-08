@@ -111,7 +111,7 @@ export class CardServiceImpl implements CardService {
 
     // Log activity for significant changes
     if (userId) {
-      const activityPromises: Promise<any>[] = [];
+      const activityPromises: Promise<unknown>[] = [];
 
       if (updates.title && updates.title !== existingCard.title) {
         activityPromises.push(
@@ -168,7 +168,7 @@ export class CardServiceImpl implements CardService {
 
     // Log activity
     if (userId) {
-      const activityPromises: Promise<any>[] = [];
+      const activityPromises: Promise<unknown>[] = [];
 
       if (labelIdsToAdd.length > 0) {
         activityPromises.push(
@@ -214,7 +214,7 @@ export class CardServiceImpl implements CardService {
 
     // Log activity
     if (userId) {
-      const activityPromises: Promise<any>[] = [];
+      const activityPromises: Promise<unknown>[] = [];
 
       if (assigneeIdsToAdd.length > 0) {
         activityPromises.push(

@@ -3,7 +3,7 @@ import { InlineEdit } from '~/components/ui/InlineEdit';
 import { Search, UserPlus, PanelLeft } from 'lucide-react';
 import { Input } from '~/components/ui/input';
 import { Button } from '~/components/ui/button';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 export interface BoardHeaderProps {
   title: string;
@@ -71,12 +71,12 @@ export const BoardHeader: React.FC<BoardHeaderProps> = ({
       </motion.div>
 
       <div className="flex items-center gap-3">
-        <div className="text-sm font-medium">{columnCount} Columns</div>
-        <div className="text-sm font-medium">{cardCount} Cards</div>
-        <Button onClick={onOpenShareSheet} variant="outline" size="sm" className="flex items-center gap-1 rounded-full">
+        <div className="text-xs text-muted-foreground">{columnCount} Columns</div>
+        <div className="text-xs text-muted-foreground">{cardCount} Cards</div>
+        <Button onClick={onOpenShareSheet} variant="outline" size="sm" className="flex items-center gap-1 rounded-full h-8">
           <UserPlus className="h-4 w-4" /> Share
         </Button>
-        <Button onClick={onAddColumnClick} variant="outline" size="sm" className="border rounded-full">
+        <Button onClick={onAddColumnClick} variant="outline" size="sm" className="border rounded-full h-8">
           + Add Column
         </Button>
         <div className="relative">
@@ -86,7 +86,7 @@ export const BoardHeader: React.FC<BoardHeaderProps> = ({
             placeholder="Search..."
             value={searchQuery}
             onChange={onSearchChange}
-            className="pl-9 pr-3 py-1 h-8 w-48 bg-input border rounded-full"
+            className="pl-9 pr-3 py-1 h-8 w-56 bg-input border rounded-full"
           />
         </div>
       </div>

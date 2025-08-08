@@ -33,8 +33,9 @@ export const BoardService = {
       let list;
       try {
         list = await this.listBoards();
-      } catch (err: any) {
-        throw new Error(`Failed to fetch boards list: ${err.message.split(': ').pop()}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(`Failed to fetch boards list: ${message.split(': ').pop()}`);
       }
       if (!list.length) throw new Error('No boards available');
       boardId = list[0].id;

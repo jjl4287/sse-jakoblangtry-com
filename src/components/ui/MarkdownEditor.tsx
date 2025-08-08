@@ -15,6 +15,7 @@ interface MarkdownEditorProps {
   theme?: 'light' | 'dark'; // Allow passing theme override
   className?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  debounceMs?: number;
 }
 
 type PreviewMode = 'edit' | 'preview';
@@ -28,6 +29,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   theme: themeOverride, // Rename to avoid conflict
   className,
   onKeyDown,
+  debounceMs = 0,
 }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<PreviewMode>('edit');
@@ -77,6 +79,25 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       />
     );
   }
+
+  // Optional debounced onChange
+  const [buffer, setBuffer] = useState(value);
+  useEffect(() => setBuffer(value), [value]);
+  useEffect(() => {
+    if (debounceMs <= 0) return;
+    const t = setTimeout(() => {
+      if (buffer !== value) onChange(buffer);
+    }, debounceMs);
+    return () => clearTimeout(t);
+  }, [buffer, value, onChange, debounceMs]);
+
+  const handleImmediateChange = (next?: string) => {
+    if (debounceMs > 0) {
+      setBuffer(next ?? '');
+    } else {
+      onChange(next);
+    }
+  };
 
   return (
     <div
@@ -128,8 +149,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       </div>
             {/* Editor area: toolbar hidden */}
       <MDEditor
-        value={value}
-        onChange={onChange}
+        value={debounceMs > 0 ? buffer : value}
+        onChange={handleImmediateChange}
         height={height}
         preview={activeTab}
         commands={customCommands}

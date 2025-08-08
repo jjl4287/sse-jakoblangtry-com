@@ -8,16 +8,40 @@ import rehypeRaw from 'rehype-raw';
 interface MarkdownProps {
   content: string;
   className?: string;
+  // Optional: when provided, task list checkboxes (- [ ] / - [x]) become clickable and this is called with updated markdown
+  onTaskToggle?: (nextMarkdown: string) => void;
 }
 
 const Markdown: React.FC<MarkdownProps> = ({ 
   content, 
-  className
+  className,
+  onTaskToggle
 }) => {
   // If content is empty or just whitespace, return nothing
   if (!content || !content.trim()) {
     return null;
   }
+
+  // Helper: flip the nth task checkbox in the markdown content (0-based index over all task items)
+  const toggleNthTask = (markdown: string, taskIndex: number): string => {
+    let count = -1;
+    const lines = markdown.split(/\n/);
+    const taskRegex = /^(\s*[-*]\s+\[([ xX])\])/;
+    const updated = lines.map((line) => {
+      const m = line.match(taskRegex);
+      if (!m || m[1] === undefined || m[2] === undefined) return line;
+      count += 1;
+      if (count !== taskIndex) return line;
+      const checked = m[2].toLowerCase() === 'x';
+      const marker = m[1] as string;
+      const flipped = checked ? marker.replace('[x]', '[ ]').replace('[X]', '[ ]') : marker.replace('[ ]', '[x]');
+      return line.replace(marker, flipped);
+    });
+    return updated.join('\n');
+  };
+
+  // Counter to identify which checkbox index we are rendering
+  let taskRenderIndex = -1;
 
   return (
     <div className={`prose prose-sm dark:prose-invert max-w-none ${className || ''}`}>
@@ -49,8 +73,8 @@ const Markdown: React.FC<MarkdownProps> = ({
             <h6 className="text-sm font-bold text-foreground mt-3 mb-2 first:mt-0" {...props} />
           ),
           // Better code styling
-          code: ({ node, inline, ...props }) => (
-            inline ? (
+          code: ({ node, ...props }) => (
+            (props as any).inline ? (
               <code 
                 className="px-1.5 py-0.5 text-sm bg-muted rounded font-mono border text-foreground" 
                 {...props} 
@@ -78,6 +102,36 @@ const Markdown: React.FC<MarkdownProps> = ({
           em: ({ node, ...props }) => (
             <em className="italic text-foreground" {...props} />
           ),
+          // Make GFM task list checkboxes interactive when onTaskToggle is provided
+          input: ({ node, ...props }) => {
+            const isCheckbox = (props as React.InputHTMLAttributes<HTMLInputElement>).type === 'checkbox';
+            if (!isCheckbox || !onTaskToggle) {
+              return <input {...props} />;
+            }
+            taskRenderIndex += 1;
+            const checked = Boolean((props as React.InputHTMLAttributes<HTMLInputElement>).checked);
+            return (
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  const next = toggleNthTask(content, taskRenderIndex);
+                  onTaskToggle(next);
+                }}
+                // Prevent markdown-click from toggling focus that could cause scroll jump
+                onMouseDown={(e) => e.stopPropagation()}
+                // Ensure keyboard toggling works
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const next = toggleNthTask(content, taskRenderIndex);
+                    onTaskToggle(next);
+                  }
+                }}
+              />
+            );
+          },
         }}
       >
         {content}

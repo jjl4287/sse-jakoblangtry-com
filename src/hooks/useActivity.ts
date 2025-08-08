@@ -27,7 +27,7 @@ function isLocalCard(cardId: string): boolean {
   );
 }
 
-export function useCardActivity(cardId: string | null) {
+export function useCardActivity(cardId: string | undefined | null) {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
