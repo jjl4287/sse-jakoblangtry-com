@@ -9,6 +9,7 @@ type CardWithRelations = Prisma.CardGetPayload<{
     attachments: true;
     comments: { include: { user: true } };
     assignees: true;
+    board: true;
   }
 }>;
 
@@ -28,6 +29,7 @@ class PrismaCardRepository implements CardRepository {
       title: prismaCard.title,
       description: prismaCard.description,
       columnId: prismaCard.columnId,
+      boardId: prismaCard.boardId,
       order: prismaCard.order,
       priority: prismaCard.priority as 'low' | 'medium' | 'high',
       weight: prismaCard.weight ?? undefined,
@@ -75,7 +77,8 @@ class PrismaCardRepository implements CardRepository {
         labels: true,
         attachments: true,
         comments: { include: { user: true } },
-        assignees: true
+        assignees: true,
+        board: true
       }
     });
 
@@ -88,7 +91,8 @@ class PrismaCardRepository implements CardRepository {
         labels: true,
         attachments: true,
         comments: { include: { user: true } },
-        assignees: true
+        assignees: true,
+        board: true
       },
       orderBy: { order: 'asc' }
     });
@@ -103,7 +107,8 @@ class PrismaCardRepository implements CardRepository {
         labels: true,
         attachments: true,
         comments: { include: { user: true } },
-        assignees: true
+        assignees: true,
+        board: true
       },
       orderBy: { order: 'asc' }
     });
@@ -128,13 +133,35 @@ class PrismaCardRepository implements CardRepository {
     assigneeIds?: string[];
   }): Promise<Card> {
     const { labelIds = [], assigneeIds = [], ...cardData } = data;
-    
+
+    // Ensure boardId is set; infer from column if missing or empty
+    let boardIdToUse = cardData.boardId;
+    if (!boardIdToUse || boardIdToUse.trim() === '') {
+      const column = await prisma.column.findUnique({
+        where: { id: cardData.columnId },
+        select: { boardId: true },
+      });
+      if (!column) {
+        throw new Error('Column not found');
+      }
+      boardIdToUse = column.boardId;
+    }
+
+    // Compute next order in column
+    const maxOrder = await prisma.card.findFirst({
+      where: { columnId: cardData.columnId },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+    const nextOrder = maxOrder ? maxOrder.order + 1 : 0;
+
     const card = await prisma.card.create({
       data: {
         ...cardData,
+        boardId: boardIdToUse,
         description: cardData.description || '',
         priority: cardData.priority || 'medium',
-        order: 0, // Will be recalculated based on column
+        order: nextOrder,
         labels: labelIds.length > 0 ? { connect: labelIds.map(id => ({ id })) } : undefined,
         assignees: assigneeIds.length > 0 ? { connect: assigneeIds.map(id => ({ id })) } : undefined,
       },
@@ -142,7 +169,8 @@ class PrismaCardRepository implements CardRepository {
         labels: true,
         attachments: true,
         comments: { include: { user: true } },
-        assignees: true
+        assignees: true,
+        board: true
       }
     });
 
@@ -163,7 +191,8 @@ class PrismaCardRepository implements CardRepository {
         labels: true,
         attachments: true,
         comments: { include: { user: true } },
-        assignees: true
+        assignees: true,
+        board: true
       }
     });
 
@@ -183,7 +212,8 @@ class PrismaCardRepository implements CardRepository {
         labels: true,
         attachments: true,
         comments: { include: { user: true } },
-        assignees: true
+        assignees: true,
+        board: true
       }
     });
 
@@ -203,7 +233,8 @@ class PrismaCardRepository implements CardRepository {
         labels: true,
         attachments: true,
         comments: { include: { user: true } },
-        assignees: true
+        assignees: true,
+        board: true
       }
     });
 
@@ -221,7 +252,8 @@ class PrismaCardRepository implements CardRepository {
         labels: true,
         attachments: true,
         comments: { include: { user: true } },
-        assignees: true
+        assignees: true,
+        board: true
       }
     });
 
@@ -233,7 +265,8 @@ class PrismaCardRepository implements CardRepository {
       where: { id: cardId },
       include: {
         labels: true,
-        assignees: true
+        assignees: true,
+        board: true
       }
     });
 
@@ -258,7 +291,8 @@ class PrismaCardRepository implements CardRepository {
         labels: true,
         attachments: true,
         comments: { include: { user: true } },
-        assignees: true
+        assignees: true,
+        board: true
       }
     });
 

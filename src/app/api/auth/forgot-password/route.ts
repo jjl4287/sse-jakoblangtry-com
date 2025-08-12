@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '~/lib/prisma';
 import { sendEmail } from '~/lib/email';
+import { authService } from '~/lib/services/auth-service';
 import * as crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
@@ -17,10 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-      select: { id: true, name: true, email: true, hashedPassword: true }
-    });
+    const user = await authService.findUserByEmail(email);
 
     if (!user) {
       // Return success even if user doesn't exist to prevent email enumeration
@@ -45,13 +42,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     // Store OTP in database (using resetToken and resetTokenExpiry fields)
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetToken: otp,
-        resetTokenExpiry: expiresAt
-      }
-    });
+    await authService.setResetToken(user.id, otp, expiresAt);
 
     // Send email with OTP
     const emailSubject = 'Password Reset Code';

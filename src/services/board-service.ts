@@ -1,4 +1,5 @@
-export const BoardService = {
+// Client-side API helper for boards
+export const BoardApi = {
   async listBoards() {
     const res = await fetch('/api/boards');
     if (!res.ok) {

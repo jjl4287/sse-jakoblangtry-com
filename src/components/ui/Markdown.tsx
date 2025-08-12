@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { toggleNthTask, toggleTaskAtLine, getTaskLineNumbers } from '~/lib/utils/markdownTasks';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -22,23 +23,7 @@ const Markdown: React.FC<MarkdownProps> = ({
     return null;
   }
 
-  // Helper: flip the nth task checkbox in the markdown content (0-based index over all task items)
-  const toggleNthTask = (markdown: string, taskIndex: number): string => {
-    let count = -1;
-    const lines = markdown.split(/\n/);
-    const taskRegex = /^(\s*[-*]\s+\[([ xX])\])/;
-    const updated = lines.map((line) => {
-      const m = line.match(taskRegex);
-      if (!m || m[1] === undefined || m[2] === undefined) return line;
-      count += 1;
-      if (count !== taskIndex) return line;
-      const checked = m[2].toLowerCase() === 'x';
-      const marker = m[1] as string;
-      const flipped = checked ? marker.replace('[x]', '[ ]').replace('[X]', '[ ]') : marker.replace('[ ]', '[x]');
-      return line.replace(marker, flipped);
-    });
-    return updated.join('\n');
-  };
+  // toggling logic moved to ~/lib/utils/markdownTasks
 
   // Counter to identify which checkbox index we are rendering
   let taskRenderIndex = -1;
@@ -109,6 +94,7 @@ const Markdown: React.FC<MarkdownProps> = ({
               return <input {...props} />;
             }
             taskRenderIndex += 1;
+            const indexForThisInput = taskRenderIndex; // capture stable index per element
             const checked = Boolean((props as React.InputHTMLAttributes<HTMLInputElement>).checked);
             return (
               <input
@@ -116,7 +102,14 @@ const Markdown: React.FC<MarkdownProps> = ({
                 checked={checked}
                 onChange={(e) => {
                   e.stopPropagation();
-                  const next = toggleNthTask(content, taskRenderIndex);
+                  // Prefer line-based toggle from AST; if unavailable, map index->line based on current content
+                  const nodePosition = (node as any)?.position;
+                  let lineNumber: number | undefined = nodePosition?.start?.line;
+                  if (!lineNumber) {
+                    const lines = getTaskLineNumbers(content);
+                    lineNumber = lines[indexForThisInput];
+                  }
+                  const next = lineNumber ? toggleTaskAtLine(content, lineNumber) : toggleNthTask(content, indexForThisInput);
                   onTaskToggle(next);
                 }}
                 // Prevent markdown-click from toggling focus that could cause scroll jump
@@ -125,7 +118,13 @@ const Markdown: React.FC<MarkdownProps> = ({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    const next = toggleNthTask(content, taskRenderIndex);
+                    const nodePosition = (node as any)?.position;
+                    let lineNumber: number | undefined = nodePosition?.start?.line;
+                    if (!lineNumber) {
+                      const lines = getTaskLineNumbers(content);
+                      lineNumber = lines[indexForThisInput];
+                    }
+                    const next = lineNumber ? toggleTaskAtLine(content, lineNumber) : toggleNthTask(content, indexForThisInput);
                     onTaskToggle(next);
                   }
                 }}

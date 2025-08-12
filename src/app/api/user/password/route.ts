@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '~/lib/auth/authOptions';
-import prisma from '~/lib/prisma';
+import { authService } from '~/lib/services/auth-service';
 import bcrypt from 'bcrypt';
 
 export async function PATCH(request: NextRequest) {
@@ -34,12 +34,11 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Fetch user from database
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { id: true, hashedPassword: true }
-    });
+    const found = await authService.getAuthStatus(session.user.id);
+    // Need the full user for password checks; make a minimal call
+    const userRecord = await authService.findUserByEmail(session.user.email!);
 
-    if (!user || !user.hashedPassword) {
+    if (!userRecord || !userRecord.hashedPassword) {
       return NextResponse.json(
         { error: 'User not found or password not set' },
         { status: 404 }
@@ -47,7 +46,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.hashedPassword);
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, userRecord.hashedPassword);
     
     if (!isCurrentPasswordValid) {
       return NextResponse.json(
@@ -57,7 +56,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check if new password is the same as current password
-    const isSamePassword = await bcrypt.compare(newPassword, user.hashedPassword);
+    const isSamePassword = await bcrypt.compare(newPassword, userRecord.hashedPassword);
     
     if (isSamePassword) {
       return NextResponse.json(
@@ -67,14 +66,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Hash new password
-    const saltRounds = 12;
-    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    // Update password in database
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { hashedPassword: hashedNewPassword }
-    });
+    await authService.updatePassword(session.user.id, newPassword);
 
     return NextResponse.json(
       { message: 'Password updated successfully' },

@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import prisma from '~/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { jsonError } from '~/lib/api/response';
+import { commentService } from '~/lib/services/comment-service';
+import { accessService } from '~/lib/services/access-service';
 
 // GET /api/cards/[cardId]/comments
 export async function GET(
@@ -19,46 +21,14 @@ export async function GET(
   }
 
   try {
-    // First, check if the card exists and if the user has access to the board it belongs to.
-    // This is a simplified check; a more robust check would verify board membership or ownership.
-    const card = await prisma.card.findUnique({
-      where: { id: cardId },
-      select: {
-        column: {
-          select: {
-            board: {
-              select: { creatorId: true, members: { select: { userId: true } } } // For checking ownership or membership
-            }
-          }
-        }
-      }
-    });
-
-    if (!card) {
-      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+    const canAccess = await accessService.canAccessCard(session.user.id, cardId);
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 });
     }
-
-    const boardOwnerId = card.column.board.creatorId;
-    const isMember = card.column.board.members.some(member => member.userId === session.user.id);
-
-    if (boardOwnerId !== session.user.id && !isMember) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const comments = await prisma.comment.findMany({
-      where: { cardId },
-      orderBy: { createdAt: 'asc' }, // Get comments in chronological order
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, image: true }, // Select user fields for display
-        },
-      },
-    });
+    const comments = await commentService.getCommentsByCardId(cardId);
     return NextResponse.json(comments);
   } catch (error: unknown) {
-    console.error(`[API GET /api/cards/${cardId}/comments] Error:`, error);
-    const message = error instanceof Error ? error.message : 'Failed to fetch comments';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error, 'Failed to fetch comments');
   }
 }
 
@@ -85,37 +55,13 @@ export async function POST(
     }
     const { content } = parsed.data;
 
-    // Similar access check as in GET before creating comment
-    const cardCheck = await prisma.card.findUnique({
-        where: { id: cardId },
-        select: { column: { select: { board: { select: { creatorId: true, members: { select: { userId: true } } } } } } }
-    });
-    if (!cardCheck) {
-        return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+    const canAccess = await accessService.canAccessCard(userId, cardId);
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 });
     }
-    const boardOwnerId = cardCheck.column.board.creatorId;
-    const isMember = cardCheck.column.board.members.some(member => member.userId === userId);
-    if (boardOwnerId !== userId && !isMember) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const newComment = await prisma.comment.create({
-      data: {
-        content: content.trim(),
-        card: { connect: { id: cardId } },
-        user: { connect: { id: userId } }, // Link to the authenticated user
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, image: true },
-        },
-      },
-    });
-
-    return NextResponse.json(newComment, { status: 201 }); // 201 Created
+    const newComment = await commentService.createComment(cardId, userId, content);
+    return NextResponse.json(newComment, { status: 201 });
   } catch (error: unknown) {
-    console.error(`[API POST /api/cards/${cardId}/comments] Error:`, error);
-    const message = error instanceof Error ? error.message : 'Failed to create comment';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error, 'Failed to create comment');
   }
 } 

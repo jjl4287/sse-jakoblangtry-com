@@ -3,6 +3,8 @@ import prisma from '~/lib/prisma';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "~/lib/auth/authOptions";
 import { z } from 'zod';
+import { jsonError } from '~/lib/api/response';
+import { getErrorMessage } from '~/lib/errors/utils';
 
 const CardMoveSchema = z.object({ targetColumnId: z.string().min(1), order: z.number().int().nonnegative() });
 
@@ -130,13 +132,14 @@ export async function POST(
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error(`[API POST /api/cards/${cardId}/move] Error:`, error);
-    let message = 'Failed to move card';
-    if (error instanceof Error) {
-      message = error.message;
-    } else if (typeof error === 'object' && error !== null && 'message' in error) {
-      // Handle non-Error throw shapes used in tests
-      message = String((error as { message?: unknown }).message ?? message);
+    // Preserve explicit error message if provided by tests/mocks
+    let message: string;
+    if (error && typeof error === 'object' && 'message' in (error as Record<string, unknown>) && typeof (error as Record<string, unknown>).message === 'string') {
+      message = (error as { message: string }).message;
+    } else if (typeof error === 'string') {
+      message = error;
+    } else {
+      try { message = JSON.stringify(error as unknown); } catch { message = 'Failed to move card'; }
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }

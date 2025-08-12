@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
-import prisma from '~/lib/prisma';
+import { boardService } from '~/lib/services/board-service';
+import { jsonError } from '~/lib/api/response';
 import type { Board } from '~/types';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
@@ -114,11 +115,8 @@ export async function GET(request: Request) {
           ]
         };
       }      
-      const boards = await prisma.board.findMany({ 
-        where: whereClause, 
-        orderBy,
-        select: { id: true, title: true, pinned: true, theme: true, creatorId: true, isPublic: true, updatedAt: true }
-      });
+      // Delegate to service/repository via existing service method
+      const boards = userId ? await boardService.getUserBoards(userId) : await boardService.getPublicBoards();
       return NextResponse.json(boards);
     }
 
@@ -147,34 +145,7 @@ export async function GET(request: Request) {
       };
     }
 
-    const board = await prisma.board.findFirst({
-      where: boardWhereConditions,
-      include: {
-        columns: {
-          orderBy: { order: 'asc' },
-          include: {
-            cards: {
-              orderBy: { order: 'asc' },
-              include: {
-                labels: true,
-                attachments: true,
-                comments: { include: { user: true } },
-                assignees: true
-              }
-            }
-          }
-        },
-        labels: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-            boardId: true
-          }
-        }, 
-        members: { include: { user: true } } 
-      }
-    });
+    const board = await boardService.getBoardById(boardId, userId || undefined);
 
     if (!board) {
       return NextResponse.json({ error: 'Board not found or access denied' }, { status: 404 });
@@ -184,9 +155,7 @@ export async function GET(request: Request) {
     return NextResponse.json(out);
 
   } catch (error: unknown) {
-    console.error('[API GET /api/boards] Error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error);
   }
 }
 
@@ -210,45 +179,9 @@ export async function POST(request: Request) {
   }
   const { title } = parsed.data;
 
-  // Ensure the user exists (upsert) before creating the board
-  await prisma.user.upsert({
-    where: { id: userId },
-    create: { 
-      id: userId, 
-      name: userName,
-      email: email,
-    },
-    update: { 
-      name: userName,
-      email: email,
-    },
-  });
-
-  // Now create the board linked to that user
-  const newBoard = await prisma.board.create({
-    data: {
-      title,
-      creatorId: userId,
-      members: {
-        create: [
-          {
-            userId: userId,
-            role: 'owner',
-          },
-        ],
-      },
-    },
-    include: {
-      members: {
-        include: {
-          user: true,
-        },
-      },
-    },
-  });
-
+  const newBoard = await boardService.createBoard(title, userId);
   return NextResponse.json(
-    { id: newBoard.id, title: newBoard.title, pinned: newBoard.pinned, creatorId: newBoard.creatorId }, 
+    { id: newBoard.id, title: newBoard.title, pinned: false, creatorId: userId },
     { status: 201 }
   );
 } 

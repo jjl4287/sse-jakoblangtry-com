@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '~/lib/auth/authOptions';
-import prisma from '~/lib/prisma';
+import { authService } from '~/lib/services/auth-service';
 
 export async function GET() {
   try {
@@ -15,27 +15,9 @@ export async function GET() {
     }
 
     // Check if user has a password set
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { 
-        hashedPassword: true,
-        accounts: {
-          select: {
-            provider: true
-          }
-        }
-      }
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    const hasPassword = Boolean(user.hashedPassword);
-    const oauthProviders = user.accounts.map(account => account.provider);
+    const status = await authService.getAuthStatus(session.user.id);
+    const hasPassword = status.hasPassword;
+    const oauthProviders = status.oauthProviders;
     const hasOAuth = oauthProviders.length > 0;
 
     return NextResponse.json({

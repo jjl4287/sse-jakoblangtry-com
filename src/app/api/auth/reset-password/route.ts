@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '~/lib/prisma';
 import * as bcrypt from 'bcrypt';
+import { authService } from '~/lib/services/auth-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,16 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user with valid reset token
-    const user = await prisma.user.findFirst({
-      where: {
-        email: email.toLowerCase(),
-        resetToken: otp,
-        resetTokenExpiry: {
-          gt: new Date() // Token must not be expired
-        }
-      },
-      select: { id: true, name: true, email: true, hashedPassword: true }
-    });
+    const user = await authService.verifyResetToken(email, otp);
 
     if (!user) {
       return NextResponse.json(
@@ -54,18 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash new password
-    const saltRounds = 12;
-    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-    // Update password and clear reset token
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        hashedPassword: hashedNewPassword,
-        resetToken: null,
-        resetTokenExpiry: null
-      }
-    });
+    await authService.updatePassword(user.id, newPassword);
 
     return NextResponse.json(
       { message: 'Password reset successfully' },

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BoardService } from '~/services/board-service';
+import { BoardApi as BoardService } from '~/services/board-service';
 
 describe('BoardService.getBoard()', () => {
   beforeEach(() => {

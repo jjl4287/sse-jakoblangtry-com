@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '~/lib/prisma';
+import { columnService } from '~/lib/services/column-service';
+import { jsonError } from '~/lib/api/response';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 
@@ -26,21 +27,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
     }
     const { title, width, boardId } = parsed.data;
-    
-    // Validate that the board exists
-    const board = await prisma.board.findUnique({ where: { id: boardId } });
-    if (!board) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 });
-    }
-    // Determine order by counting existing columns
-    const count = await prisma.column.count({ where: { boardId: board.id } });
-    // Create column
-    const column = await prisma.column.create({ data: { title, width, order: count, boardId: board.id } });
+    const column = await columnService.createColumn({ title, width, boardId });
     return NextResponse.json(column);
   } catch (error: unknown) {
-    console.error('[API POST /api/columns] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return jsonError(error);
   }
 }
 
@@ -53,52 +43,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Validation failed', issues: parsed.error.errors }, { status: 400 });
     }
     const { boardId, columnOrders } = parsed.data;
-    
-    // Validate that the board exists
-    const board = await prisma.board.findUnique({ where: { id: boardId } });
-    if (!board) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 });
-    }
-
-    // Validate that all columns belong to the board
-    const columnIds = columnOrders.map(co => co.id);
-    const existingColumns = await prisma.column.findMany({
-      where: { id: { in: columnIds }, boardId },
-    });
-
-    if (existingColumns.length !== columnIds.length) {
-      return NextResponse.json({ error: 'Some columns not found or do not belong to this board' }, { status: 400 });
-    }
-
-    // Update column orders in a transaction
-    const updatePromises = columnOrders.map(({ id, order }) =>
-      prisma.column.update({
-        where: { id },
-        data: { order },
-        include: {
-          cards: {
-            include: {
-              labels: true,
-              assignees: {
-                select: { id: true, name: true, email: true, image: true }
-              },
-              attachments: true,
-            },
-            orderBy: { order: 'asc' }
-          }
-        }
-      })
-    );
-
-    const updatedColumns = await prisma.$transaction(updatePromises);
-
-    return NextResponse.json({ 
-      message: 'Columns reordered successfully',
-      columns: updatedColumns 
-    });
+    const updatedColumns = await columnService.reorderColumns(boardId, columnOrders);
+    return NextResponse.json({ message: 'Columns reordered successfully', columns: updatedColumns });
   } catch (error: unknown) {
-    console.error('[API PATCH /api/columns] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return jsonError(error);
   }
 } 

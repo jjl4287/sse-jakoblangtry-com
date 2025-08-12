@@ -28,6 +28,18 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
     setIsEditingTitle(false);
   };
 
+  // derive task progress from description markdown
+  const computeTaskProgress = (markdown: string): { done: number; total: number } => {
+    if (!markdown) return { done: 0, total: 0 };
+    const matches = markdown.match(/\[( |x|X)\]/g) || [];
+    const total = matches.length;
+    const done = matches.filter((m) => m.toLowerCase() === '[x]').length;
+    return { done, total };
+  };
+
+  const { done, total } = computeTaskProgress(card.description || '');
+  const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+
   return (
     <div className="flex items-center gap-3 w-full">
       {/* Card Status Badge */}
@@ -43,7 +55,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
         </Badge>
       )}
 
-      {/* Card Title */}
+      {/* Card Title with progress */}
       <div className="flex-1 min-w-0">
         <InlineEdit
           ref={cardTitleInputRef}
@@ -59,6 +71,17 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
           className="text-xl font-bold text-foreground cursor-pointer hover:bg-muted/40 px-2 py-1.5 rounded-md transition-all duration-200 break-words w-full leading-tight"
           placeholder="Card title"
         />
+        {total > 0 && (
+          <div className="mt-1 px-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{done}/{total} tasks</span>
+              <span>{percent}%</span>
+            </div>
+            <div className="h-1.5 mt-1 rounded bg-muted overflow-hidden">
+              <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

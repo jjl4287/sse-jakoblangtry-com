@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '~/lib/prisma';
+import { attachmentService } from '~/lib/services/attachment-service';
+import { accessService } from '~/lib/services/access-service';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
 import fs from 'fs/promises';
@@ -18,36 +19,11 @@ export async function DELETE(
   const userId = session.user.id;
 
   try {
-    // 1. Authorization: Check if user can modify the card
-    const card = await prisma.card.findUnique({
-      where: { id: cardId },
-      select: { board: { select: { creatorId: true, members: { select: { userId: true } } } } },
-    });
-
-    if (!card) {
-      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+    // Authorization: check card access
+    const canAccess = await accessService.canAccessCard(userId, cardId);
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 });
     }
-
-    const isOwner = card.board.creatorId === userId;
-    const isMember = card.board.members.some(member => member.userId === userId);
-
-    if (!isOwner && !isMember) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // 2. Find the attachment to get its details (like URL for file deletion)
-    const attachmentToDelete = await prisma.attachment.findUnique({
-      where: { id: attachmentId, cardId: cardId }, // Ensure it belongs to the correct card
-    });
-
-    if (!attachmentToDelete) {
-      return NextResponse.json({ error: 'Attachment not found on this card' }, { status: 404 });
-    }
-
-    // 3. Delete the attachment record from DB
-    await prisma.attachment.delete({
-      where: { id: attachmentId },
-    });
 
     // 4. Delete the actual file from the filesystem
     //    The URL stored is like `/uploads/cards/[cardId]/[filename]`
@@ -63,24 +39,12 @@ export async function DELETE(
       // For now, we'll proceed assuming DB deletion is the primary goal.
     }
     
-    // 5. Log activity
-    await prisma.activityLog.create({
-        data: {
-            actionType: "DELETE_ATTACHMENT_FROM_CARD",
-            cardId,
-            userId,
-            details: {
-                attachmentId: attachmentToDelete.id,
-                attachmentName: attachmentToDelete.name,
-                attachmentUrl: attachmentToDelete.url, // Log the URL of the deleted file
-            },
-        },
-    });
+    // 3. Delete the attachment via service (it logs activity)
+    await attachmentService.deleteAttachment(attachmentId, userId);
 
     return NextResponse.json({ success: true, message: 'Attachment deleted' });
 
   } catch (error: unknown) {
-    console.error(`[API DELETE /api/cards/${cardId}/attachments/${attachmentId}] Error:`, error);
     const message = error instanceof Error ? error.message : 'Failed to delete attachment';
     return NextResponse.json({ error: message }, { status: 500 });
   }

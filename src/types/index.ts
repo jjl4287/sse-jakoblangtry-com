@@ -146,6 +146,7 @@ export interface Card {
   comments: Comment[];
   columnId: string;
   order: number; // Position within the column
+  boardId: string;
 }
 
 // Add Priority type alias for Card priority

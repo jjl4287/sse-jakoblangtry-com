@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
-import prisma from '~/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
 import fs from 'fs/promises';
 import path from 'path';
 import { stat, mkdir, writeFile } from 'fs/promises'; // For checking/creating directory and writing file
 import { getErrorMessage, hasErrorCode } from '~/lib/errors/utils';
+import { jsonError } from '~/lib/api/response';
+import { attachmentService } from '~/lib/services/attachment-service';
+import { accessService } from '~/lib/services/access-service';
 
 // Ensure the upload directory exists
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'cards');
@@ -42,20 +44,9 @@ export async function POST(
   const userId = session.user.id;
 
   try {
-    const card = await prisma.card.findUnique({
-      where: { id: cardId },
-      select: { board: { select: { creatorId: true, members: { select: { userId: true } } } } },
-    });
-
-    if (!card) {
-      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
-    }
-
-    const isOwner = card.board.creatorId === userId;
-    const isMember = card.board.members.some(member => member.userId === userId);
-
-    if (!isOwner && !isMember) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const canAccess = await accessService.canAccessCard(userId, cardId);
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 });
     }
 
     const contentType = request.headers.get('content-type') || '';
@@ -122,37 +113,23 @@ export async function POST(
       return NextResponse.json({ error: 'Unsupported Content-Type' }, { status: 415 });
     }
     
-    const attachment = await prisma.attachment.create({
-      data: attachmentData,
-    });
-    
-    await prisma.activityLog.create({
-        data: {
-            actionType: attachmentData.type === 'link' ? "ADD_LINK_ATTACHMENT_TO_CARD" : "ADD_FILE_ATTACHMENT_TO_CARD",
-            cardId,
-            userId,
-            details: {
-                attachmentId: attachment.id,
-                attachmentName: attachment.name,
-                attachmentUrl: attachment.url,
-                attachmentType: attachment.type,
-            },
-        },
-    });
+    const attachment = await attachmentService.createAttachment(cardId, {
+      name: attachmentData.name,
+      url: attachmentData.url,
+      type: attachmentData.type,
+    }, userId);
 
     return NextResponse.json(attachment, { status: 201 });
 
   } catch (error: unknown) {
-    console.error(`[API POST /api/cards/${cardId}/attachments] Error:`, error);
-    // It's good to distinguish between file system errors and other errors
+    // Distinguish file system errors explicitly
     if (
       error instanceof Error &&
       (error.message.includes('upload directory') || hasErrorCode(error, 'ENOENT') || hasErrorCode(error, 'EACCES'))
     ) {
       return NextResponse.json({ error: 'File system error during upload.' }, { status: 500 });
     }
-    const message = getErrorMessage(error) || 'Failed to upload attachment';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error, 'Failed to upload attachment');
   }
 }
 
@@ -171,33 +148,16 @@ export async function GET(
 
   try {
     // Authorization: Check if user can access the card (and thus its attachments)
-    const card = await prisma.card.findUnique({
-      where: { id: cardId },
-      select: { board: { select: { creatorId: true, members: { select: { userId: true } } } } },
-    });
-
-    if (!card) {
-      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
-    }
-
-    const isOwner = card.board.creatorId === userId;
-    const isMember = card.board.members.some(member => member.userId === userId);
-
-    if (!isOwner && !isMember) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const canAccess = await accessService.canAccessCard(userId, cardId);
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 });
     }
 
     // Fetch attachments for the card
-    const attachments = await prisma.attachment.findMany({
-      where: { cardId },
-      orderBy: { createdAt: 'asc' }, // Optional: order by creation time
-    });
-
+    const attachments = await attachmentService.getAttachmentsByCardId(cardId);
     return NextResponse.json(attachments);
 
   } catch (error: unknown) {
-    console.error(`[API GET /api/cards/${cardId}/attachments] Error:`, error);
-    const message = error instanceof Error ? error.message : 'Failed to fetch attachments';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonError(error, 'Failed to fetch attachments');
   }
 } 

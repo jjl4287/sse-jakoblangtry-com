@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
-import prisma from '~/lib/prisma';
+import { authService } from '~/lib/services/auth-service';
 import { writeFile, mkdir, stat } from 'fs/promises';
 import path from 'path';
 import { getErrorMessage, hasErrorCode } from '~/lib/errors/utils';
@@ -33,16 +33,7 @@ export async function GET() {
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        createdAt: true,
-      },
-    });
+    const user = await authService.updateProfile(session.user.id, {});
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -101,17 +92,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        createdAt: true,
-      },
-    });
+    const updatedUser = await authService.updateProfile(session.user.id, updateData);
 
     return NextResponse.json(updatedUser);
   } catch (error: unknown) {

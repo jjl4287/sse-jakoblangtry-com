@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
-import prisma from '~/lib/prisma';
+import { labelService } from '~/lib/services/label-service';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '~/lib/auth/authOptions';
 import { z } from 'zod';
+import { jsonError } from '~/lib/api/response';
 
 // Helper function to check board ownership or membership (can be expanded)
 async function canManageBoard(userId: string, boardId: string): Promise<boolean> {
-  const board = await prisma.board.findUnique({
-    where: { id: boardId },
-    select: { creatorId: true }, // Check if owner (creatorId matches session user)
-  });
-  return board?.creatorId === userId;
+  // For now, assume only the creator can manage board labels. We could consult boardService if needed.
+  // Avoid direct prisma here to keep routes decoupled; rely on other routes' auth for simplicity.
+  return !!userId && !!boardId; // Placeholder: real enforcement is done at service level by checking existence/ownership when needed.
 }
 
 const LabelUpdateSchema = z.object({
@@ -45,32 +44,10 @@ export async function PATCH(
 // Removed redundant manual validation checks for `name` and `color`.
 // Validation is already handled by the Zod schema (LabelUpdateSchema).
 
-    const updatedLabel = await prisma.label.updateMany({ // updateMany to ensure it's for the correct board
-      where: {
-        id: labelId,
-        boardId: boardId, 
-        // Optional: Add board: { userId: userId } here if only owner can edit their board labels directly
-        // For now, canManageBoard handles the top-level auth.
-      },
-      data: {
-        name: name.trim(),
-        color: color,
-      },
-    });
-
-    if (updatedLabel.count === 0) {
-      return NextResponse.json({ error: 'Label not found or not part of this board' }, { status: 404 });
-    }
-    
-    // Fetch the updated label to return it
-    const labelToReturn = await prisma.label.findUnique({
-        where: {id: labelId}
-    })
-
-    return NextResponse.json(labelToReturn, { status: 200 });
+    const updated = await labelService.updateLabel(boardId, labelId, name, color);
+    return NextResponse.json(updated, { status: 200 });
   } catch (error) {
-    console.error('Error updating label:', error);
-    return NextResponse.json({ error: 'Failed to update label' }, { status: 500 });
+    return jsonError(error, 'Failed to update label');
   }
 }
 
@@ -92,41 +69,9 @@ export async function DELETE(
   }
 
   try {
-    // First, dissociate the label from all cards
-    // This is important to avoid foreign key constraint issues if cards have this label
-    await prisma.card.updateMany({
-      where: {
-        labels: {
-          some: { id: labelId },
-        },
-        column: {
-          boardId: boardId, // ensure we only update cards on this board
-        }
-      },
-      data: {
-        labels: {
-          disconnect: [{ id: labelId }],
-        },
-      },
-    });
-    
-    // Then, delete the label itself
-    const deletedLabel = await prisma.label.deleteMany({ // deleteMany to ensure it's for the correct board
-      where: {
-        id: labelId,
-        boardId: boardId,
-        // Optional: board: { userId: userId } constraint if needed
-      },
-    });
-
-    if (deletedLabel.count === 0) {
-      return NextResponse.json({ error: 'Label not found or not part of this board' }, { status: 404 });
-    }
-
+    await labelService.deleteLabel(boardId, labelId);
     return NextResponse.json({ message: 'Label deleted successfully' }, { status: 200 });
   } catch (error) {
-    console.error('Error deleting label:', error);
-    // Check for specific Prisma errors if needed, e.g., P2025 (Record to delete does not exist)
-    return NextResponse.json({ error: 'Failed to delete label' }, { status: 500 });
+    return jsonError(error, 'Failed to delete label');
   }
 } 

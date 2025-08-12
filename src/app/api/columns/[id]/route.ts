@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import prisma from '~/lib/prisma';
+import { columnService } from '~/lib/services/column-service';
+import { jsonError } from '~/lib/api/response';
 
 // PATCH /api/columns/[id]
 export async function PATCH(
@@ -20,15 +21,10 @@ export async function PATCH(
   
   try {
     const updates = await request.json();
-    const column = await prisma.column.update({
-      where: { id },
-      data: updates,
-    });
+    const column = await columnService.updateColumn(id, updates);
     return NextResponse.json(column);
   } catch (error: unknown) {
-    console.error(`[API PATCH /api/columns/${id}] Error:`, error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return jsonError(error);
   }
 }
 
@@ -50,11 +46,9 @@ export async function DELETE(
   }
   
   try {
-    await prisma.column.delete({ where: { id } });
+    await columnService.deleteColumn(id);
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error(`[API DELETE /api/columns/${id}] Error:`, error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return jsonError(error);
   }
 } 
