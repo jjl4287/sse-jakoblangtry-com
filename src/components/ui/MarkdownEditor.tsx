@@ -33,6 +33,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<PreviewMode>('edit');
+  const [buffer, setBuffer] = useState(value);
   const { theme } = useTheme(); // Get theme from context
   
   // Use override theme if provided, otherwise use context theme
@@ -41,6 +42,16 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => setBuffer(value), [value]);
+
+  useEffect(() => {
+    if (debounceMs <= 0) return;
+    const t = setTimeout(() => {
+      if (buffer !== value) onChange(buffer);
+    }, debounceMs);
+    return () => clearTimeout(t);
+  }, [buffer, value, onChange, debounceMs]);
 
   // Define an explicit list of commands to include, excluding mode buttons and fullscreen
   const customCommands = [
@@ -81,16 +92,6 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   }
 
   // Optional debounced onChange
-  const [buffer, setBuffer] = useState(value);
-  useEffect(() => setBuffer(value), [value]);
-  useEffect(() => {
-    if (debounceMs <= 0) return;
-    const t = setTimeout(() => {
-      if (buffer !== value) onChange(buffer);
-    }, debounceMs);
-    return () => clearTimeout(t);
-  }, [buffer, value, onChange, debounceMs]);
-
   const handleImmediateChange = (next?: string) => {
     if (debounceMs > 0) {
       setBuffer(next ?? '');
