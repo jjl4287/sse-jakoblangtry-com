@@ -54,6 +54,7 @@ class LocalStorageService {
   private readonly VERSION_KEY = 'sse_local_boards_version';
   private readonly CURRENT_VERSION = LOCAL_BOARDS_VERSION;
   private hasFixedBoardIds = false; // Prevent multiple fix attempts
+  private hasCheckedVersion = false; // Avoid redundant migrations per session
 
   // Check if a board ID represents a local board
   isLocalBoard(boardId: string): boolean {
@@ -477,12 +478,26 @@ class LocalStorageService {
 
   // Data validation and migration
   private ensureVersionCompatibility(): void {
+    // Guard against SSR environments where localStorage is not available
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
+
     const currentVersion = localStorage.getItem(this.VERSION_KEY);
-    
+
+    // Skip if we've already validated this version in the current session
+    if (this.hasCheckedVersion && currentVersion === this.CURRENT_VERSION) {
+      return;
+    }
+
     if (currentVersion !== this.CURRENT_VERSION) {
       console.log('Migrating local boards to new version...');
       this.migrateLocalBoards(currentVersion || '1.0');
+      // Ensure the version marker is updated even when there were no boards to migrate
+      localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
     }
+
+    this.hasCheckedVersion = true;
     
     // Note: Removed fixBoardIds call to prevent infinite recursion
     // fixBoardIds should be called manually when needed
