@@ -14,7 +14,7 @@ export default function Providers({ children }: ProvidersProps) {
     <SessionProvider>
       <ThemeProvider>
         {children}
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="bottom-right" closeButton />
       </ThemeProvider>
     </SessionProvider>
   );
