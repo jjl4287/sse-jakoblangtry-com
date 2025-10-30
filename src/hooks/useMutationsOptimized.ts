@@ -849,7 +849,7 @@ export function useOptimizedMutations(
     console.log(`🌐 Proceeding with API call for remote board operation: ${operation.type}`);
     
     try {
-      let response: Response;
+      let response: Response | undefined;
       
       switch (operation.type) {
         case 'card_move':
@@ -902,6 +902,10 @@ export function useOptimizedMutations(
           break;
           
         case 'card_create':
+          if (!operation.cardData) {
+            throw new Error(`Invalid card create operation: cardData is missing`);
+          }
+          
           console.log(`📦 Card create API call: /api/cards`, operation.cardData);
           response = await fetch('/api/cards', {
             method: 'POST',
@@ -997,6 +1001,10 @@ export function useOptimizedMutations(
           throw new Error(`Unknown operation type: ${operation.type}`);
       }
 
+      if (!response) {
+        throw new Error(`Failed to initialize response for operation ${operation.type}`);
+      }
+
       console.log(`📡 Response status for ${operation.type}:`, response.status, response.ok);
 
       if (!response.ok) {
@@ -1056,14 +1064,22 @@ export function useOptimizedMutations(
         // Don't show toasts for card moves and updates - they're frequent and would be annoying
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      const errorDetails = error instanceof Error 
+        ? { message: error.message, name: error.name, stack: error.stack }
+        : { error: String(error) };
+      
       console.error(`❌ Operation ${operation.type} failed (attempt ${operation.retryCount + 1}):`, {
-        operation,
-        error: errorMessage,
-        fullError: error
+        operationType: operation.type,
+        operationId: operation.id,
+        errorMessage,
+        errorDetails,
+        errorStack,
       });
       
-      operationQueue.current.markFailed(operation.id, error as Error);
+      const errorToStore = error instanceof Error ? error : new Error(errorMessage);
+      operationQueue.current.markFailed(operation.id, errorToStore);
       
       if (operation.retryCount >= 3) {
         // Handle specific rollback logic for different operation types

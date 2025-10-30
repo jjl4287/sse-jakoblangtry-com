@@ -489,7 +489,7 @@ class LocalStorageService {
     if (this.hasCheckedVersion && currentVersion === this.CURRENT_VERSION) {
       return;
     }
-
+    
     if (currentVersion !== this.CURRENT_VERSION) {
       console.log('Migrating local boards to new version...');
       this.migrateLocalBoards(currentVersion || '1.0');
